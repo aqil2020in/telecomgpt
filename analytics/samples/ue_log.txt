@@ -1,0 +1,15 @@
+2026-06-10 08:00:00 INFO  [RRC] Cell search started band=n78
+2026-06-10 08:00:01 INFO  [RRC] SSB found PCI=101 GSCN=7880
+2026-06-10 08:00:02 DEBUG [MAC] DL grant DCI format 1_1 MCS=27 RB=273
+2026-06-10 08:00:03 INFO  [PHY] RSRP=-95 RSRQ=-12 SINR=18
+2026-06-10 08:00:04 WARN  [RLC] Retransmission AM PDU sn=1024
+2026-06-10 08:00:05 ERROR [MAC] HARQ NACK process=3 TB size mismatch
+2026-06-10 08:00:06 INFO  [PHY] Throughput DL=420 Mbps
+2026-06-10 08:00:07 ERROR [MAC] HARQ NACK process=3 TB size mismatch
+2026-06-10 08:00:08 INFO  [RRC] Measurement report n78 PCI=101
+2026-06-10 08:00:09 FATAL [NAS] Registration rejected cause=111
+2026-06-10 08:00:10 INFO  [RRC] Re-establishment triggered
+2026-06-10 08:00:11 WARN  [PDCP] Out-of-order PDU count=12
+2026-06-10 08:00:12 ERROR [RRC] RACH preamble collision attempt=2
+2026-06-10 08:00:13 INFO  [PHY] RSRP=-88 RSRQ=-8 SINR=26
+2026-06-10 08:00:14 DEBUG [MAC] UL grant BSR triggered

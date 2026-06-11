@@ -23,9 +23,11 @@ if TYPE_CHECKING:
 
 _SYSTEM_PROMPT = (
     "You are TelecomGPT, an expert assistant for cellular/RF engineering "
-    "(5G NR, LTE, 3GPP specifications). Answer concisely and precisely. "
-    "Ground your answer in the provided knowledge-base context when relevant, "
-    "and cite 3GPP spec clauses where applicable. If you are not sure, say so."
+    "(5G NR, LTE, 3GPP specifications). Give clear, structured, detailed answers "
+    "like a technical blog post: use headings or bullet points when helpful, "
+    "compare technologies side-by-side when asked, and cite 3GPP spec clauses "
+    "where applicable. Ground answers in the provided knowledge-base context. "
+    "If you are not sure, say so."
 )
 
 _OLLAMA_DEFAULT_BASE = "http://localhost:11434/v1"
@@ -33,10 +35,18 @@ _OLLAMA_DEFAULT_MODEL = "llama3.1:latest"
 _OPENAI_DEFAULT_MODEL = "gpt-4o-mini"
 
 
-def llm_answer(query: str, db: "TelecomDB") -> str:
+def llm_answer(
+    query: str,
+    db: "TelecomDB",
+    history: list[dict[str, str]] | None = None,
+) -> str:
     context = db.context_for(query)
 
-    answer = _call_configured_llm(query, context)
+    comparison = db.answer_comparison(query)
+    if comparison:
+        return comparison
+
+    answer = _call_configured_llm(query, context, history=history)
     if answer:
         return answer
 
@@ -95,13 +105,18 @@ def _ollama_reachable() -> bool:
         return False
 
 
-def _call_configured_llm(query: str, context: str) -> str | None:
+def _call_configured_llm(
+    query: str,
+    context: str,
+    history: list[dict[str, str]] | None = None,
+) -> str | None:
     provider = _llm_provider()
 
     if provider == "ollama":
         return _call_chat_api(
             query,
             context,
+            history=history,
             base_url=_ollama_base_url(),
             api_key=os.environ.get("OLLAMA_API_KEY", "ollama"),
             model=os.environ.get("OLLAMA_MODEL", _OLLAMA_DEFAULT_MODEL),
@@ -114,6 +129,7 @@ def _call_configured_llm(query: str, context: str) -> str | None:
         return _call_chat_api(
             query,
             context,
+            history=history,
             base_url=None,
             api_key=api_key,
             model=os.environ.get("TELECOMGPT_MODEL", _OPENAI_DEFAULT_MODEL),
@@ -124,6 +140,7 @@ def _call_configured_llm(query: str, context: str) -> str | None:
         answer = _call_chat_api(
             query,
             context,
+            history=history,
             base_url=_ollama_base_url(),
             api_key=os.environ.get("OLLAMA_API_KEY", "ollama"),
             model=os.environ.get("OLLAMA_MODEL", _OLLAMA_DEFAULT_MODEL),
@@ -136,6 +153,7 @@ def _call_configured_llm(query: str, context: str) -> str | None:
         return _call_chat_api(
             query,
             context,
+            history=history,
             base_url=None,
             api_key=api_key,
             model=os.environ.get("TELECOMGPT_MODEL", _OPENAI_DEFAULT_MODEL),
@@ -147,6 +165,7 @@ def _call_chat_api(
     query: str,
     context: str,
     *,
+    history: list[dict[str, str]] | None = None,
     base_url: str | None,
     api_key: str,
     model: str,
@@ -160,6 +179,14 @@ def _call_chat_api(
     if context:
         user_content = f"Knowledge-base context:\n{context}\n\nQuestion: {query}"
 
+    messages: list[dict[str, str]] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    for msg in (history or [])[-10:]:
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        if role in ("user", "assistant") and content:
+            messages.append({"role": role, "content": content})
+    messages.append({"role": "user", "content": user_content})
+
     try:
         kwargs: dict = {"api_key": api_key}
         if base_url:
@@ -167,12 +194,9 @@ def _call_chat_api(
         client = OpenAI(**kwargs, timeout=float(os.environ.get("LLM_TIMEOUT_SEC", "120")))
         response = client.chat.completions.create(
             model=model,
-            messages=[
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": user_content},
-            ],
-            temperature=0.2,
-            max_tokens=500,
+            messages=messages,
+            temperature=0.3,
+            max_tokens=int(os.environ.get("LLM_MAX_TOKENS", "1200")),
         )
         content = response.choices[0].message.content
         return content.strip() if content else None

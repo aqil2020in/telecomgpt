@@ -11,6 +11,23 @@ from .state import Intent, TelecomState
 _DEVICE_KW = ("s23", "s24", "s25", "iphone 16", "iphone 17", "pixel")
 _CA_KW = ("ca", "carrier aggregation", "endc", "nrdc")
 _DEFINE_KW = ("what is", "what's", "explain", "define", "describe", "tell me about")
+_DETAIL_KW = (
+    "difference",
+    "different",
+    "compare",
+    "comparison",
+    " vs ",
+    " versus ",
+    "how does",
+    "how do",
+    "why does",
+    "advantages",
+    "disadvantages",
+    "pros and cons",
+    "better than",
+    "similarities",
+    "between",
+)
 
 
 def build_graph(db: TelecomDB):
@@ -19,9 +36,17 @@ def build_graph(db: TelecomDB):
     def classify(state: TelecomState) -> dict:
         q = state["query"].lower()
         query = state["query"]
+        history = state.get("history") or []
         intent: Intent = "llm"
 
-        if any(k in q for k in _DEVICE_KW):
+        # Comparisons and multi-part explanations → LLM (or KB comparison text)
+        if any(k in q for k in _DETAIL_KW) or db.answer_comparison(query):
+            intent = "llm"
+        elif history and not looks_like_phy_math(query):
+            # Follow-up chat turns → LLM for conversational context
+            if not any(k in q for k in _DEVICE_KW) and "ca" not in q:
+                intent = "llm"
+        elif any(k in q for k in _DEVICE_KW):
             intent = "device"
         elif any(k in q for k in _CA_KW):
             intent = "ca_endc"
@@ -67,7 +92,11 @@ def build_graph(db: TelecomDB):
         return {"answer": answer, "steps": ["node:band_regulatory"]}
 
     def llm_node(state: TelecomState) -> dict:
-        answer = llm_answer(state["query"], db)
+        answer = llm_answer(
+            state["query"],
+            db,
+            history=state.get("history"),
+        )
         return {"answer": answer, "steps": ["node:llm"]}
 
     graph.add_node("classify", classify)
@@ -115,11 +144,12 @@ def build_graph(db: TelecomDB):
     return graph.compile()
 
 
-def initial_state(query: str) -> TelecomState:
+def initial_state(query: str, history: list[dict[str, str]] | None = None) -> TelecomState:
     return {
         "query": query,
         "intent": None,
         "answer": None,
         "context": None,
+        "history": history or [],
         "steps": [],
     }

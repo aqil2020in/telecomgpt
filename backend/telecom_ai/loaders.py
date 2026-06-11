@@ -493,6 +493,19 @@ class TelecomDB:
                 return term
         return ""
 
+    def answer_comparison(self, query: str) -> str:
+        ql = query.lower()
+        if not any(
+            h in ql
+            for h in ("difference", "compare", " vs ", " versus ", "between", "differ")
+        ):
+            return ""
+        has_lte = "lte" in ql or "4g" in ql
+        has_5g = "5g" in ql or "nr" in ql
+        if has_lte and has_5g:
+            return self.db.get("comparisons", {}).get("lte_5g", "")
+        return ""
+
     def answer_unknown_query(self, query: str) -> str:
         """Helpful offline response when a define/explain query misses the glossary."""
         term = self.extract_query_term(query)

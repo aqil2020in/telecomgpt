@@ -24,7 +24,38 @@ backend/                  FastAPI + knowledge base + calculators
     gscn_calculator.py      GSCN <-> SSB frequency (TS 38.104 §5.4.3.1)
     throughput_calculator.py  NR peak data rate (TS 38.306 §4.1.2)
 frontend/                 Next.js (pages router, TypeScript) minimal ask UI
+analytics/                CSV + log analysis dashboard (Streamlit)
+  app.py                  Interactive charts (line, bar, histogram, scatter, box)
+  samples/                Example drive-test CSV and UE log
+  backend/analytics/      Shared analytics engine (CSV, logs, Plotly charts)
 ```
+
+## Analytics (CSV, logs, charts)
+
+Interactive dashboard for drive-test CSVs, KPI exports, and UE/gNB logs.
+
+```powershell
+pip install -r analytics/requirements.txt
+pip install -r backend/requirements.txt   # if using API endpoints too
+streamlit run analytics/app.py            # http://localhost:8501
+```
+
+| Feature | What it does |
+| --- | --- |
+| **CSV tab** | Upload or load sample → preview, stats, null counts |
+| **Charts** | Line, bar, histogram, scatter, box (Plotly) |
+| **Log tab** | Parse INFO/WARN/ERROR/FATAL, top error patterns, level chart |
+| **Samples** | `analytics/samples/drive_test.csv`, `ue_log.txt` |
+
+**REST API** (when backend is running):
+
+| Endpoint | Input | Output |
+| --- | --- | --- |
+| `POST /api/analytics/csv/summary` | CSV file | Row/column stats + preview |
+| `POST /api/analytics/csv/chart` | CSV + chart_type, x, y | Plotly JSON |
+| `POST /api/analytics/logs/analyze` | `.log` / `.txt` | Level counts + top errors + chart |
+
+Try in Swagger: http://localhost:8000/docs
 
 ## Quick start
 

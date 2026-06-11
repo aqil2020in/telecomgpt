@@ -3,3 +3,6 @@ uvicorn
 openai
 langgraph
 langchain-core
+pandas
+plotly
+python-multipart

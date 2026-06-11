@@ -340,6 +340,10 @@
     "EN-DC": "E-UTRAN New Radio Dual Connectivity — the NSA architecture where a UE connects to LTE (anchor) and NR simultaneously.",
     "NR-DC": "New Radio Dual Connectivity — a UE connects to two NR cell groups at once, typically an FR1 master (e.g. n78) plus an FR2 secondary (e.g. n258/n260), combining coverage with mmWave capacity.",
     "VoNR": "Voice over New Radio — IMS voice carried natively over a 5G SA connection.",
-    "5G": "Fifth-generation cellular — defined by 3GPP NR (New Radio) in FR1 (sub-6 GHz) and FR2 (mmWave), supporting SA (5G core) and NSA (EN-DC with LTE anchor) deployment."
+    "5G": "Fifth-generation cellular — defined by 3GPP NR (New Radio) in FR1 (sub-6 GHz) and FR2 (mmWave), supporting SA (5G core) and NSA (EN-DC with LTE anchor) deployment.",
+    "LTE": "Long Term Evolution (4G) — 3GPP Release 8+ OFDMA/SC-FDMA cellular system (E-UTRA). Uses LTE bands (e.g. b3, b7, b66), up to 20 MHz carriers (CA wider), peak DL ~1 Gbps class, EPS core. Still widely deployed as anchor for NSA 5G (EN-DC)."
+  },
+  "comparisons": {
+    "lte_5g": "**LTE (4G) vs 5G (NR) — key differences**\n\n**Radio access:** LTE uses OFDMA downlink / SC-FDMA uplink (3GPP TS 36 series). 5G NR uses flexible numerology (15–120 kHz SCS), massive MIMO, beamforming, and mmWave bands (FR2) — TS 38 series.\n\n**Core network:** LTE connects to EPC (MME/S-GW/P-GW). 5G SA uses 5GC (AMF/SMF/UPF) with network slicing, edge-friendly UPF placement, and native VoNR.\n\n**Deployment:** NSA (EN-DC) anchors NR to LTE for coverage; SA runs NR standalone on 5GC.\n\n**Performance:** 5G targets higher peak rates (multi-Gbps on mmWave), lower latency (~1 ms RTT class for URLLC), and larger cells-per-band capacity via wider channels (100 MHz FR1) and MU-MIMO.\n\n**Spectrum:** LTE bands b1–b66 etc.; NR adds n77/n78 C-Band, n41, and mmWave n257–n261.\n\n**When to use which:** LTE remains the coverage and voice anchor in many networks; 5G NR adds capacity and new services (FWA, private 5G, low-latency IoT)."
   }
 }

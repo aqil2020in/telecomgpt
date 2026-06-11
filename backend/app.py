@@ -21,10 +21,21 @@ from pydantic import BaseModel
 
 from telecom_ai.core import TelecomAI
 
+try:
+    from analytics.routes import router as analytics_router
+except ImportError:
+    analytics_router = None
+
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
 
 class Query(BaseModel):
     query: str
     trace: bool = False
+    history: list[ChatMessage] = []
 
 
 app = FastAPI(title="TelecomGPT", version="0.3.0")
@@ -42,6 +53,9 @@ if not DB_PATH.exists():
 
 agent = TelecomAI(db_path=str(DB_PATH))
 
+if analytics_router is not None:
+    app.include_router(analytics_router)
+
 
 @app.get("/")
 def root():
@@ -54,15 +68,20 @@ def root():
             "GET /api/health": "liveness probe",
             "GET /api/devices": "device summaries",
             "GET /api/bands": "NR + LTE band plans",
+            "POST /api/analytics/csv/summary": "CSV upload -> summary",
+            "POST /api/analytics/csv/chart": "CSV upload -> Plotly chart JSON",
+            "POST /api/analytics/logs/analyze": "Log upload -> level counts + errors",
         },
+        "analytics_ui": "streamlit run analytics/app.py",
     }
 
 
 @app.post("/ask")
 def ask(q: Query):
+    history = [{"role": m.role, "content": m.content} for m in q.history]
     if q.trace:
-        return agent.run_with_trace(q.query)
-    return {"answer": agent.run(q.query)}
+        return agent.run_with_trace(q.query, history=history)
+    return {"answer": agent.run(q.query, history=history)}
 
 
 @app.get("/api/health")

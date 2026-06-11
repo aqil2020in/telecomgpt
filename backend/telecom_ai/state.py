@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Literal, TypedDict
+from typing import Annotated, Any, Literal, TypedDict
 
 Intent = Literal[
     "device",
@@ -16,9 +16,12 @@ Intent = Literal[
 ]
 
 
-class TelecomState(TypedDict):
+class TelecomState(TypedDict, total=False):
     query: str
     intent: Intent | None
     answer: str | None
     context: str | None
+    history: list[dict[str, str]]
     steps: Annotated[list[str], operator.add]
+
+ChatMessage = dict[str, Any]
