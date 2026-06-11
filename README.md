@@ -45,7 +45,7 @@ npm run dev                  # serves http://localhost:3000
 ```
 
 The page calls the backend at `NEXT_PUBLIC_API_URL` (defaults to
-`https://telecomgpt-api.onrender.com`). For local dev, set
+`https://telecomgpt.onrender.com`). For local dev, set
 `NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.local`. CORS is
 enabled on the FastAPI app.
 

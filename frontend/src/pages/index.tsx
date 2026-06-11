@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ?? "https://telecomgpt-api.onrender.com";
+  process.env.NEXT_PUBLIC_API_URL ?? "https://telecomgpt.onrender.com";
 
 export default function Home() {
   const [query, setQuery] = useState("");
