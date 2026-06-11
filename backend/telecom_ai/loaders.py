@@ -476,6 +476,48 @@ class TelecomDB:
                 return out
         return ""
 
+    _DEFINE_PREFIXES = (
+        "what is",
+        "what's",
+        "explain",
+        "define",
+        "describe",
+        "tell me about",
+    )
+
+    def extract_query_term(self, query: str) -> str:
+        ql = query.lower().strip().rstrip("?.!")
+        for prefix in self._DEFINE_PREFIXES:
+            if ql.startswith(prefix + " "):
+                term = ql[len(prefix) + 1 :].strip().strip("\"'")
+                return term
+        return ""
+
+    def answer_unknown_query(self, query: str) -> str:
+        """Helpful offline response when a define/explain query misses the glossary."""
+        term = self.extract_query_term(query)
+        if not term:
+            return ""
+
+        handbook = self.db.get("glossary_refs", {}).get(
+            "handbook",
+            "https://www.sharetechnote.com/html/5G/Handbook_5G_Index.html",
+        )
+        slug = re.sub(r"[^a-z0-9]+", "_", term.upper()).strip("_")
+        guess = f"https://www.sharetechnote.com/html/5G/5G_{slug}.html"
+        samples = ", ".join(sorted(self.db.get("glossary", {}))[:14])
+
+        return (
+            f'No built-in entry for "{term}" yet.\n\n'
+            f"Known glossary terms include: {samples}, …\n\n"
+            f"Try: NR bands (What is n78?), devices (Does the S24 support n79?), "
+            f"CA/EN-DC combos, or calculations (ARFCN 632448, GSCN 7880).\n\n"
+            f"ShareTechnote 5G handbook: {handbook}\n"
+            f"Possible topic page: {guess}\n\n"
+            f"For open-ended answers, set OPENAI_API_KEY on the Render service "
+            f"(Environment → Add Variable) and redeploy."
+        )
+
     def context_for(self, query: str) -> str:
         """Assemble compact knowledge-base context for the LLM fallback."""
         parts: list[str] = []

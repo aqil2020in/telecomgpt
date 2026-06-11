@@ -125,6 +125,11 @@ python backend/tools/throughput_calculator.py
   before engineering use.
 - The routing layer is deterministic and traceable: every numeric answer cites
   the 3GPP clause used to compute it.
-- To enable the LLM fallback for open-ended questions: `pip install openai`,
-  set `OPENAI_API_KEY`, and optionally `TELECOMGPT_MODEL` (default `gpt-4o-mini`).
+- To enable the LLM fallback for open-ended questions:
+  1. Create an [OpenAI API key](https://platform.openai.com/api-keys)
+  2. On **Render** → **telecomgpt** → **Environment** → add `OPENAI_API_KEY`
+  3. Optional: `TELECOMGPT_MODEL` (default `gpt-4o-mini`)
+  4. **Manual Deploy** to pick up the variable
+- Without `OPENAI_API_KEY`, TelecomGPT answers from the built-in glossary, bands,
+  devices, and calculators; unknown terms get ShareTechnote handbook links.
 - `python backend/smoke_test.py` exercises all five routing branches.

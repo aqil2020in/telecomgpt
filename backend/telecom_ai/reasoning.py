@@ -49,12 +49,22 @@ def llm_answer(query: str, db: "TelecomDB") -> str:
     if band:
         return band
 
+    unknown = db.answer_unknown_query(query)
+    if unknown:
+        return unknown
+
+    handbook = db.db.get("glossary_refs", {}).get(
+        "handbook",
+        "https://www.sharetechnote.com/html/5G/Handbook_5G_Index.html",
+    )
+    samples = ", ".join(sorted(db.db.get("glossary", {}))[:10])
+
     return (
-        "I couldn't map that to a telecom intent, and no LLM is configured "
-        "(set OPENAI_API_KEY to enable fallback reasoning). Try asking about "
-        "an NR band (\"What is n78?\"), a device (\"Does the S24 support n79?\"), "
-        "CA/EN-DC capability, or a calculation (\"ARFCN 632448\", \"GSCN 7880\", "
-        "\"max throughput 100 MHz 4 layers 256QAM\")."
+        f"I couldn't map that to a telecom intent.\n\n"
+        f"Known topics: {samples}, NR bands (n78), devices (S24), CA/EN-DC, "
+        f"ARFCN/GSCN math.\n\n"
+        f"5G handbook: {handbook}\n\n"
+        f"For open-ended Q&A, add OPENAI_API_KEY in Render → Environment and redeploy."
     )
 
 
