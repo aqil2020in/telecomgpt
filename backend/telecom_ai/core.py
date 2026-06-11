@@ -47,9 +47,6 @@ class TelecomAI:
             resp = self.db.glossary_lookup(query)
             if resp:
                 return resp
-            resp = self.db.answer_unknown_query(query)
-            if resp:
-                return resp
 
         # Glossary acronyms without "what is" (e.g. "PRACH", "PDCCH meaning")
         resp = self.db.glossary_lookup(query)

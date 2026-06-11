@@ -62,6 +62,38 @@ Or deploy with the included `render.yaml` blueprint (uses `rootDir: backend`).
 
 **Live API:** https://telecomgpt.onrender.com
 
+#### Local LLM with Ollama (your PC)
+
+Render cannot reach Ollama on your home PC. Use Ollama when running the **backend
+locally**:
+
+```powershell
+# 1. Install and start Ollama — https://ollama.com
+ollama pull llama3.1
+
+# 2. Run the backend with Ollama enabled
+cd backend
+$env:TELECOMGPT_LLM = "ollama"
+$env:OLLAMA_MODEL = "llama3.1:latest"   # must match `ollama list` on your PC
+$env:OLLAMA_BASE_URL = "http://localhost:11434/v1"  # optional
+uvicorn app:app --host 0.0.0.0 --port 8000
+
+# 3. Point the frontend at localhost
+cd ../frontend
+$env:NEXT_PUBLIC_API_URL = "http://localhost:8000"
+npm run dev
+```
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TELECOMGPT_LLM` | `auto` | `ollama`, `openai`, or `auto` (try Ollama, then OpenAI) |
+| `OLLAMA_BASE_URL` | `http://localhost:11434/v1` | Ollama OpenAI-compatible endpoint |
+| `OLLAMA_MODEL` | `llama3.1:latest` | Model name from `ollama list` |
+| `OPENAI_API_KEY` | — | Cloud fallback when `TELECOMGPT_LLM=openai` or `auto` |
+
+To use Ollama with the **Vercel UI** + **local backend**, keep step 3 above
+(`NEXT_PUBLIC_API_URL=http://localhost:8000`) — do not use the Render URL.
+
 ### Deploy frontend (Vercel)
 
 Import `aqil2020in/telecomgpt` on [Vercel](https://vercel.com) and set:

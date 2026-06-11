@@ -514,8 +514,8 @@ class TelecomDB:
             f"CA/EN-DC combos, or calculations (ARFCN 632448, GSCN 7880).\n\n"
             f"ShareTechnote 5G handbook: {handbook}\n"
             f"Possible topic page: {guess}\n\n"
-            f"For open-ended answers, set OPENAI_API_KEY on the Render service "
-            f"(Environment → Add Variable) and redeploy."
+            f"For open-ended answers locally, run Ollama and set TELECOMGPT_LLM=ollama "
+            f"(see README). Or set OPENAI_API_KEY on Render and redeploy."
         )
 
     def context_for(self, query: str) -> str:
