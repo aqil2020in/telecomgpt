@@ -2,7 +2,7 @@ services:
   - type: web
     name: telecomgpt-api
     runtime: python
-    plan: free
+    plan: starter
     rootDir: backend
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT

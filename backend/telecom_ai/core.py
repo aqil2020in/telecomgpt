@@ -39,14 +39,19 @@ class TelecomAI:
             if resp:
                 return resp
 
-        # 4. FCC / bands / glossary ("what is n78?", "what is 5G?")
-        if "what is" in q or "what's" in q:
+        # 4. FCC / bands / glossary ("what is n78?", "what is PRACH?")
+        if any(p in q for p in ("what is", "what's", "explain", "define", "describe")):
             resp = self.db.answer_band_regulatory(query)
             if resp:
                 return resp
             resp = self.db.glossary_lookup(query)
             if resp:
                 return resp
+
+        # Glossary acronyms without "what is" (e.g. "PRACH", "PDCCH meaning")
+        resp = self.db.glossary_lookup(query)
+        if resp:
+            return resp
 
         if "fcc" in q or "us band" in q or "nr band" in q:
             resp = self.db.answer_band_regulatory(query)

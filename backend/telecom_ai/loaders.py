@@ -462,9 +462,18 @@ class TelecomDB:
     # ------------------------------------------------------------------ #
     def glossary_lookup(self, query: str) -> str:
         ql = query.lower()
-        for term, definition in self.db.get("glossary", {}).items():
+        terms = sorted(
+            self.db.get("glossary", {}).items(),
+            key=lambda item: len(item[0]),
+            reverse=True,
+        )
+        for term, definition in terms:
             if re.search(rf"\b{re.escape(term.lower())}\b", ql):
-                return f"{term}: {definition}"
+                ref = self.db.get("glossary_refs", {}).get(term.upper())
+                out = f"{term}: {definition}"
+                if ref:
+                    out += f" (ref: {ref})"
+                return out
         return ""
 
     def context_for(self, query: str) -> str:
