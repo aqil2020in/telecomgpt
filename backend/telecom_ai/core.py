@@ -39,7 +39,15 @@ class TelecomAI:
             if resp:
                 return resp
 
-        # 4. FCC / bands
+        # 4. FCC / bands / glossary ("what is n78?", "what is 5G?")
+        if "what is" in q or "what's" in q:
+            resp = self.db.answer_band_regulatory(query)
+            if resp:
+                return resp
+            resp = self.db.glossary_lookup(query)
+            if resp:
+                return resp
+
         if "fcc" in q or "us band" in q or "nr band" in q:
             resp = self.db.answer_band_regulatory(query)
             if resp:

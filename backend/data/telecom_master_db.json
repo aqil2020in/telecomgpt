@@ -300,6 +300,7 @@
     "PRB": "Physical Resource Block — 12 consecutive subcarriers; the basic unit of frequency-domain scheduling.",
     "EN-DC": "E-UTRAN New Radio Dual Connectivity — the NSA architecture where a UE connects to LTE (anchor) and NR simultaneously.",
     "NR-DC": "New Radio Dual Connectivity — a UE connects to two NR cell groups at once, typically an FR1 master (e.g. n78) plus an FR2 secondary (e.g. n258/n260), combining coverage with mmWave capacity.",
-    "VoNR": "Voice over New Radio — IMS voice carried natively over a 5G SA connection."
+    "VoNR": "Voice over New Radio — IMS voice carried natively over a 5G SA connection.",
+    "5G": "Fifth-generation cellular — defined by 3GPP NR (New Radio) in FR1 (sub-6 GHz) and FR2 (mmWave), supporting SA (5G core) and NSA (EN-DC with LTE anchor) deployment."
   }
 }
