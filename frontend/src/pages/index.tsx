@@ -1,9 +1,13 @@
 import { useState } from "react";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ?? "https://telecomgpt-api.onrender.com";
+
 export default function Home() {
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("");
   const ask = async () => {
-    const res = await fetch("http://localhost:8000/ask", {
+    const res = await fetch(`${API_URL}/ask`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ query }),

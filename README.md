@@ -44,8 +44,21 @@ npm install
 npm run dev                  # serves http://localhost:3000
 ```
 
-The page calls the backend directly at `http://localhost:8000/ask` (CORS is
-enabled on the FastAPI app).
+The page calls the backend at `NEXT_PUBLIC_API_URL` (defaults to
+`https://telecomgpt-api.onrender.com`). For local dev, set
+`NEXT_PUBLIC_API_URL=http://localhost:8000` in `frontend/.env.local`. CORS is
+enabled on the FastAPI app.
+
+### Deploy backend (Render)
+
+Connect the GitHub repo on [Render](https://render.com). Set **Root Directory** to
+`backend`, then:
+
+- **Build:** `pip install -r requirements.txt`
+- **Start:** `uvicorn app:app --host 0.0.0.0 --port $PORT`
+- **Health check:** `/api/health`
+
+Or deploy with the included `render.yaml` blueprint (uses `rootDir: backend`).
 
 ## Example queries
 
