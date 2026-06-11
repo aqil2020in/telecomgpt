@@ -57,6 +57,22 @@ streamlit run analytics/app.py            # http://localhost:8501
 
 Try in Swagger: http://localhost:8000/docs
 
+### RAG (ShareTechnote + 3GPP references)
+
+Open-ended answers are grounded with **retrieved excerpts** from ingested pages
+(ShareTechnote 5G handbook, selected topics, 3GPP 5G overview). Chunks ship in
+`backend/data/rag/chunks.json` (~80 pages, BM25 search).
+
+Refresh the index locally:
+
+```bash
+python backend/scripts/ingest_rag.py
+# or POST /api/rag/reindex (dev — re-fetches the web)
+```
+
+With `OPENAI_API_KEY` set, the LLM synthesizes KB + RAG excerpts and appends
+**Sources** URLs. Without a key, RAG excerpts are returned directly for LLM-routed queries.
+
 ## Quick start
 
 ### 1. Backend (Python 3.10+)

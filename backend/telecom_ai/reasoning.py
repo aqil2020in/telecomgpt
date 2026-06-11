@@ -1,15 +1,4 @@
-"""LLM fallback reasoning for queries the rule-based router cannot answer.
-
-Providers (set ``TELECOMGPT_LLM``):
-
-    ollama  — local Ollama OpenAI-compatible API (default http://localhost:11434/v1)
-    openai  — OpenAI cloud API via ``OPENAI_API_KEY``
-    auto    — try Ollama if reachable, else OpenAI if key set (default)
-
-Ollama only works when the backend runs on the same machine as Ollama (or can
-reach ``OLLAMA_BASE_URL``). A Render-deployed API cannot call your home PC
-without a tunnel (ngrok, Cloudflare Tunnel, etc.).
-"""
+"""LLM fallback with RAG over ShareTechnote / 3GPP reference chunks."""
 
 from __future__ import annotations
 
@@ -21,12 +10,18 @@ from urllib.request import urlopen
 if TYPE_CHECKING:
     from .loaders import TelecomDB
 
+try:
+    from rag.retrieve import retrieve_with_citations
+except ImportError:
+    retrieve_with_citations = None  # type: ignore
+
 _SYSTEM_PROMPT = (
     "You are TelecomGPT, an expert assistant for cellular/RF engineering "
     "(5G NR, LTE, 3GPP specifications). Give clear, structured, detailed answers "
     "like a technical blog post: use headings or bullet points when helpful, "
     "compare technologies side-by-side when asked, and cite 3GPP spec clauses "
-    "where applicable. Ground answers in the provided knowledge-base context. "
+    "where applicable. Use the knowledge-base and reference excerpts provided; "
+    "when reference excerpts are included, synthesize them and mention source URLs. "
     "If you are not sure, say so."
 )
 
@@ -40,37 +35,54 @@ def llm_answer(
     db: "TelecomDB",
     history: list[dict[str, str]] | None = None,
 ) -> str:
-    context = db.context_for(query)
+    answer, _ = llm_answer_with_sources(query, db, history=history)
+    return answer
+
+
+def llm_answer_with_sources(
+    query: str,
+    db: "TelecomDB",
+    history: list[dict[str, str]] | None = None,
+) -> tuple[str, list[dict]]:
+    kb_context = db.context_for(query)
+    rag_context, cites = _retrieve(query)
 
     comparison = db.answer_comparison(query)
+
+    merged = _merge_context(kb_context, rag_context)
     if comparison:
-        return comparison
+        merged = f"Built-in comparison summary:\n{comparison}\n\n{merged}".strip()
 
-    answer = _call_configured_llm(query, context, history=history)
+    answer = _call_configured_llm(query, merged, history=history)
     if answer:
-        return answer
+        return _append_sources(answer, cites), cites
 
-    # Deterministic offline fallback: PHY math, CA/EN-DC combos, glossary,
-    # then band lookup.
+    rag_only = _rag_only_answer(cites, rag_context)
+    if rag_only:
+        return rag_only, cites
+
+    if comparison:
+        return comparison, cites
+
     from .loaders import looks_like_phy_math
 
     if looks_like_phy_math(query):
         phy = db.answer_phy_math(query)
         if phy:
-            return phy
+            return phy, cites
     combo = db.answer_ca_endc_nrdc(query)
     if combo:
-        return combo
+        return combo, cites
     gloss = db.glossary_lookup(query)
     if gloss:
-        return gloss
+        return gloss, cites
     band = db.answer_band_regulatory(query)
     if band:
-        return band
+        return band, cites
 
     unknown = db.answer_unknown_query(query)
     if unknown:
-        return unknown
+        return unknown, cites
 
     handbook = db.db.get("glossary_refs", {}).get(
         "handbook",
@@ -83,9 +95,40 @@ def llm_answer(
         f"Known topics: {samples}, NR bands (n78), devices (S24), CA/EN-DC, "
         f"ARFCN/GSCN math.\n\n"
         f"5G handbook: {handbook}\n\n"
-        f"For open-ended Q&A locally: run Ollama and set TELECOMGPT_LLM=ollama, "
-        f"or set OPENAI_API_KEY for cloud."
+        f"Run `python backend/scripts/ingest_rag.py` to refresh reference chunks."
+    ), cites
+
+
+def _retrieve(query: str) -> tuple[str, list[dict]]:
+    if retrieve_with_citations is None:
+        return "", []
+    k = int(os.environ.get("RAG_TOP_K", "5"))
+    return retrieve_with_citations(query, k=k)
+
+
+def _merge_context(kb: str, rag: str) -> str:
+    parts = []
+    if kb:
+        parts.append(f"TelecomGPT knowledge base:\n{kb}")
+    if rag:
+        parts.append(f"Reference excerpts (ShareTechnote / 3GPP):\n{rag}")
+    return "\n\n".join(parts)
+
+
+def _append_sources(answer: str, cites: list[dict]) -> str:
+    if not cites:
+        return answer
+    lines = [f"- {c.get('title', 'Source')}: {c.get('url', '')}" for c in cites[:5]]
+    return answer + "\n\nSources:\n" + "\n".join(lines)
+
+
+def _rag_only_answer(cites: list[dict], rag_context: str) -> str:
+    if not rag_context:
+        return ""
+    header = (
+        "Detailed reference material (no LLM configured or LLM unavailable):\n\n"
     )
+    return header + rag_context[:4000]
 
 
 def _llm_provider() -> str:
@@ -135,7 +178,6 @@ def _call_configured_llm(
             model=os.environ.get("TELECOMGPT_MODEL", _OPENAI_DEFAULT_MODEL),
         )
 
-    # auto: prefer local Ollama when running on same host, else OpenAI
     if _ollama_reachable():
         answer = _call_chat_api(
             query,
@@ -177,7 +219,7 @@ def _call_chat_api(
 
     user_content = query
     if context:
-        user_content = f"Knowledge-base context:\n{context}\n\nQuestion: {query}"
+        user_content = f"{context}\n\nQuestion: {query}"
 
     messages: list[dict[str, str]] = [{"role": "system", "content": _SYSTEM_PROMPT}]
     for msg in (history or [])[-10:]:

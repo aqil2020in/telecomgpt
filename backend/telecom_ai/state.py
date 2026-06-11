@@ -22,6 +22,7 @@ class TelecomState(TypedDict, total=False):
     answer: str | None
     context: str | None
     history: list[dict[str, str]]
+    sources: list[dict]
     steps: Annotated[list[str], operator.add]
 
 ChatMessage = dict[str, Any]

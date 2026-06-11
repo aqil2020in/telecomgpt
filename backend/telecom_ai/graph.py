@@ -5,7 +5,7 @@ from __future__ import annotations
 from langgraph.graph import END, START, StateGraph
 
 from .loaders import TelecomDB, looks_like_phy_math
-from .reasoning import llm_answer
+from .reasoning import llm_answer_with_sources
 from .state import Intent, TelecomState
 
 _DEVICE_KW = ("s23", "s24", "s25", "iphone 16", "iphone 17", "pixel")
@@ -92,12 +92,12 @@ def build_graph(db: TelecomDB):
         return {"answer": answer, "steps": ["node:band_regulatory"]}
 
     def llm_node(state: TelecomState) -> dict:
-        answer = llm_answer(
+        answer, sources = llm_answer_with_sources(
             state["query"],
             db,
             history=state.get("history"),
         )
-        return {"answer": answer, "steps": ["node:llm"]}
+        return {"answer": answer, "sources": sources, "steps": ["node:llm"]}
 
     graph.add_node("classify", classify)
     graph.add_node("device", device_node)
@@ -151,5 +151,6 @@ def initial_state(query: str, history: list[dict[str, str]] | None = None) -> Te
         "answer": None,
         "context": None,
         "history": history or [],
+        "sources": [],
         "steps": [],
     }

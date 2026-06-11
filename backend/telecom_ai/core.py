@@ -24,4 +24,5 @@ class TelecomAI:
             "answer": result.get("answer") or "",
             "intent": result.get("intent"),
             "steps": result.get("steps") or [],
+            "sources": result.get("sources") or [],
         }

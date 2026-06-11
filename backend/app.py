@@ -84,6 +84,17 @@ def ask(q: Query):
     return {"answer": agent.run(q.query, history=history)}
 
 
+@app.post("/api/rag/reindex")
+def rag_reindex():
+    """Rebuild RAG chunk store from ShareTechnote seed URLs (admin/dev)."""
+    from rag.ingest import SEED_URLS, ingest_urls
+    from rag.store import save_chunks
+
+    chunks = ingest_urls(SEED_URLS, follow_index=True)
+    path = save_chunks(chunks)
+    return {"status": "ok", "chunks": len(chunks), "path": str(path)}
+
+
 @app.get("/api/health")
 def health():
     return {"status": "ok", "devices": len(agent.db.devices)}

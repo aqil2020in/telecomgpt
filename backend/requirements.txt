@@ -6,3 +6,4 @@ langchain-core
 pandas
 plotly
 python-multipart
+requests
