@@ -42,6 +42,21 @@ if not DB_PATH.exists():
 agent = TelecomAI(db_path=str(DB_PATH))
 
 
+@app.get("/")
+def root():
+    return {
+        "name": "TelecomGPT API",
+        "docs": "/docs",
+        "ui": "https://telecomgpt.vercel.app",
+        "endpoints": {
+            "POST /ask": '{"query": "..."} -> {"answer": "..."}',
+            "GET /api/health": "liveness probe",
+            "GET /api/devices": "device summaries",
+            "GET /api/bands": "NR + LTE band plans",
+        },
+    }
+
+
 @app.post("/ask")
 def ask(q: Query):
     answer = agent.run(q.query)

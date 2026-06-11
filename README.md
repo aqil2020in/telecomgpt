@@ -60,7 +60,27 @@ Connect the GitHub repo on [Render](https://render.com). Set **Root Directory** 
 
 Or deploy with the included `render.yaml` blueprint (uses `rootDir: backend`).
 
-## Example queries
+**Live API:** https://telecomgpt.onrender.com
+
+### Deploy frontend (Vercel)
+
+Import `aqil2020in/telecomgpt` on [Vercel](https://vercel.com) and set:
+
+| Setting | Value |
+| --- | --- |
+| **Root Directory** | `frontend` |
+| **Framework** | Next.js (auto-detected) |
+| **Build Command** | `npm run build` (default) |
+| **Output** | `.next` (default) |
+
+Optional environment variable (already the code default):
+
+```
+NEXT_PUBLIC_API_URL=https://telecomgpt.onrender.com
+```
+
+**Live UI (after deploy):** https://telecomgpt.vercel.app
+
 
 | Query | What happens |
 | --- | --- |
