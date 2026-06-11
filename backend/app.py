@@ -24,6 +24,7 @@ from telecom_ai.core import TelecomAI
 
 class Query(BaseModel):
     query: str
+    trace: bool = False
 
 
 app = FastAPI(title="TelecomGPT", version="0.3.0")
@@ -59,8 +60,9 @@ def root():
 
 @app.post("/ask")
 def ask(q: Query):
-    answer = agent.run(q.query)
-    return {"answer": answer}
+    if q.trace:
+        return agent.run_with_trace(q.query)
+    return {"answer": agent.run(q.query)}
 
 
 @app.get("/api/health")

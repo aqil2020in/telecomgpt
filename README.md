@@ -11,7 +11,9 @@ optional LLM fallback (OpenAI) handles open-ended questions with knowledge-base 
 backend/                  FastAPI + knowledge base + calculators
   app.py                  REST API (POST /ask, /api/devices, /api/bands)
   telecom_ai/             Engine package
-    core.py               TelecomAI — keyword router (device -> CA/EN-DC -> PHY math -> bands -> LLM)
+    core.py               TelecomAI — LangGraph router over TelecomDB handlers
+    graph.py              LangGraph workflow (classify → handler → LLM)
+    state.py              Shared graph state (query, intent, steps, answer)
     loaders.py            TelecomDB — knowledge layer with answer_* methods
     reasoning.py          llm_answer — optional LLM fallback with KB context
   data/
@@ -145,7 +147,7 @@ python backend/tools/throughput_calculator.py
 
 | Method | Endpoint | Body | Returns |
 | --- | --- | --- | --- |
-| POST | `/ask` | `{"query": "..."}` | `{"answer": "..."}` |
+| POST | `/ask` | `{"query": "...", "trace": false}` | `{"answer": "..."}` or with `"trace": true` also `"intent"` and `"steps"` |
 | GET | `/api/devices` | — | Device summaries |
 | GET | `/api/bands` | — | NR + LTE band plans |
 | GET | `/api/health` | — | Liveness probe |

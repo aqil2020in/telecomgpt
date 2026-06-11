@@ -39,6 +39,14 @@ def main() -> None:
     r = client.get("/api/bands")
     assert r.status_code == 200 and "n78" in r.json()["nr_bands"]
     print("GET /api/devices, /api/bands OK")
+
+    r = client.post("/ask", json={"query": "what is prach?", "trace": True})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "PRACH" in body["answer"]
+    assert body.get("steps"), body
+    print("POST /ask trace OK:", body["steps"])
+
     print("All API tests passed.")
 
 

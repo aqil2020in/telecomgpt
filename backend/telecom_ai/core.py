@@ -1,62 +1,31 @@
-"""TelecomAI — keyword router over the TelecomDB knowledge layer.
+"""TelecomAI — LangGraph router over the TelecomDB knowledge layer.
 
-Routing order:
+Routing order (via LangGraph):
     1. Device capability        (device name/alias mentioned)
     2. CA / EN-DC / NR-DC       (aggregation & dual-connectivity)
     3. ARFCN / GSCN / throughput (PHY-layer math via 3GPP calculators)
-    4. FCC / band regulatory    (band plans, US spectrum)
+    4. FCC / band / glossary    (band plans, terms, US spectrum)
     5. LLM fallback             (grounded with knowledge-base context)
 """
 
 from __future__ import annotations
 
-from .loaders import TelecomDB, looks_like_phy_math
-from .reasoning import llm_answer
+from .graph import build_graph, initial_state
+from .loaders import TelecomDB
 
 
 class TelecomAI:
     def __init__(self, db_path: str):
         self.db = TelecomDB(db_path)
+        self.graph = build_graph(self.db)
 
     def run(self, query: str) -> str:
-        q = query.lower()
+        return self.run_with_trace(query)["answer"]
 
-        # 1. Device capability
-        if any(k in q for k in ["s23", "s24", "s25", "iphone 16", "iphone 17", "pixel"]):
-            resp = self.db.answer_device(query)
-            if resp:
-                return resp
-
-        # 2. CA / EN-DC / NR-DC
-        if "ca" in q or "carrier aggregation" in q or "endc" in q or "nrdc" in q:
-            resp = self.db.answer_ca_endc_nrdc(query)
-            if resp:
-                return resp
-
-        # 3. ARFCN / GSCN / throughput (keyword or calculable pattern)
-        if looks_like_phy_math(query):
-            resp = self.db.answer_phy_math(query)
-            if resp:
-                return resp
-
-        # 4. FCC / bands / glossary ("what is n78?", "what is PRACH?")
-        if any(p in q for p in ("what is", "what's", "explain", "define", "describe")):
-            resp = self.db.answer_band_regulatory(query)
-            if resp:
-                return resp
-            resp = self.db.glossary_lookup(query)
-            if resp:
-                return resp
-
-        # Glossary acronyms without "what is" (e.g. "PRACH", "PDCCH meaning")
-        resp = self.db.glossary_lookup(query)
-        if resp:
-            return resp
-
-        if "fcc" in q or "us band" in q or "nr band" in q:
-            resp = self.db.answer_band_regulatory(query)
-            if resp:
-                return resp
-
-        # 5. Fallback: LLM reasoning with context
-        return llm_answer(query, self.db)
+    def run_with_trace(self, query: str) -> dict:
+        result = self.graph.invoke(initial_state(query))
+        return {
+            "answer": result.get("answer") or "",
+            "intent": result.get("intent"),
+            "steps": result.get("steps") or [],
+        }
