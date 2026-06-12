@@ -108,19 +108,23 @@ def root():
             "GET /api/integrations": "External API / serverless integrations",
             "GET /api/monitoring/runs": "Recent orchestrator run summaries",
             "GET /api/engines": "Hybrid engine status (LangGraph + CrewAI + AutoGen)",
+            "GET /api/jobs/{job_id}": "Poll async /ask job status and result",
         },
         "analytics_ui": "streamlit run analytics/app.py",
     }
 
 
-@app.post("/ask")
-def ask(q: Query):
-    history = [{"role": m.role, "content": m.content} for m in q.history]
-    if _should_use_fast_ask(q.query, q.trace):
-        result = agent.run_fast(q.query, history=history, session_id=q.session_id)
-    else:
-        result = agent.run_with_trace(q.query, history=history, session_id=q.session_id)
-    if q.trace:
+def _is_slow_query(query: str) -> bool:
+    ql = query.lower()
+    slow_kw = (
+        "chart", "ppt", "powerpoint", "csv", "upload", "compare", "eval", "deploy",
+        "kaggle", "dashboard", "map", "excel", "report", "predict", "log", "smoke",
+    )
+    return any(k in ql for k in slow_kw)
+
+
+def _format_ask_result(result: dict, *, trace: bool) -> dict:
+    if trace:
         return result
     return {
         "answer": result.get("answer") or "",
@@ -135,18 +139,70 @@ def ask(q: Query):
     }
 
 
+@app.post("/ask")
+def ask(q: Query):
+    history = [{"role": m.role, "content": m.content} for m in q.history]
+    if _should_use_async_ask(q.query, q.trace):
+        from telecom_ai.job_store import job_store
+
+        job_id = job_store.create(q.query, trace=q.trace)
+
+        def _run() -> dict:
+            return agent.run_with_trace(q.query, history=history, session_id=q.session_id)
+
+        job_store.run_in_background(job_id, _run)
+        return {
+            "async": True,
+            "job_id": job_id,
+            "status": "queued",
+            "message": "Long task queued — poll GET /api/jobs/{job_id} for results.",
+        }
+
+    if _should_use_fast_ask(q.query, q.trace):
+        result = agent.run_fast(q.query, history=history, session_id=q.session_id)
+    else:
+        result = agent.run_with_trace(q.query, history=history, session_id=q.session_id)
+    return _format_ask_result(result, trace=q.trace)
+
+
+@app.get("/api/jobs/{job_id}")
+def get_job(job_id: str):
+    from fastapi import HTTPException
+
+    from telecom_ai.job_store import job_store
+
+    job = job_store.get(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    payload: dict = {
+        "job_id": job.id,
+        "status": job.status,
+        "query": job.query,
+        "created_at": job.created_at,
+        "updated_at": job.updated_at,
+    }
+    if job.status == "completed" and job.result:
+        payload.update(_format_ask_result(job.result, trace=job.trace))
+    if job.status == "failed":
+        payload["error"] = job.error or "Job failed"
+    return payload
+
+
+def _should_use_async_ask(query: str, trace: bool) -> bool:
+    if trace:
+        return False
+    if os.environ.get("TELECOMGPT_ASYNC_ASK", "1") != "1":
+        return False
+    return _is_slow_query(query)
+
+
 def _should_use_fast_ask(query: str, trace: bool) -> bool:
     """Use fast RAG+LLM path for typical Q&A (avoids Render timeout)."""
     if trace:
         return False
     if os.environ.get("TELECOMGPT_FAST_ASK", "1") != "1":
         return False
-    ql = query.lower()
-    slow_kw = (
-        "chart", "ppt", "powerpoint", "csv", "upload", "compare", "eval", "deploy",
-        "kaggle", "dashboard", "map", "excel", "report", "predict", "log", "smoke",
-    )
-    if any(k in ql for k in slow_kw):
+    if _is_slow_query(query):
         return False
     return len(query.split()) <= 24
 

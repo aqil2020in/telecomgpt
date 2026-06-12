@@ -57,7 +57,32 @@ type AskResponse = {
   confidence?: number;
   workflow_tasks?: { agent: string; status: string; category?: string }[];
   guardrail_issues?: string[];
+  async?: boolean;
+  job_id?: string;
+  status?: string;
+  error?: string;
+  message?: string;
 };
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function pollJob(jobId: string, onStatus?: (s: string) => void): Promise<AskResponse> {
+  const deadline = Date.now() + 8 * 60_000;
+  while (Date.now() < deadline) {
+    const res = await fetch(`${API_URL}/api/jobs/${jobId}`);
+    const data: AskResponse = await res.json();
+    if (!res.ok) {
+      throw new Error((data as { detail?: string }).detail ?? `Job poll failed (${res.status})`);
+    }
+    if (data.status) onStatus?.(data.status);
+    if (data.status === "completed") return data;
+    if (data.status === "failed") {
+      throw new Error(data.error ?? "Background job failed");
+    }
+    await sleep(2000);
+  }
+  throw new Error("Background job timed out after 8 minutes. Check Render logs and retry.");
+}
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
@@ -68,6 +93,7 @@ export default function Home() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showTrace, setShowTrace] = useState(false);
   const [apiReady, setApiReady] = useState<boolean | null>(null);
+  const [jobStatus, setJobStatus] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -91,6 +117,7 @@ export default function Home() {
     setInput("");
     setLoading(true);
     setError("");
+    setJobStatus(null);
 
     try {
       if (apiReady === false) {
@@ -98,7 +125,7 @@ export default function Home() {
       }
 
       const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 120_000);
+      const timer = window.setTimeout(() => controller.abort(), 30_000);
 
       const res = await fetch(`${API_URL}/ask`, {
         method: "POST",
@@ -112,10 +139,16 @@ export default function Home() {
         signal: controller.signal,
       });
       window.clearTimeout(timer);
-      const data: AskResponse = await res.json();
+      let data: AskResponse = await res.json();
       if (!res.ok) {
         throw new Error((data as { detail?: string }).detail ?? `Request failed (${res.status})`);
       }
+
+      if (data.async && data.job_id) {
+        setJobStatus(data.status ?? "queued");
+        data = await pollJob(data.job_id, setJobStatus);
+      }
+
       if (data.session_id) setSessionId(data.session_id);
       setMessages([
         ...nextMessages,
@@ -139,7 +172,7 @@ export default function Home() {
       const msg =
         e instanceof Error
           ? e.name === "AbortError"
-            ? "The request timed out after 2 minutes. Try a shorter question like “What is n78?” or wait and retry."
+            ? "Could not start the request in time. The server may be waking up — wait 30s and try again."
             : e.message.includes("fetch") || e.name === "TypeError"
               ? `Could not reach the API at ${API_URL}. The server may be waking up — wait 30s and try again.`
               : e.message
@@ -148,6 +181,7 @@ export default function Home() {
       setMessages(messages);
     } finally {
       setLoading(false);
+      setJobStatus(null);
     }
   };
 
@@ -369,7 +403,11 @@ export default function Home() {
 
         {loading && (
           <div style={{ color: "#666", fontSize: 14, marginBottom: 12 }}>
-            Running multi-agent pipeline…
+            {jobStatus === "running"
+              ? "Running multi-agent pipeline…"
+              : jobStatus === "queued"
+                ? "Queued — waiting for worker…"
+                : "Starting…"}
           </div>
         )}
 

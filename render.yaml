@@ -24,3 +24,5 @@ services:
         value: "openai"
       - key: LLM_TIMEOUT_FAST_SEC
         value: "30"
+      - key: TELECOMGPT_ASYNC_ASK
+        value: "1"
