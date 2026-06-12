@@ -400,12 +400,15 @@ def rag_reindex():
 def health():
     import os
 
+    from memory.runtime_config import low_memory_mode, vector_enabled
     from telecom_ai.engines import engine_status
     from telecom_ai.reasoning import _ollama_reachable
 
     return {
         "status": "ok",
         "devices": len(agent.db.devices),
+        "low_memory": low_memory_mode(),
+        "vector_enabled": vector_enabled(),
         "llm": {
             "openai_configured": bool(os.environ.get("OPENAI_API_KEY")),
             "ollama_reachable": _ollama_reachable(),

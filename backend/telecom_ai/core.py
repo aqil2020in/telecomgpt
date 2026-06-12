@@ -13,11 +13,17 @@ class TelecomAI:
     def __init__(self, db_path: str):
         self.db = TelecomDB(db_path)
         self._use_orchestrator = os.environ.get("TELECOMGPT_MODE", "orchestrator") != "legacy"
-        self.graph = (
-            build_orchestrator_graph(self.db)
-            if self._use_orchestrator
-            else build_graph(self.db)
-        )
+        self._graph = None
+
+    @property
+    def graph(self):
+        if self._graph is None:
+            self._graph = (
+                build_orchestrator_graph(self.db)
+                if self._use_orchestrator
+                else build_graph(self.db)
+            )
+        return self._graph
 
     def run(
         self,

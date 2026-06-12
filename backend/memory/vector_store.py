@@ -53,16 +53,22 @@ class _SimpleVectorIndex:
 
 class VectorMemory:
     def __init__(self, persist_dir: Path | None = None) -> None:
+        from .runtime_config import vector_enabled
+
         self.persist_dir = persist_dir or _DEFAULT_DIR
         self.persist_dir.mkdir(parents=True, exist_ok=True)
         self._fallback = _SimpleVectorIndex()
         self._fallback_path = self.persist_dir / "fallback_index.json"
         self._chroma = None
         self._collection = None
-        self._load_fallback()
-        self._init_chroma()
+        self._enabled = vector_enabled()
+        if self._enabled:
+            self._load_fallback()
+            self._init_chroma()
 
     def _init_chroma(self) -> None:
+        if not self._enabled:
+            return
         try:
             import chromadb
 
@@ -101,6 +107,8 @@ class VectorMemory:
         kind: str = "conversation",
         metadata: dict | None = None,
     ) -> str:
+        if not self._enabled:
+            return ""
         doc_id = hashlib.sha256(f"{session_id}:{text[:200]}:{datetime.now(timezone.utc).isoformat()}".encode()).hexdigest()[:16]
         meta = {"session_id": session_id, "kind": kind, "ts": datetime.now(timezone.utc).isoformat(), **(metadata or {})}
 
@@ -116,6 +124,8 @@ class VectorMemory:
         return doc_id
 
     def search(self, query: str, *, k: int = 5, session_id: str | None = None) -> list[dict]:
+        if not self._enabled:
+            return []
         if self._collection is not None:
             try:
                 where = {"session_id": session_id} if session_id else None
@@ -143,6 +153,8 @@ class VectorMemory:
 
     def ingest_rag_chunks(self, chunks: list[dict], *, batch_size: int = 100) -> int:
         """Index RAG chunks into vector memory for hybrid retrieval."""
+        if not self._enabled:
+            return 0
         count = 0
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i : i + batch_size]

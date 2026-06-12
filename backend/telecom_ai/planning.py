@@ -34,6 +34,8 @@ ALL_AGENTS = (
 
 
 def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
+    from memory.runtime_config import low_memory_mode
+
     q = query.lower().strip()
     agents: list[AgentName] = []
 
@@ -57,7 +59,11 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
     elif flags["deploy"]:
         agents = ["deploy", "synthesizer"]
     elif flags["ppt"]:
-        agents = ["research", "telecom_kb", "compliance", "presentation", "synthesizer", "verifier"]
+        agents = (
+            ["research", "telecom_kb", "presentation", "synthesizer"]
+            if low_memory_mode()
+            else ["research", "telecom_kb", "compliance", "presentation", "synthesizer", "verifier"]
+        )
     elif flags["log"]:
         agents = ["log", "research", "synthesizer", "verifier"]
     elif flags["map"] or ("drive" in q and "test" in q):
@@ -65,7 +71,11 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
     elif flags["predict"]:
         agents = ["prediction", "analytics", "research", "synthesizer"]
     elif flags["analytics"]:
-        agents = ["analytics", "drive_test", "research", "react", "synthesizer", "verifier"]
+        agents = (
+            ["analytics", "synthesizer"]
+            if low_memory_mode()
+            else ["analytics", "drive_test", "research", "react", "synthesizer", "verifier"]
+        )
     elif flags["compare"]:
         agents = ["comparison", "telecom_kb", "research", "synthesizer"]
     elif flags["compliance"]:

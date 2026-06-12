@@ -14,6 +14,7 @@ from .confidence import clarification_prompt, score_confidence
 from .guardrails import check_input, check_output
 from .loaders import TelecomDB
 from .monitoring import RunMonitor, store_run_summary
+from memory.runtime_config import max_parallel_agents
 from .planning import create_plan, refine_plan_with_llm
 from .state import OrchestratorState, initial_orchestrator_state
 from .tools import build_tool_registry
@@ -122,7 +123,10 @@ def build_orchestrator_graph(db: TelecomDB):
         if not agents:
             return {"steps": ["parallel:empty"]}
 
-        max_workers = min(8, max(1, len(agents)))
+        max_workers = min(
+            max_parallel_agents(),
+            max(1, len(agents)),
+        )
 
         def _run(name: str) -> tuple[str, dict]:
             tools.current_agent = name

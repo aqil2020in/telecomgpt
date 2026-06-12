@@ -33,6 +33,11 @@ def reindex_rag_chunks(*, ingest: bool = False) -> dict:
             _log.warning("RAG ingest failed: %s", e)
 
     try:
+        from memory.runtime_config import vector_enabled
+
+        if not vector_enabled():
+            result["vector_skipped"] = True
+            return result
         from rag.store import load_chunks
         from memory.vector_store import VectorMemory
 

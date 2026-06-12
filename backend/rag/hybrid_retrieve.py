@@ -22,6 +22,10 @@ def hybrid_retrieve(
     vector_parts: list[str] = []
 
     try:
+        from memory.runtime_config import vector_enabled
+
+        if not vector_enabled():
+            return bm25_context, bm25_cites
         from memory.vector_store import VectorMemory
 
         hits = VectorMemory().search(query, k=k, session_id=session_id)

@@ -53,10 +53,13 @@ def pick_csv_path(query: str = "", explicit: str | None = None) -> Path | None:
     return paths[0]
 
 
-def _sample_df(df: pd.DataFrame, max_rows: int = 2000) -> pd.DataFrame:
-    if len(df) <= max_rows:
+def _sample_df(df: pd.DataFrame, max_rows: int | None = None) -> pd.DataFrame:
+    from memory.runtime_config import kaggle_max_rows
+
+    cap = max_rows if max_rows is not None else kaggle_max_rows()
+    if len(df) <= cap:
         return df
-    step = max(1, len(df) // max_rows)
+    step = max(1, len(df) // cap)
     return df.iloc[::step].copy()
 
 

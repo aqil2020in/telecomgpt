@@ -11,11 +11,21 @@ services:
       - key: PYTHON_VERSION
         value: "3.12"
       - key: TELECOMGPT_AUTO_REINDEX
+        value: "0"
+      - key: TELECOMGPT_LOW_MEMORY
         value: "1"
+      - key: TELECOMGPT_VECTOR
+        value: "0"
+      - key: TELECOMGPT_MAX_PARALLEL_AGENTS
+        value: "2"
+      - key: TELECOMGPT_LLM_PLAN
+        value: "0"
+      - key: ORT_LOG_SEVERITY_LEVEL
+        value: "3"
       - key: TELECOMGPT_LIVE_FETCH
-        value: "1"
+        value: "0"
       - key: TELECOMGPT_WEB_SEARCH
-        value: "1"
+        value: "0"
       - key: TELECOMGPT_ENGINE
         value: "hybrid"
       - key: TELECOMGPT_FAST_ASK
