@@ -60,3 +60,73 @@ def search_nr_bands(query: str, *, limit: int = 20) -> list[dict[str, Any]]:
 
     hits.sort(key=lambda x: (-x[0], int(x[1][1:])))
     return [{"band": bid, **info} for _, bid, info in hits[:limit]]
+
+
+def format_band_excerpt(band_id: str, info: dict[str, Any]) -> str:
+    """Human-readable band summary for RAG / live fetch."""
+    lines = [f"**{band_id.upper()}** — {info.get('common_name') or 'NR band'} (TS 38.104)"]
+    if info.get("duplex"):
+        lines.append(f"- Duplex: {info['duplex']} · Range: {info.get('frequency_range', '—')}")
+    if info.get("downlink_mhz"):
+        lo, hi = info["downlink_mhz"]
+        lines.append(f"- DL: {lo}–{hi} MHz")
+    if info.get("uplink_mhz"):
+        lo, hi = info["uplink_mhz"]
+        lines.append(f"- UL: {lo}–{hi} MHz")
+    if info.get("channel_bandwidth_mhz"):
+        bws = info["channel_bandwidth_mhz"]
+        lines.append(f"- Channel BW: {', '.join(str(b) for b in bws[:12])} MHz")
+    if info.get("scs_khz"):
+        lines.append(f"- SCS: {', '.join(str(s) for s in info['scs_khz'])} kHz")
+    if info.get("geographical_area"):
+        lines.append(f"- Region: {info['geographical_area']}")
+    if info.get("spec_release"):
+        lines.append(f"- 3GPP release: {info['spec_release']}")
+    if info.get("note"):
+        lines.append(f"- Note: {info['note']}")
+    if info.get("notes"):
+        lines.append(f"- Notes: {info['notes']}")
+    return "\n".join(lines)
+
+
+def live_sqimway_band_excerpt(band_id: str) -> tuple[str, dict[str, Any]] | None:
+    """Live sqimway fetch with local catalog fallback."""
+    import importlib.util
+
+    bid = band_id.strip().lower()
+    if not bid.startswith("n"):
+        bid = f"n{bid}"
+
+    source_url = "https://www.sqimway.com/nr_band.php"
+    live: dict[str, Any] | None = None
+    try:
+        mod_path = _CATALOG.resolve().parent.parent / "scripts" / "import_nr_bands_sqimway.py"
+        spec = importlib.util.spec_from_file_location("_sqimway_import", mod_path)
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            source_url = mod.SOURCE_URL
+            live = mod.fetch_live_band(bid)
+    except Exception:
+        live = None
+
+    if live:
+        text = format_band_excerpt(bid, live)
+        return text, {
+            "title": f"{bid.upper()} — sqimway NR band (live)",
+            "url": source_url,
+            "source": "live_fetch",
+            "live": True,
+            "provider": "sqimway",
+        }
+    cached = get_nr_band(bid)
+    if cached:
+        text = format_band_excerpt(bid, cached)
+        return text, {
+            "title": f"{bid.upper()} — NR band (local catalog)",
+            "url": source_url,
+            "source": "catalog",
+            "live": False,
+            "provider": "sqimway",
+        }
+    return None

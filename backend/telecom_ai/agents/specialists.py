@@ -54,7 +54,7 @@ def run_research_agent(query: str, tools: "ToolRegistry", session_id: str = "def
     cites: list[dict] = []
     if rag.ok and rag.output:
         context, cites = rag.output if isinstance(rag.output, tuple) else (str(rag.output), [])
-        parts.append(f"**Reference excerpts (RAG + live + web)**\n{context[:4500]}")
+        parts.append(f"**Reference excerpts (RAG + live ShareTechnote/sqimway/3GPP + web)**\n{context[:4500]}")
         tool_calls.append({"tool": "hybrid_search", "ok": True, "citations": cites})
 
     mem = tools.run("memory_search", query=query, session_id=session_id, k=3)

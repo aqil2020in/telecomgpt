@@ -7,6 +7,7 @@ from typing import Any
 
 TELECOM_DOMAINS = [
     "sharetechnote.com",
+    "sqimway.com",
     "3gpp.org",
     "etsi.org",
     "gsma.com",

@@ -202,7 +202,7 @@ def build_tool_registry(db: Any) -> ToolRegistry:
     reg.register(
         "hybrid_search",
         lambda query, session_id="", k=5: _hybrid_search(query, session_id, k),
-        description="Hybrid BM25 + vector + live ShareTechnote fetch + Tavily web search",
+        description="Hybrid BM25 + vector + live ShareTechnote/sqimway/3GPP fetch + Tavily web search",
         parameters={
             "type": "object",
             "properties": {"query": {"type": "string"}, "session_id": {"type": "string"}, "k": {"type": "integer"}},
@@ -212,13 +212,13 @@ def build_tool_registry(db: Any) -> ToolRegistry:
     reg.register(
         "web_search",
         lambda query: _web_search(query),
-        description="Telecom web search (Tavily) biased to sharetechnote.com and 3gpp.org",
+        description="Telecom web search (Tavily) biased to sharetechnote.com, sqimway.com, and 3gpp.org",
         parameters={"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
     )
     reg.register(
         "live_reference_fetch",
         lambda query: _live_reference_fetch(query),
-        description="Live-fetch ShareTechnote/3GPP page for query topic",
+        description="Live-fetch ShareTechnote, sqimway, or 3GPP page for query topic",
         parameters={"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
     )
     reg.register(

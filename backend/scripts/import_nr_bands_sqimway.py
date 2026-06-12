@@ -221,6 +221,22 @@ def parse_html(html: str) -> dict[str, dict]:
     return all_bands
 
 
+def fetch_live_band(band_id: str, *, timeout: int = 12) -> dict | None:
+    """Fetch a single NR band row live from sqimway.com (TS 38.104 tables)."""
+    bid = band_id.strip().lower()
+    if not bid.startswith("n"):
+        bid = f"n{bid}"
+    if not re.match(r"^n\d{1,3}$", bid):
+        return None
+    try:
+        resp = requests.get(SOURCE_URL, headers=HEADERS, timeout=timeout)
+        resp.raise_for_status()
+        bands = parse_html(resp.text)
+        return bands.get(bid)
+    except Exception:
+        return None
+
+
 def merge_master_notes(catalog: dict[str, dict], master_path: Path) -> dict[str, dict]:
     if not master_path.exists():
         return catalog

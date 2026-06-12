@@ -48,6 +48,7 @@ SEED_URLS = [
     "https://www.sharetechnote.com/html/RF_Handbook_ACLR_ACPR.html",
     "https://www.sharetechnote.com/html/LTE/LTE_Overview.html",
     "https://www.3gpp.org/technologies/5g-system-overview",
+    "https://www.sqimway.com/nr_band.php",
 ]
 
 CHUNK_SIZE = 900

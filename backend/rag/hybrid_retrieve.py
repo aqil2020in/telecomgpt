@@ -1,4 +1,4 @@
-"""Hybrid retrieval — BM25 + vector + live fetch + optional web search."""
+"""Hybrid retrieval — BM25 + vector + live ShareTechnote/sqimway/3GPP + optional web search."""
 
 from __future__ import annotations
 
@@ -24,22 +24,21 @@ def hybrid_retrieve(
     try:
         from memory.runtime_config import vector_enabled
 
-        if not vector_enabled():
-            return bm25_context, bm25_cites
-        from memory.vector_store import VectorMemory
+        if vector_enabled():
+            from memory.vector_store import VectorMemory
 
-        hits = VectorMemory().search(query, k=k, session_id=session_id)
-        for h in hits:
-            if h.get("metadata", {}).get("kind") == "reference" or h.get("metadata", {}).get("url"):
-                vector_cites.append(
-                    {
-                        "title": h.get("metadata", {}).get("title", "memory"),
-                        "url": h.get("metadata", {}).get("url", ""),
-                        "score": h.get("score"),
-                        "source": "vector",
-                    }
-                )
-            vector_parts.append(h.get("text", "")[:800])
+            hits = VectorMemory().search(query, k=k, session_id=session_id)
+            for h in hits:
+                if h.get("metadata", {}).get("kind") == "reference" or h.get("metadata", {}).get("url"):
+                    vector_cites.append(
+                        {
+                            "title": h.get("metadata", {}).get("title", "memory"),
+                            "url": h.get("metadata", {}).get("url", ""),
+                            "score": h.get("score"),
+                            "source": "vector",
+                        }
+                    )
+                vector_parts.append(h.get("text", "")[:800])
     except Exception:
         pass
 
