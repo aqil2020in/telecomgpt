@@ -93,6 +93,13 @@ export default function Home() {
     setError("");
 
     try {
+      if (apiReady === false) {
+        await fetch(`${API_URL}/api/health`, { method: "GET" });
+      }
+
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 120_000);
+
       const res = await fetch(`${API_URL}/ask`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -102,7 +109,9 @@ export default function Home() {
           session_id: sessionId,
           trace: showTrace,
         }),
+        signal: controller.signal,
       });
+      window.clearTimeout(timer);
       const data: AskResponse = await res.json();
       if (!res.ok) {
         throw new Error((data as { detail?: string }).detail ?? `Request failed (${res.status})`);
@@ -129,9 +138,11 @@ export default function Home() {
     } catch (e) {
       const msg =
         e instanceof Error
-          ? e.message.includes("fetch") || e.name === "TypeError"
-            ? `Could not reach the API at ${API_URL}. The server may be waking up — wait 30s and try again.`
-            : e.message
+          ? e.name === "AbortError"
+            ? "The request timed out after 2 minutes. Try a shorter question like “What is n78?” or wait and retry."
+            : e.message.includes("fetch") || e.name === "TypeError"
+              ? `Could not reach the API at ${API_URL}. The server may be waking up — wait 30s and try again.`
+              : e.message
           : "Could not reach the API. Wait a moment and try again.";
       setError(msg);
       setMessages(messages);

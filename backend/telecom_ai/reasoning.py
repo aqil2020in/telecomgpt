@@ -60,7 +60,7 @@ def llm_answer_with_sources(
     if extra_context:
         merged = f"Multi-agent research outputs:\n{extra_context}\n\n{merged}".strip()
 
-    answer = _call_configured_llm(query, merged, history=history)
+    answer = _call_configured_llm(query, merged, history=history, fast=fast)
     if answer:
         return _append_sources(answer, cites), cites
 
@@ -112,11 +112,13 @@ def llm_answer_with_sources(
 
 def _retrieve(query: str, *, fast: bool = False) -> tuple[str, list[dict]]:
     k = 3 if fast else int(os.environ.get("RAG_TOP_K", "5"))
+    if fast:
+        if retrieve_with_citations is None:
+            return "", []
+        return retrieve_with_citations(query, k=k)
     try:
         from rag.hybrid_retrieve import hybrid_retrieve
 
-        if fast:
-            return hybrid_retrieve(query, k=k, live=False, web=False)
         return hybrid_retrieve(query, k=k)
     except Exception:
         pass
@@ -176,8 +178,16 @@ def _call_configured_llm(
     query: str,
     context: str,
     history: list[dict[str, str]] | None = None,
+    *,
+    fast: bool = False,
 ) -> str | None:
     provider = _llm_provider()
+    timeout = float(
+        os.environ.get(
+            "LLM_TIMEOUT_FAST_SEC" if fast else "LLM_TIMEOUT_SEC",
+            "30" if fast else "120",
+        )
+    )
 
     if provider == "ollama":
         return _call_chat_api(
@@ -187,6 +197,7 @@ def _call_configured_llm(
             base_url=_ollama_base_url(),
             api_key=os.environ.get("OLLAMA_API_KEY", "ollama"),
             model=os.environ.get("OLLAMA_MODEL", _OLLAMA_DEFAULT_MODEL),
+            timeout=timeout,
         )
 
     if provider == "openai":
@@ -200,9 +211,10 @@ def _call_configured_llm(
             base_url=None,
             api_key=api_key,
             model=os.environ.get("TELECOMGPT_MODEL", _OPENAI_DEFAULT_MODEL),
+            timeout=timeout,
         )
 
-    if _ollama_reachable():
+    if not fast and _ollama_reachable():
         answer = _call_chat_api(
             query,
             context,
@@ -210,6 +222,7 @@ def _call_configured_llm(
             base_url=_ollama_base_url(),
             api_key=os.environ.get("OLLAMA_API_KEY", "ollama"),
             model=os.environ.get("OLLAMA_MODEL", _OLLAMA_DEFAULT_MODEL),
+            timeout=timeout,
         )
         if answer:
             return answer
@@ -223,6 +236,7 @@ def _call_configured_llm(
             base_url=None,
             api_key=api_key,
             model=os.environ.get("TELECOMGPT_MODEL", _OPENAI_DEFAULT_MODEL),
+            timeout=timeout,
         )
     return None
 
@@ -235,6 +249,7 @@ def _call_chat_api(
     base_url: str | None,
     api_key: str,
     model: str,
+    timeout: float | None = None,
 ) -> str | None:
     try:
         from openai import OpenAI
@@ -257,7 +272,10 @@ def _call_chat_api(
         kwargs: dict = {"api_key": api_key}
         if base_url:
             kwargs["base_url"] = base_url
-        client = OpenAI(**kwargs, timeout=float(os.environ.get("LLM_TIMEOUT_SEC", "120")))
+        client = OpenAI(
+            **kwargs,
+            timeout=timeout if timeout is not None else float(os.environ.get("LLM_TIMEOUT_SEC", "120")),
+        )
         response = client.chat.completions.create(
             model=model,
             messages=messages,

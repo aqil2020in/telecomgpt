@@ -20,3 +20,7 @@ services:
         value: "hybrid"
       - key: TELECOMGPT_FAST_ASK
         value: "1"
+      - key: TELECOMGPT_LLM
+        value: "openai"
+      - key: LLM_TIMEOUT_FAST_SEC
+        value: "30"

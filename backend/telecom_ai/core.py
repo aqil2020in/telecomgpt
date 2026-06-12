@@ -71,12 +71,11 @@ class TelecomAI:
         history: list[dict[str, str]] | None = None,
         session_id: str | None = None,
     ) -> dict:
-        """Fast grounded path — hybrid RAG + LLM, no full multi-agent graph."""
+        """Fast grounded path — KB shortcuts, BM25 RAG + LLM, no full graph."""
         import uuid
 
         from .guardrails import check_input, check_output
         from .reasoning import llm_answer_with_sources
-        from memory.memory_manager import MemoryManager
 
         pre = check_input(query)
         if not pre["allowed"]:
@@ -90,17 +89,25 @@ class TelecomAI:
 
         q = pre.get("redacted_query") or query
         sid = session_id or str(uuid.uuid4())[:12]
-        mem_ctx = MemoryManager(sid).assemble_context(q)
-        extra = f"Session & memory:\n{mem_ctx[:2500]}" if mem_ctx else None
+
+        instant = self._instant_answer(q)
+        if instant:
+            post = check_output(instant)
+            answer = post.get("filtered_answer") or instant
+            return {
+                "answer": answer,
+                "session_id": sid,
+                "sources": [],
+                "artifacts": [],
+                "mode": "fast-kb",
+                "guardrail_issues": list(pre.get("issues") or []) + list(post.get("issues") or []),
+            }
 
         answer, sources = llm_answer_with_sources(
-            q, self.db, history=history, extra_context=extra, fast=True
+            q, self.db, history=history, fast=True
         )
         post = check_output(answer or "")
         answer = post.get("filtered_answer") or answer or ""
-
-        if answer:
-            MemoryManager(sid).persist_exchange(q, answer)
 
         return {
             "answer": answer,
@@ -110,3 +117,27 @@ class TelecomAI:
             "mode": "fast",
             "guardrail_issues": list(pre.get("issues") or []) + list(post.get("issues") or []),
         }
+
+    def _instant_answer(self, query: str) -> str:
+        """Cheap TelecomDB lookups — no LLM, no vector/Chroma."""
+        from .loaders import looks_like_phy_math
+
+        db = self.db
+        checks = (
+            db.glossary_lookup,
+            db.answer_band_regulatory,
+            db.answer_ca_endc_nrdc,
+        )
+        for fn in checks:
+            try:
+                hit = fn(query)
+            except Exception:
+                hit = ""
+            if hit:
+                return hit
+        if looks_like_phy_math(query):
+            try:
+                return db.answer_phy_math(query) or ""
+            except Exception:
+                pass
+        return ""
