@@ -46,9 +46,11 @@ def llm_answer_with_sources(
     db: "TelecomDB",
     history: list[dict[str, str]] | None = None,
     extra_context: str | None = None,
+    *,
+    fast: bool = False,
 ) -> tuple[str, list[dict]]:
     kb_context = db.context_for(query)
-    rag_context, cites = _retrieve(query)
+    rag_context, cites = _retrieve(query, fast=fast)
 
     comparison = db.answer_comparison(query)
 
@@ -108,11 +110,13 @@ def llm_answer_with_sources(
     ), cites
 
 
-def _retrieve(query: str) -> tuple[str, list[dict]]:
-    k = int(os.environ.get("RAG_TOP_K", "5"))
+def _retrieve(query: str, *, fast: bool = False) -> tuple[str, list[dict]]:
+    k = 3 if fast else int(os.environ.get("RAG_TOP_K", "5"))
     try:
         from rag.hybrid_retrieve import hybrid_retrieve
 
+        if fast:
+            return hybrid_retrieve(query, k=k, live=False, web=False)
         return hybrid_retrieve(query, k=k)
     except Exception:
         pass

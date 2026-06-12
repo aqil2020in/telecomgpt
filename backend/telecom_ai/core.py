@@ -94,7 +94,7 @@ class TelecomAI:
         extra = f"Session & memory:\n{mem_ctx[:2500]}" if mem_ctx else None
 
         answer, sources = llm_answer_with_sources(
-            q, self.db, history=history, extra_context=extra
+            q, self.db, history=history, extra_context=extra, fast=True
         )
         post = check_output(answer or "")
         answer = post.get("filtered_answer") or answer or ""
