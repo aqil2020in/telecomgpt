@@ -46,6 +46,9 @@ class TelecomAI:
                 "artifacts": result.get("artifacts") or [],
                 "confidence": result.get("confidence"),
                 "needs_clarification": result.get("needs_clarification"),
+                "workflow_tasks": result.get("workflow_tasks") or [],
+                "guardrail_issues": result.get("guardrail_issues") or [],
+                "memory_context": result.get("memory_context"),
                 "mode": "orchestrator",
             }
         result = self.graph.invoke(legacy_initial_state(query, history))

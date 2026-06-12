@@ -49,6 +49,8 @@ class OrchestratorState(TypedDict, total=False):
     artifacts: list[dict]
     confidence: float | None
     needs_clarification: bool
+    workflow_tasks: list[dict[str, Any]]
+    guardrail_issues: list[str]
     steps: Annotated[list[str], operator.add]
 
 
@@ -74,5 +76,7 @@ def initial_orchestrator_state(
         "artifacts": [],
         "confidence": None,
         "needs_clarification": False,
+        "workflow_tasks": [],
+        "guardrail_issues": [],
         "steps": [],
     }

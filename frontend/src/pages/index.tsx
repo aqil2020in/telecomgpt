@@ -38,7 +38,13 @@ type Message = {
   content: string;
   artifacts?: Artifact[];
   sources?: Source[];
-  trace?: { steps?: string[]; plan?: { agents?: string[] } };
+  trace?: {
+    steps?: string[];
+    plan?: { agents?: string[]; agent_categories?: Record<string, string> };
+    workflow_tasks?: { agent: string; status: string; category?: string }[];
+    guardrail_issues?: string[];
+    confidence?: number;
+  };
 };
 
 type AskResponse = {
@@ -47,8 +53,10 @@ type AskResponse = {
   artifacts?: Artifact[];
   sources?: Source[];
   steps?: string[];
-  plan?: { agents?: string[] };
+  plan?: { agents?: string[]; agent_categories?: Record<string, string> };
   confidence?: number;
+  workflow_tasks?: { agent: string; status: string; category?: string }[];
+  guardrail_issues?: string[];
 };
 
 export default function Home() {
@@ -101,7 +109,13 @@ export default function Home() {
           artifacts: data.artifacts,
           sources: data.sources,
           trace: showTrace
-            ? { steps: data.steps, plan: data.plan }
+            ? {
+                steps: data.steps,
+                plan: data.plan,
+                workflow_tasks: data.workflow_tasks,
+                guardrail_issues: data.guardrail_issues,
+                confidence: data.confidence,
+              }
             : undefined,
         },
       ]);
@@ -211,7 +225,7 @@ export default function Home() {
       <header style={{ padding: "16px 20px", borderBottom: "1px solid #e0e0e0" }}>
         <h1 style={{ margin: 0, fontSize: 22 }}>TelecomGPT</h1>
         <p style={{ margin: "4px 0 0", color: "#666", fontSize: 14 }}>
-          Multi-agent orchestrator — KB, analytics, drive-test maps, logs, compliance, exports
+          LangGraph orchestrator — task · retrieval · autonomous agents · layered memory · guardrails
         </p>
       </header>
 
@@ -289,9 +303,33 @@ export default function Home() {
               {m.role === "assistant" && m.trace && (
                 <details style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
                   <summary style={{ cursor: "pointer" }}>Agent trace</summary>
+                  {m.trace.confidence != null && (
+                    <p style={{ margin: "4px 0" }}>Confidence: {m.trace.confidence}</p>
+                  )}
                   {m.trace.plan?.agents && (
                     <p style={{ margin: "4px 0" }}>
                       Plan: {m.trace.plan.agents.join(" → ")}
+                    </p>
+                  )}
+                  {m.trace.plan?.agent_categories && (
+                    <p style={{ margin: "4px 0", fontSize: 11 }}>
+                      {Object.entries(m.trace.plan.agent_categories)
+                        .map(([a, c]) => `${a}(${c})`)
+                        .join(", ")}
+                    </p>
+                  )}
+                  {m.trace.workflow_tasks && m.trace.workflow_tasks.length > 0 && (
+                    <ul style={{ margin: "4px 0", paddingLeft: 16 }}>
+                      {m.trace.workflow_tasks.map((t, k) => (
+                        <li key={k}>
+                          {t.agent} [{t.category ?? "agent"}] — {t.status}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {m.trace.guardrail_issues && m.trace.guardrail_issues.length > 0 && (
+                    <p style={{ margin: "4px 0", color: "#b45309" }}>
+                      Guardrails: {m.trace.guardrail_issues.join(", ")}
                     </p>
                   )}
                   {m.trace.steps && (

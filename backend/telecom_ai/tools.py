@@ -26,6 +26,7 @@ class ToolRegistry:
     def __init__(self) -> None:
         self._tools: dict[str, Callable[..., Any]] = {}
         self._specs: dict[str, ToolSpec] = {}
+        self.current_agent: str | None = None
 
     def register(
         self,
@@ -46,6 +47,14 @@ class ToolRegistry:
         return [s.model_dump() for s in self._specs.values()]
 
     def run(self, name: str, **kwargs: Any) -> ToolResult:
+        from .guardrails import tool_allowed
+
+        if self.current_agent and not tool_allowed(self.current_agent, name):
+            return ToolResult(
+                tool=name,
+                ok=False,
+                error=f"Tool '{name}' not allowed for agent '{self.current_agent}'",
+            )
         fn = self._tools.get(name)
         if not fn:
             return ToolResult(tool=name, ok=False, error=f"Unknown tool: {name}")

@@ -157,6 +157,7 @@ def run_synthesizer(
     agent_outputs: list[dict],
     db: "TelecomDB",
     history: list[dict[str, str]] | None = None,
+    memory_context: str | None = None,
 ) -> dict:
     """Merge agent outputs into final answer via LLM or template."""
     from ..reasoning import llm_answer_with_sources
@@ -166,6 +167,9 @@ def run_synthesizer(
         for o in agent_outputs
         if o.get("content")
     )
+
+    if memory_context:
+        combined = f"[Session & long-term memory]\n{memory_context[:3000]}\n\n---\n\n{combined}".strip()
 
     artifacts = [o.get("artifact") for o in agent_outputs if o.get("artifact")]
     for o in agent_outputs:

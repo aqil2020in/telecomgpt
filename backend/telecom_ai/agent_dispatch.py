@@ -43,40 +43,54 @@ def run_agent(
     *,
     agent_outputs: list[dict] | None = None,
     answer: str | None = None,
+    memory_context: str | None = None,
+    history: list[dict[str, str]] | None = None,
 ) -> dict:
+    from .agents.taxonomy import agent_category
+
+    meta = {"category": agent_category(name)}
     if name == "telecom_kb":
-        return run_telecom_kb_agent(query, db, tools)
-    if name == "research":
-        return run_research_agent(query, tools, session_id=session_id)
-    if name == "analytics":
-        return run_analytics_agent(query, tools)
-    if name == "drive_test":
-        return run_drive_test_agent(query, tools, session_id=session_id)
-    if name == "log":
-        return run_log_agent(query, tools, session_id=session_id)
-    if name == "prediction":
-        return run_prediction_agent(query, tools)
-    if name == "compliance":
-        return run_compliance_agent(query, db, tools)
-    if name == "spec":
-        return run_spec_agent(query, tools, session_id=session_id)
-    if name == "comparison":
-        return run_comparison_agent(query, db, tools)
-    if name == "presentation":
+        out = run_telecom_kb_agent(query, db, tools)
+    elif name == "research":
+        out = run_research_agent(query, tools, session_id=session_id)
+    elif name == "analytics":
+        out = run_analytics_agent(query, tools)
+    elif name == "drive_test":
+        out = run_drive_test_agent(query, tools, session_id=session_id)
+    elif name == "log":
+        out = run_log_agent(query, tools, session_id=session_id)
+    elif name == "prediction":
+        out = run_prediction_agent(query, tools)
+    elif name == "compliance":
+        out = run_compliance_agent(query, db, tools)
+    elif name == "spec":
+        out = run_spec_agent(query, tools, session_id=session_id)
+    elif name == "comparison":
+        out = run_comparison_agent(query, db, tools)
+    elif name == "presentation":
         combined = "\n\n".join(o.get("content", "") for o in (agent_outputs or []) if o.get("content"))
-        return run_presentation_agent(query, combined or query, tools, session_id=session_id)
-    if name == "verifier":
-        return run_verifier_agent(query, answer or "", agent_outputs or [], db)
-    if name == "deploy":
-        return run_deploy_agent()
-    if name == "eval":
-        return run_eval_agent(db)
-    if name == "react":
+        out = run_presentation_agent(query, combined or query, tools, session_id=session_id)
+    elif name == "verifier":
+        out = run_verifier_agent(query, answer or "", agent_outputs or [], db)
+    elif name == "deploy":
+        out = run_deploy_agent()
+    elif name == "eval":
+        out = run_eval_agent(db)
+    elif name == "react":
         from .react_loop import run_react_tools
-        return run_react_tools(query, tools.list_specs(), tools)
-    if name == "synthesizer":
-        return run_synthesizer(query, agent_outputs or [], db)
-    return {"agent": name, "content": ""}
+        out = run_react_tools(query, tools.list_specs(), tools)
+    elif name == "synthesizer":
+        out = run_synthesizer(
+            query,
+            agent_outputs or [],
+            db,
+            history=history,
+            memory_context=memory_context,
+        )
+    else:
+        out = {"agent": name, "content": ""}
+    out.update(meta)
+    return out
 
 
 def merge_agent_result(state: dict, out: dict) -> dict:

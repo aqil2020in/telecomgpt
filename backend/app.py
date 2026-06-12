@@ -93,6 +93,12 @@ def root():
             "GET /api/profile/{session_id}": "Get user profile (bands, devices)",
             "POST /api/profile/{session_id}": "Update user profile",
             "POST /api/eval/smoke": "Run KB smoke-test eval",
+            "GET /api/agents/taxonomy": "Task / retrieval / autonomous agent map",
+            "GET /api/memory/{session_id}": "Memory snapshot (short + long-term)",
+            "POST /api/memory/{session_id}/refresh": "Compact session → long-term memory",
+            "GET /api/guardrails": "Guardrails & compliance policy",
+            "GET /api/integrations": "External API / serverless integrations",
+            "GET /api/monitoring/runs": "Recent orchestrator run summaries",
         },
         "analytics_ui": "streamlit run analytics/app.py",
     }
@@ -111,6 +117,8 @@ def ask(q: Query):
         "sources": result.get("sources") or [],
         "confidence": result.get("confidence"),
         "plan": result.get("plan"),
+        "workflow_tasks": result.get("workflow_tasks") or [],
+        "guardrail_issues": result.get("guardrail_issues") or [],
     }
 
 
@@ -194,6 +202,69 @@ def eval_smoke():
     from telecom_ai.agents.extended import run_eval_agent
 
     return run_eval_agent(agent.db)
+
+
+@app.get("/api/agents/taxonomy")
+def agents_taxonomy():
+    from telecom_ai.agents.taxonomy import taxonomy_summary
+
+    return taxonomy_summary()
+
+
+@app.get("/api/memory/{session_id}")
+def memory_snapshot(session_id: str):
+    from memory.memory_manager import MemoryManager
+
+    mgr = MemoryManager(session_id)
+    query = "telecom bands devices 5G"
+    return {
+        "session_id": session_id,
+        "short_term_turns": len(mgr.session.load()),
+        "profile": mgr.profile.load(),
+        "semantic": mgr.retrieve_semantic(query, k=5),
+        "episodic": mgr.retrieve_episodic(query, k=5),
+        "procedural": mgr.retrieve_procedural(query, k=5),
+        "provider": __import__("os").environ.get("TELECOMGPT_MEMORY", "chroma"),
+    }
+
+
+@app.post("/api/memory/{session_id}/refresh")
+def memory_refresh(session_id: str):
+    from memory.adapters import get_memory_adapter
+
+    adapter = get_memory_adapter()
+    return adapter.refresh(user_id=session_id)
+
+
+@app.get("/api/guardrails")
+def guardrails_info():
+    from telecom_ai.guardrails import compliance_notice
+
+    return {
+        "policy": compliance_notice(),
+        "features": [
+            "input_policy_filter",
+            "output_content_filter",
+            "pii_redaction_imsi_imei",
+            "tool_allowlist_by_agent_category",
+            "verifier_kb_crosscheck",
+            "confidence_clarification_gate",
+        ],
+    }
+
+
+@app.get("/api/integrations")
+def integrations_list():
+    from telecom_ai.integrations import list_integrations
+
+    return {"integrations": list_integrations()}
+
+
+@app.get("/api/monitoring/runs")
+def monitoring_runs(limit: int = 20):
+    from telecom_ai.monitoring import recent_runs
+
+    return {"runs": recent_runs(limit=min(limit, 50))}
 
 
 @app.post("/api/memory/ingest-rag")
