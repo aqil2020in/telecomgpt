@@ -76,8 +76,9 @@ def build_orchestrator_graph(db: TelecomDB):
         plan_data = state.get("plan") or {}
         agents = plan_data.get("agents") or []
         explicit = {
-            "analytics", "presentation", "eval", "deploy", "log",
-            "drive_test", "prediction", "comparison", "compliance", "spec",
+            "analytics", "presentation", "eval", "deploy", "log", "log_debug",
+            "drive_test", "rf_metrics", "fault_analysis", "feature_validation", "bts_config",
+            "prediction", "comparison", "compliance", "spec",
             "crew", "autogen",
         }
         if len(agents) > 2 or any(a in agents for a in explicit):

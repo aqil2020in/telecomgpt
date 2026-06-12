@@ -1,0 +1,80 @@
+{
+  "version": "1.0",
+  "symptoms": [
+    {
+      "id": "rrc_setup_fail",
+      "keywords": ["rrc setup failure", "rrc setup reject", "rrcconnectionreject"],
+      "likely_causes": [
+        "Cell barred or UE not allowed on cell",
+        "T300 expiry — no RRCSetup from gNB",
+        "Security / authentication failure before AS security"
+      ],
+      "checks": [
+        "Verify SSB-RSRP/RSRQ and cell selection criteria (TS 38.304)",
+        "Check barring and access class in SIB1",
+        "Inspect RRC Reject cause in log"
+      ],
+      "spec_refs": ["TS 38.331", "TS 38.300"]
+    },
+    {
+      "id": "pdu_session_fail",
+      "keywords": ["pdu session establishment reject", "sm cause", "registration reject"],
+      "likely_causes": [
+        "5GMM cause — subscription or DNN not allowed",
+        "UPF/SMF path failure",
+        "NSSAI / slice not configured"
+      ],
+      "checks": [
+        "Verify PDU session DNN and S-NSSAI on gNB and core",
+        "Check SM cause code in NAS message",
+        "Confirm UE subscription profile"
+      ],
+      "spec_refs": ["TS 24.501", "TS 23.501"]
+    },
+    {
+      "id": "handover_fail",
+      "keywords": ["handover failure", "mobilityfromnrcommand", "reestablishment"],
+      "likely_causes": [
+        "Target cell not prepared",
+        "Xn/NG HO preparation timeout",
+        "RF too weak on target (RSRP/SINR)"
+      ],
+      "checks": [
+        "Compare source/target RSRP at HO decision",
+        "Verify neighbor list and HO parameters",
+        "Check HO preparation timer and Xn connectivity"
+      ],
+      "spec_refs": ["TS 38.331", "TS 38.423"]
+    },
+    {
+      "id": "low_throughput",
+      "keywords": ["low throughput", "tput", "bler high", "mcs low"],
+      "likely_causes": [
+        "Poor SINR / high interference",
+        "Scheduler / PRB allocation limits",
+        "Core or transport bottleneck"
+      ],
+      "checks": [
+        "Plot throughput vs RSRP/SINR/CQI",
+        "Check BLER and RI/MCS distribution",
+        "Verify band, CA, and MIMO layers active"
+      ],
+      "spec_refs": ["TS 38.214", "TS 38.215"]
+    },
+    {
+      "id": "dropped_connection",
+      "keywords": ["dropped connection", "rlf", "radio link failure", "connection drop"],
+      "likely_causes": [
+        "RLF — out-of-sync / N310/N311",
+        "Mobility failure leading to RLF",
+        "Persistent poor RF (RSRP below cell edge)"
+      ],
+      "checks": [
+        "Correlate drops with RSRP/SINR and handover events",
+        "Review RLF counters and reestablishment success",
+        "Check coverage holes on drive route"
+      ],
+      "spec_refs": ["TS 38.331", "TS 38.133"]
+    }
+  ]
+}

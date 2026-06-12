@@ -1,0 +1,123 @@
+{
+  "version": "1.0",
+  "title": "NR SA Initial Attach — log message checklist",
+  "references": [
+    "https://www.sharetechnote.com/html/5G/5G_CallProcess_InitialAttach.html",
+    "https://tech-academy.amarisoft.com/OutOfBox_SA.html#Log_Analysis"
+  ],
+  "spec_refs": ["TS 38.331", "TS 24.501", "TS 23.502"],
+  "steps": [
+    {
+      "id": "dl_sync",
+      "phase": "Sync",
+      "label": "Downlink sync (PSS/SSS)",
+      "log_patterns": ["PSS", "SSS", "cell search", "MIB", "SIB1"],
+      "sharetechnote": "Cell search and DL synchronization",
+      "fail_hint": "Check SSB, band, SCS, coverage (RSRP/SINR)."
+    },
+    {
+      "id": "ul_sync",
+      "phase": "Sync",
+      "label": "Uplink sync (RACH/PRACH)",
+      "log_patterns": ["RACH", "PRACH", "Random Access", "ra-Response"],
+      "sharetechnote": "RACH for UL timing alignment",
+      "fail_hint": "PRACH config, power ramping, cell edge RF."
+    },
+    {
+      "id": "rrc_setup_request",
+      "phase": "RRC",
+      "label": "RRC Setup Request",
+      "log_patterns": ["rrcSetupRequest", "RRC setup request", "RRC Setup Request", "CCCH-NR"],
+      "sharetechnote": "UE initiates RRC after sync",
+      "fail_hint": "No UL request → RF/cell selection; no DL Setup → gNB scheduling."
+    },
+    {
+      "id": "rrc_setup",
+      "phase": "RRC",
+      "label": "RRC Setup",
+      "log_patterns": ["RRC setup", "rrcSetup", "DL.*CCCH"],
+      "sharetechnote": "gNB accepts and configures SRB1",
+      "fail_hint": "Missing DL RRC Setup after UL request."
+    },
+    {
+      "id": "rrc_setup_complete",
+      "phase": "RRC",
+      "label": "RRC Setup Complete",
+      "log_patterns": ["rrcSetupComplete", "RRC Setup Complete", "DCCH-NR"],
+      "sharetechnote": "UE completes RRC; may carry Registration Request",
+      "fail_hint": "UE did not apply RRC Setup — re-RACH loop."
+    },
+    {
+      "id": "registration_request",
+      "phase": "NAS",
+      "label": "5GMM Registration Request",
+      "log_patterns": ["Registration request", "Registration Request", "5GMM.*Registration"],
+      "sharetechnote": "UE registers with AMF",
+      "fail_hint": "Check NAS container in RRC Setup Complete."
+    },
+    {
+      "id": "authentication",
+      "phase": "NAS",
+      "label": "Authentication Request / Response",
+      "log_patterns": ["Authentication request", "Authentication response", "Authentication failure"],
+      "sharetechnote": "Mutual authentication UE ↔ network",
+      "fail_hint": "Authentication failure → USIM K / ue_db.cfg mismatch (Amarisoft)."
+    },
+    {
+      "id": "nas_security",
+      "phase": "NAS",
+      "label": "NAS Security Mode Complete",
+      "log_patterns": ["Security mode complete", "Security Mode Complete", "5GMM.*Security"],
+      "sharetechnote": "NAS ciphering and integrity active",
+      "fail_hint": "Security algorithm mismatch or missing NAS SMC."
+    },
+    {
+      "id": "rrc_security",
+      "phase": "RRC",
+      "label": "RRC Security Mode Complete",
+      "log_patterns": ["securityModeComplete", "Security mode complete.*RRC", "SecurityModeComplete"],
+      "sharetechnote": "AS security on DCCH",
+      "fail_hint": "RRC Security Mode Command not completed."
+    },
+    {
+      "id": "registration_accept",
+      "phase": "NAS",
+      "label": "Registration Accept",
+      "log_patterns": ["Registration accept", "Registration Accept", "5G-GUTI", "5G GUTI"],
+      "sharetechnote": "AMF accepts UE; assigns 5G-GUTI",
+      "fail_hint": "Registration reject — check cause, PLMN, subscription."
+    },
+    {
+      "id": "rrc_reconfiguration",
+      "phase": "RRC",
+      "label": "RRC Reconfiguration Complete",
+      "log_patterns": ["rrcReconfigurationComplete", "RRC Reconfiguration Complete", "RRCReconfiguration"],
+      "sharetechnote": "Bearers and PHY config applied",
+      "fail_hint": "Reconfig failure — capability / band / DRB setup."
+    },
+    {
+      "id": "registration_complete",
+      "phase": "NAS",
+      "label": "5GMM Registration Complete",
+      "log_patterns": ["Registration complete", "Registration Complete", "Message type = 0x43"],
+      "sharetechnote": "Control-plane registration finished",
+      "fail_hint": "Missing after Registration Accept."
+    },
+    {
+      "id": "pdu_session_request",
+      "phase": "NAS/SM",
+      "label": "PDU Session Establishment Request",
+      "log_patterns": ["PDU session establishment request", "PDU Session Establishment Request", "5GSM"],
+      "sharetechnote": "UE requests data session (DNN, SSC, PCO)",
+      "fail_hint": "No SM request after registration."
+    },
+    {
+      "id": "pdu_session_accept",
+      "phase": "NAS/SM",
+      "label": "PDU Session Establishment Accept",
+      "log_patterns": ["PDU session establishment accept", "PDU Session Establishment Accept", "PDU address", "IPv4"],
+      "sharetechnote": "SMF assigns IP, QoS, DNS (PCO)",
+      "fail_hint": "Check DNN, SM cause, core SMF/UPF config."
+    }
+  ]
+}

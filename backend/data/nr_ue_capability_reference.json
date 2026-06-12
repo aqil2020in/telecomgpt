@@ -1,0 +1,114 @@
+{
+  "version": "1.0",
+  "title": "NR UE Capability — reference and log checklist",
+  "reference": "https://www.sharetechnote.com/html/5G/5G_UE_Capability.html",
+  "spec_refs": ["TS 38.306", "TS 38.331", "TS 38.101-1", "TS 38.101-2"],
+  "summary": "RRC procedure where gNB sends UE Capability Enquiry and UE responds with UE Capability Information. Network uses this to configure bands, CA, MIMO, numerology, and feature sets.",
+  "procedure_steps": [
+    {
+      "id": "capability_enquiry",
+      "label": "UE Capability Enquiry",
+      "direction": "gNB → UE",
+      "log_patterns": [
+        "UE Capability Enquiry",
+        "UECapabilityEnquiry",
+        "ue-CapabilityEnquiry",
+        "ueCapabilityEnquiry"
+      ],
+      "note": "gNB may filter requested RAT/container (NR, EUTRA, MR-DC) to limit signaling size."
+    },
+    {
+      "id": "capability_information",
+      "label": "UE Capability Information",
+      "direction": "UE → gNB",
+      "log_patterns": [
+        "UE Capability Information",
+        "UECapabilityInformation",
+        "ue-CapabilityInformation",
+        "ueCapabilityInformation"
+      ],
+      "note": "Carries bandCombinationList, featureSets, PDCP/MAC/PHY parameters per TS 38.306."
+    },
+    {
+      "id": "segmentation",
+      "label": "RRC segmentation (if capa > 9 KB)",
+      "direction": "UE → gNB",
+      "log_patterns": [
+        "ulDedicatedMessageSegment",
+        "ULDedicatedMessageSegment",
+        "rrc-MessageSegmentType",
+        "notLastSegment",
+        "lastSegment",
+        "segmentNumber"
+      ],
+      "optional": true,
+      "note": "PDCP SDU max 9000 bytes; large CA combos require segmented UECapabilityInformation."
+    }
+  ],
+  "key_categories": [
+    {
+      "id": "radio",
+      "label": "Radio / PHY",
+      "fields": ["supportedBandListNR", "bandCombinationList", "ca-BandwidthClassDL-NR", "ca-BandwidthClassUL-NR", "maxBandwidth", "subcarrierSpacing", "mimo-CB-PUSCH", "modulationOrder"]
+    },
+    {
+      "id": "feature_sets",
+      "label": "Feature sets & CA",
+      "fields": ["featureSets", "featureSetCombinations", "featureSetCombination", "FeatureSetDownlink", "FeatureSetUplink"]
+    },
+    {
+      "id": "general",
+      "label": "General UE parameters",
+      "fields": ["accessStratumRelease", "pdcp-Parameters", "mac-Parameters", "measAndMobParameters", "overheatingInd"]
+    },
+    {
+      "id": "throughput",
+      "label": "Max data rates",
+      "fields": ["maxDLDataRate", "maxULDataRate", "maxNumberMIMO-LayersPDSCH", "maxNumberMIMO-LayersCB-PUSCH"]
+    }
+  ],
+  "field_log_patterns": [
+    { "field": "bandNR", "patterns": ["bandNR", "BandNR", "supportedBandListNR"] },
+    { "field": "band_combination", "patterns": ["bandCombination", "BandCombination", "bandCombinationList"] },
+    { "field": "feature_set", "patterns": ["featureSet", "FeatureSet", "featureSetsDownlink"] },
+    { "field": "mimo", "patterns": ["mimo", "MIMO", "maxNumberMIMO"] },
+    { "field": "numerology", "patterns": ["subcarrierSpacing", "scs-", "mu0", "mu1", "mu2", "mu3"] },
+    { "field": "256qam", "patterns": ["256QAM", "qam256", "modulationOrder"] },
+    { "field": "power_class", "patterns": ["ue-PowerClass", "uePowerClass", "powerClass", "power class", "pc2", "pc3", "HPUE"] },
+    { "field": "endc", "patterns": ["mrdc", "MR-DC", "ENDC", "en-DC", "FeatureSetsEUTRA"] },
+    { "field": "sa_only", "patterns": ["nr-SA", "supportOfNR-SA", "standalone"] }
+  ],
+  "pitfalls": [
+    "UE declares feature in UECapabilityInformation but implementation is incomplete — network enables feature and call fails.",
+    "Missing band or CA combo in UE cap — root cause for 'network does not enable my feature'.",
+    "Segmentation incomplete — gNB never reassembles full capa before reconfiguration.",
+    "MR-DC/NSA capa container missing while testing EN-DC.",
+    "Bandwidth class mismatch vs cell configuration (TS 38.101)."
+  ],
+  "troubleshooting": [
+    {
+      "symptom": "Network does not enable CA / feature under test",
+      "checks": [
+        "Capture UE Capability Information and verify bandCombinationList includes target combo",
+        "Confirm featureSetCombination references non-zero feature set IDs",
+        "Compare gNB band config vs supportedBandListNR"
+      ]
+    },
+    {
+      "symptom": "UE Capability Information never arrives",
+      "checks": [
+        "Verify UE Capability Enquiry was sent on SRB",
+        "Check for ulDedicatedMessageSegment sequence (all segments received?)",
+        "Look for RRC reject or security mode incomplete before enquiry"
+      ]
+    },
+    {
+      "symptom": "Handover / reconfig fails after capa exchange",
+      "checks": [
+        "Validate CA bandwidth class for FR1 (class F invalidated in 38.101-1)",
+        "Check MIMO layer count vs cell config",
+        "Review segmentation reassembly timing on gNB"
+      ]
+    }
+  ]
+}

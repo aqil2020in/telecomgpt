@@ -13,7 +13,11 @@ AgentName = str
 
 _PPT_KW = ("powerpoint", "ppt", "presentation", "slides", "slide deck", "report", "generate report", "excel")
 _ANALYTICS_KW = ("csv", "chart", "plot", "dashboard", "kaggle", "analyze", "summarize", "drive test", "kpi", "rsrp", "throughput", "dataset")
-_LOG_KW = ("log", "qxdm", "qcat", "rrc", "nas", "ue log")
+_LOG_KW = ("log", "qxdm", "qcat", "rrc", "nas", "ue log", "log debug")
+_FAULT_KW = ("fault", "troubleshoot", "troubleshooting", "alarm", "root cause", "failure analysis", "debug analysis")
+_VALID_KW = ("validate", "validation", "test case", "feature test", "pass criteria", "vonr", "registration test")
+_CONFIG_KW = ("bts", "gnb", "gnodeb", "config", "parameter", "configuration", "ssb pattern", "prach config")
+_RF_METRICS_KW = ("rf kpi", "rf metrics", "kpi assessment", "rsrq", "sinr", "cqi", "bler", "network kpi")
 _MAP_KW = ("map", "gps", "geo", "coverage map", "latitude", "longitude")
 _PREDICT_KW = ("predict", "forecast", "trend", "anomaly", "ml")
 _COMPLIANCE_KW = ("fcc", "regulatory", "compliance", "licensed", "eirp")
@@ -27,8 +31,9 @@ _CA_KW = ("ca", "carrier aggregation", "endc", "nrdc")
 _PHY_KW = ("arfcn", "gscn", "throughput", "mhz", "ghz", "ssb")
 
 ALL_AGENTS = (
-    "telecom_kb", "research", "analytics", "drive_test", "log", "prediction",
-    "compliance", "spec", "comparison", "react", "autogen", "crew",
+    "telecom_kb", "research", "analytics", "rf_metrics", "drive_test", "log_debug", "log",
+    "fault_analysis", "feature_validation", "bts_config",
+    "prediction", "compliance", "spec", "comparison", "react", "autogen", "crew",
     "presentation", "verifier", "synthesizer", "deploy", "eval",
 )
 
@@ -52,12 +57,32 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
         "eval": any(k in q for k in _EVAL_KW),
         "research": any(k in q for k in _RESEARCH_KW),
         "kb": any(k in q for k in _DEVICE_KW + _CA_KW + _PHY_KW),
+        "fault": any(k in q for k in _FAULT_KW),
+        "validation": any(k in q for k in _VALID_KW),
+        "config": any(k in q for k in _CONFIG_KW),
+        "rf_metrics": any(k in q for k in _RF_METRICS_KW),
     }
 
     if flags["eval"]:
         agents = ["eval", "synthesizer"]
     elif flags["deploy"]:
         agents = ["deploy", "synthesizer"]
+    elif flags["fault"]:
+        agents = (
+            ["fault_analysis", "log_debug", "spec", "synthesizer"]
+            if low_memory_mode()
+            else ["fault_analysis", "log_debug", "research", "spec", "synthesizer", "verifier"]
+        )
+    elif flags["validation"]:
+        agents = ["feature_validation", "spec", "telecom_kb", "synthesizer"]
+    elif flags["config"]:
+        agents = ["bts_config", "spec", "compliance", "synthesizer"]
+    elif flags["rf_metrics"]:
+        agents = (
+            ["rf_metrics", "synthesizer"]
+            if low_memory_mode()
+            else ["rf_metrics", "drive_test", "analytics", "synthesizer"]
+        )
     elif flags["ppt"]:
         agents = (
             ["research", "telecom_kb", "presentation", "synthesizer"]
@@ -65,7 +90,11 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
             else ["research", "telecom_kb", "compliance", "presentation", "synthesizer", "verifier"]
         )
     elif flags["log"]:
-        agents = ["log", "research", "synthesizer", "verifier"]
+        agents = (
+            ["log_debug", "fault_analysis", "synthesizer"]
+            if low_memory_mode()
+            else ["log_debug", "fault_analysis", "research", "synthesizer", "verifier"]
+        )
     elif flags["map"] or ("drive" in q and "test" in q):
         agents = ["drive_test", "analytics", "prediction", "synthesizer", "verifier"]
     elif flags["predict"]:

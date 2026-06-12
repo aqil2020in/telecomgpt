@@ -1,0 +1,137 @@
+{
+  "version": "1.0",
+  "title": "NR UE Power Class — reference for test engineers",
+  "reference": "https://www.sharetechnote.com/html/5G/5G_PowerClass.html",
+  "spec_refs": [
+    "TS 38.101-1 Table 6.2.1-1 (FR1 UE power class)",
+    "TS 38.101-2 Table 6.2.1.0-1 (FR2 UE types / power class)"
+  ],
+  "summary": "NR categorizes UE maximum output power into power classes (FR1: up to ~31 dBm; FR2: TRP/EIRP limits per class). Class 3 (23 dBm) is the default FR1 smartphone class. Power class affects link budget, cell edge UL throughput, and interference.",
+  "fr1": {
+    "default_class": 3,
+    "classes": [
+      {
+        "id": "pc1",
+        "label": "Power Class 1",
+        "max_power_dbm": 31,
+        "use_case": "Fixed wireless, vehicle-mounted, public safety — highest FR1 UE power",
+        "bands_note": "Band-specific; not all bands support PC1"
+      },
+      {
+        "id": "pc1_5",
+        "label": "Power Class 1.5",
+        "max_power_dbm": 29,
+        "use_case": "Smartphones and FWA on n77/n78 (HPUE mid-tier)",
+        "bands": ["n77", "n78"]
+      },
+      {
+        "id": "pc2",
+        "label": "Power Class 2",
+        "max_power_dbm": 26,
+        "use_case": "NR TDD intra-band CA, HPUE (High Power UE)",
+        "bands_note": "Selected TDD bands"
+      },
+      {
+        "id": "pc3",
+        "label": "Power Class 3",
+        "max_power_dbm": 23,
+        "use_case": "Default smartphone class unless otherwise specified",
+        "bands_note": "Supported on all FR1 bands by default"
+      }
+    ]
+  },
+  "fr2": {
+    "classes": [
+      {
+        "id": "pc1",
+        "label": "Power Class 1",
+        "use_case": "Fixed wireless access (FWA)",
+        "max_eirp_dbm": 55,
+        "max_trp_dbm": 35,
+        "bands": ["n257", "n258", "n260", "n261", "n262", "n263"]
+      },
+      {
+        "id": "pc2",
+        "label": "Power Class 2",
+        "use_case": "Vehicular UE",
+        "max_eirp_dbm": 43,
+        "max_trp_dbm": 23
+      },
+      {
+        "id": "pc3",
+        "label": "Power Class 3",
+        "use_case": "Handheld UE (consumer mmWave phone)",
+        "max_eirp_dbm": 43,
+        "max_trp_dbm": 23
+      },
+      {
+        "id": "pc4",
+        "label": "Power Class 4",
+        "use_case": "High-power non-handheld UE",
+        "max_eirp_dbm": 43,
+        "max_trp_dbm": 23
+      },
+      {
+        "id": "pc5",
+        "label": "Power Class 5",
+        "use_case": "FWA (stationary mmWave CPE)",
+        "max_eirp_dbm": 43,
+        "max_trp_dbm": 23
+      },
+      {
+        "id": "pc6",
+        "label": "Power Class 6",
+        "use_case": "High-speed train roof-mounted UE",
+        "max_eirp_dbm": 43,
+        "max_trp_dbm": 23
+      },
+      {
+        "id": "pc7",
+        "label": "Power Class 7",
+        "use_case": "RedCap (Reduced Capability) UE — lowest power FR2 class",
+        "max_eirp_dbm": 43,
+        "max_trp_dbm": 23,
+        "min_peak_eirp_dbm": 16.4
+      }
+    ]
+  },
+  "ue_capability_ie": "ue-PowerClass (ENUMERATED pc1, pc2, pc3, … in UECapabilityInformation per band)",
+  "test_checks": [
+    "Confirm UE declares correct ue-PowerClass in UECapabilityInformation for band under test",
+    "FR1 HPUE (PC2/PC1.5): verify max UL power and duty cycle on n77/n78 lab plan",
+    "FR2: validate TRP/EIRP and spherical coverage per class (38.101-2 §6.2.1)",
+    "Cell edge UL: compare PC3 (23 dBm) vs HPUE — expect ~3–8 dB link budget difference",
+    "RedCap devices: expect Power Class 7 constraints on FR2"
+  ],
+  "troubleshooting": [
+    {
+      "symptom": "Poor UL throughput at cell edge despite good DL",
+      "checks": [
+        "UE power class — PC3 phone vs HPUE DUT?",
+        "Verify configured max UL power not capped by network (p-Max, TPC)",
+        "Check band supports declared power class in 38.101-1 Table 6.2.1-1"
+      ]
+    },
+    {
+      "symptom": "mmWave OTA fail on EIRP/spherical coverage",
+      "checks": [
+        "Match FR2 power class (PC3 handheld vs PC1 FWA)",
+        "Review 85%/60%/50%-tile CDF spherical coverage tables for class",
+        "Multi-band relaxation factors (ΔMBPn, ΔMBSn) if DUT supports multiple FR2 bands"
+      ]
+    },
+    {
+      "symptom": "HPUE feature not active on n78",
+      "checks": [
+        "UE capa must declare PC2 or PC1.5 for band",
+        "Network must allow HPUE power class for that band",
+        "Amarisoft/UE profile power class setting matches DUT capability"
+      ]
+    }
+  ],
+  "related": {
+    "ue_capability": "https://www.sharetechnote.com/html/5G/5G_UE_Capability.html",
+    "link_budget": "https://www.sharetechnote.com/html/RF_Handbook_LinkBudget.html",
+    "power_class": "https://www.sharetechnote.com/html/5G/5G_PowerClass.html"
+  }
+}

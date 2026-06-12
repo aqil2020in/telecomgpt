@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import AttachReport, { type AttachReportData } from "../components/AttachReport";
+import UeCapabilityReport, { type UeCapabilityReportData } from "../components/UeCapabilityReport";
 
 const PlotlyChart = dynamic(() => import("../components/PlotlyChart"), { ssr: false });
 
@@ -24,6 +26,8 @@ type Artifact = {
   source_csv?: string;
   geojson?: object;
   point_count?: number;
+  attach_report?: AttachReportData;
+  ue_capability_report?: UeCapabilityReportData;
 };
 
 type Source = {
@@ -89,6 +93,8 @@ export default function Home() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [attachLoading, setAttachLoading] = useState(false);
+  const [ueCapLoading, setUeCapLoading] = useState(false);
   const [error, setError] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showTrace, setShowTrace] = useState(false);
@@ -96,6 +102,8 @@ export default function Home() {
   const [jobStatus, setJobStatus] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const attachLogRef = useRef<HTMLInputElement>(null);
+  const ueCapLogRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -185,6 +193,83 @@ export default function Home() {
     }
   };
 
+  const runUeCapReport = async (file?: File, sessionOverride?: string) => {
+    setUeCapLoading(true);
+    setError("");
+    try {
+      const sid = sessionOverride ?? sessionId ?? "default";
+      const form = new FormData();
+      form.append("session_id", sid);
+      if (file) form.append("file", file);
+      form.append("generate_exports", "1");
+      const res = await fetch(`${API_URL}/api/nr/ue-capability/report`, { method: "POST", body: form });
+      const data: UeCapabilityReportData = await res.json();
+      if (!res.ok || data.ok === false) {
+        if (!file) {
+          ueCapLogRef.current?.click();
+          return;
+        }
+        throw new Error(data.error ?? "UE Capability report failed");
+      }
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `**NR UE Capability Report** — ${data.overall ?? "UNKNOWN"} (${data.procedure_passed}/${data.procedure_total} steps)`,
+          artifacts: [{
+            type: "ue_capability_report",
+            ok: true,
+            ue_capability_report: data,
+            filename: data.filename,
+          }],
+        },
+      ]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "UE Capability report failed");
+    } finally {
+      setUeCapLoading(false);
+      if (ueCapLogRef.current) ueCapLogRef.current.value = "";
+    }
+  };
+
+  const runAttachReport = async (file?: File, sessionOverride?: string) => {
+    setAttachLoading(true);
+    setError("");
+    try {
+      const sid = sessionOverride ?? sessionId ?? "default";
+      const form = new FormData();
+      form.append("session_id", sid);
+      if (file) form.append("file", file);
+      form.append("generate_exports", "1");
+      const res = await fetch(`${API_URL}/api/nr-sa/attach-report`, { method: "POST", body: form });
+      const data: AttachReportData = await res.json();
+      if (!res.ok || data.ok === false) {
+        if (!file) {
+          attachLogRef.current?.click();
+          return;
+        }
+        throw new Error(data.error ?? "Attach report failed");
+      }
+      if (data.filename && file) {
+        setSessionId(sid);
+      }
+      const overall = data.overall ?? "UNKNOWN";
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `**NR SA Attach Report** — ${overall} (${data.passed}/${data.total} steps)`,
+          artifacts: [{ type: "attach_report", ok: true, attach_report: data, filename: data.filename }],
+        },
+      ]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Attach report failed");
+    } finally {
+      setAttachLoading(false);
+      if (attachLogRef.current) attachLogRef.current.value = "";
+    }
+  };
+
   const uploadFile = async (file: File) => {
     setUploading(true);
     setError("");
@@ -198,13 +283,19 @@ export default function Home() {
         throw new Error(data.error ?? "Upload failed");
       }
       if (data.session_id) setSessionId(data.session_id);
+      const isLog = /\.(log|txt)$/i.test(data.filename ?? file.name);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `Uploaded **${data.filename}** (${data.size_bytes} bytes). Ask me to analyze this drive-test CSV or log file.`,
+          content: isLog
+            ? `Uploaded **${data.filename}** (${data.size_bytes} bytes). Running attach report…`
+            : `Uploaded **${data.filename}** (${data.size_bytes} bytes). Ask me to analyze this drive-test CSV or log file.`,
         },
       ]);
+      if (isLog) {
+        await runAttachReport(undefined, data.session_id ?? sessionId ?? "default");
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Upload failed");
     } finally {
@@ -221,6 +312,19 @@ export default function Home() {
   };
 
   const renderArtifact = (a: Artifact, j: number) => {
+    if (a.type === "ue_capability_report" && a.ue_capability_report) {
+      return (
+        <UeCapabilityReport
+          key={`uecap-${j}`}
+          data={a.ue_capability_report}
+          apiUrl={API_URL}
+          sessionId={sessionId}
+        />
+      );
+    }
+    if (a.type === "attach_report" && a.attach_report) {
+      return <AttachReport key={`attach-${j}`} data={a.attach_report} apiUrl={API_URL} sessionId={sessionId} />;
+    }
     if (a.type === "chart" && a.ok && a.plotly_json) {
       return (
         <PlotlyChart
@@ -301,12 +405,14 @@ export default function Home() {
           <div style={{ color: "#888", fontSize: 14, lineHeight: 1.6 }}>
             <p>Try asking:</p>
             <ul>
-              <li>Chart the 5G KPI Kaggle dataset</li>
-              <li>Upload a drive-test CSV, then ask for RF map + SLA rules</li>
-              <li>Generate a PowerPoint report on 5G network slicing</li>
-              <li>Compare S23 vs S24 CA support</li>
+              <li>What is n78? — full NR band catalog (91 bands, sqimway/38.104)</li>
+              <li>Upload log → NR SA attach report or UE Capability report</li>
+              <li>RF KPI assessment on uploaded CSV (5G network data)</li>
+              <li>Troubleshoot RRC setup failure — fault analysis</li>
+              <li>Validate NR SA registration test case</li>
+              <li>Upload drive-test CSV → RF map + SLA rules</li>
               <li>What is n78? What is PRACH?</li>
-              <li>Run eval smoke test</li>
+              <li>Chart the 5G KPI Kaggle dataset</li>
             </ul>
           </div>
         )}
@@ -428,9 +534,14 @@ export default function Home() {
       >
         <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8, alignItems: "center" }}>
           {[
+            "RF KPI assessment",
+            "Explain SINR vs RSRQ link budget",
+            "Explain NR protocol stack C-plane vs U-plane",
+            "NR power class HPUE n78",
+            "Fault analysis RRC fail",
+            "Validate NR SA registration",
+            "Validate UE Capability n77+n78",
             "Chart 5G KPI dataset",
-            "Compare S23 vs S24",
-            "Run eval smoke test",
           ].map((label) => (
             <button
               key={label}
@@ -449,6 +560,42 @@ export default function Home() {
               {label}
             </button>
           ))}
+          <button
+            type="button"
+            disabled={ueCapLoading || loading}
+            onClick={() => runUeCapReport()}
+            title="NR UE Capability Enquiry/Information log report"
+            style={{
+              padding: "4px 12px",
+              fontSize: 12,
+              borderRadius: 999,
+              border: "1px solid #0369a1",
+              background: ueCapLoading ? "#e0f2fe" : "#f0f9ff",
+              color: "#0369a1",
+              cursor: ueCapLoading || loading ? "default" : "pointer",
+              fontWeight: 600,
+            }}
+          >
+            {ueCapLoading ? "Analyzing…" : "📡 UE Cap Report"}
+          </button>
+          <button
+            type="button"
+            disabled={attachLoading || loading}
+            onClick={() => runAttachReport()}
+            title="NR SA Initial Attach report (session log or pick file)"
+            style={{
+              padding: "4px 12px",
+              fontSize: 12,
+              borderRadius: 999,
+              border: "1px solid #7c3aed",
+              background: attachLoading ? "#ede9fe" : "#f5f3ff",
+              color: "#5b21b6",
+              cursor: attachLoading || loading ? "default" : "pointer",
+              fontWeight: 600,
+            }}
+          >
+            {attachLoading ? "Analyzing…" : "📋 Attach Report"}
+          </button>
           <label style={{ fontSize: 12, marginLeft: 8, display: "flex", alignItems: "center", gap: 4 }}>
             <input
               type="checkbox"
@@ -459,6 +606,26 @@ export default function Home() {
           </label>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <input
+            ref={ueCapLogRef}
+            type="file"
+            accept=".log,.txt"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) runUeCapReport(f);
+            }}
+          />
+          <input
+            ref={attachLogRef}
+            type="file"
+            accept=".log,.txt"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) runAttachReport(f);
+            }}
+          />
           <input
             ref={fileRef}
             type="file"

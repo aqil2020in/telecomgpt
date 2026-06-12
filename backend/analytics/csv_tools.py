@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 from typing import Any
 
 import pandas as pd
@@ -25,19 +26,49 @@ def load_csv_path(path: str) -> pd.DataFrame:
 _RF_ALIASES: dict[str, tuple[str, ...]] = {
     "latitude": ("latitude", "lat", "Latitude", "LAT"),
     "longitude": ("longitude", "lon", "lng", "Longitude", "LON"),
-    "rsrp": ("rsrp", "RSRP", "rsrp_dbm", "SS-RSRP", "ss_rsrp", "RSRP_dBm"),
-    "rsrq": ("rsrq", "RSRQ", "rsrq_db", "SS-RSRQ", "ss_rsrq"),
-    "sinr": ("sinr", "SINR", "snr", "SNR", "ss_sinr"),
-    "throughput": ("throughput", "target", "App. rate DL", "dl_throughput", "throughput_mbps"),
+    "rsrp": (
+        "rsrp", "RSRP", "rsrp_dbm", "SS-RSRP", "ss_rsrp", "RSRP_dBm", "SS RSRP",
+        "Signal Strength (dBm)", "signal strength (dbm)", "Signal Strength",
+    ),
+    "rsrq": ("rsrq", "RSRQ", "rsrq_db", "SS-RSRQ", "ss_rsrq", "SS RSRQ"),
+    "sinr": ("sinr", "SINR", "snr", "SNR", "ss_sinr", "SS-SINR", "SS SINR"),
+    "rssi": ("rssi", "RSSI", "rssi_dbm"),
+    "cqi": ("cqi", "CQI", "wideband_cqi", "WB CQI"),
+    "bler": ("bler", "BLER", "block error rate", "block_error_rate"),
+    "ri": ("ri", "RI", "rank indicator", "rank_indicator", "Rank Indicator"),
+    "mcs_dl": ("mcs_dl", "MCS DL", "dl_mcs", "mcs downlink"),
+    "mcs_ul": ("mcs_ul", "MCS UL", "ul_mcs", "mcs uplink"),
+    "throughput": (
+        "throughput", "target", "App. rate DL", "dl_throughput", "throughput_mbps",
+        "Download Speed (Mbps)", "download speed (mbps)", "Download Speed",
+    ),
+    "throughput_ul": (
+        "upload_throughput", "ul_throughput", "Upload Speed (Mbps)",
+        "upload speed (mbps)", "Upload Speed",
+    ),
+    "latency": ("latency", "Latency (ms)", "latency_ms", "Latency"),
+    "jitter": ("jitter", "Jitter (ms)", "jitter_ms"),
+    "band": ("band", "Band", "nr_band", "lte_band"),
     "pci": ("pci", "PCI", "cid", "cell_id"),
     "arfcn": ("arfcn", "nr_arfcn", "NR-ARFCN", "earfcn", "freq"),
 }
+
+
+def _fuzzy_column_match(alias: str, col_lower: str) -> bool:
+    a = alias.lower().replace(" ", "")
+    c = col_lower.replace(" ", "")
+    if a == c:
+        return True
+    if len(a) < 4:
+        return False
+    return a in c
 
 
 def detect_rf_columns(df: pd.DataFrame) -> dict[str, str | None]:
     cols = {str(c).strip(): str(c) for c in df.columns}
     lower_map = {k.lower(): v for k, v in cols.items()}
     out: dict[str, str | None] = {}
+    used: set[str] = set()
     for key, aliases in _RF_ALIASES.items():
         found = None
         for alias in aliases:
@@ -47,6 +78,18 @@ def detect_rf_columns(df: pd.DataFrame) -> dict[str, str | None]:
             if alias.lower() in lower_map:
                 found = lower_map[alias.lower()]
                 break
+        if not found:
+            for alias in aliases:
+                for col_lower, col_orig in lower_map.items():
+                    if col_orig in used:
+                        continue
+                    if _fuzzy_column_match(alias, col_lower):
+                        found = col_orig
+                        break
+                if found:
+                    break
+        if found:
+            used.add(found)
         out[key] = found
     return out
 

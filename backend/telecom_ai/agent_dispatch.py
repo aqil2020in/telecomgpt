@@ -4,6 +4,13 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from .agents.test_engineer import (
+    run_bts_config_agent,
+    run_fault_analysis_agent,
+    run_feature_validation_agent,
+    run_log_debug_agent,
+    run_rf_metrics_agent,
+)
 from .agents.extended import (
     run_comparison_agent,
     run_compliance_agent,
@@ -27,7 +34,8 @@ from .tools import ToolRegistry
 
 # Agents that run in parallel batch (not sequential loop)
 PARALLEL_AGENTS = frozenset({
-    "telecom_kb", "research", "analytics", "drive_test", "log",
+    "telecom_kb", "research", "analytics", "drive_test", "rf_metrics", "log", "log_debug",
+    "fault_analysis", "feature_validation", "bts_config",
     "prediction", "compliance", "spec", "comparison", "react", "autogen", "crew",
     "deploy", "eval",
 })
@@ -58,8 +66,18 @@ def run_agent(
         out = run_analytics_agent(query, tools)
     elif name == "drive_test":
         out = run_drive_test_agent(query, tools, session_id=session_id)
+    elif name == "rf_metrics":
+        out = run_rf_metrics_agent(query, tools, session_id=session_id)
     elif name == "log":
-        out = run_log_agent(query, tools, session_id=session_id)
+        out = run_log_debug_agent(query, tools, session_id=session_id)
+    elif name == "log_debug":
+        out = run_log_debug_agent(query, tools, session_id=session_id)
+    elif name == "fault_analysis":
+        out = run_fault_analysis_agent(query, tools, session_id=session_id)
+    elif name == "feature_validation":
+        out = run_feature_validation_agent(query, db, tools)
+    elif name == "bts_config":
+        out = run_bts_config_agent(query, tools, session_id=session_id)
     elif name == "prediction":
         out = run_prediction_agent(query, tools)
     elif name == "compliance":

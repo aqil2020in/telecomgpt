@@ -1,0 +1,191 @@
+{
+  "version": "1.0",
+  "title": "ShareTechnote RF Handbook — curated index for test engineers",
+  "index_url": "https://www.sharetechnote.com/html/RF_Handbook_Index.html",
+  "categories": [
+    {
+      "id": "fundamentals",
+      "label": "RF fundamentals",
+      "topics": [
+        {
+          "id": "snr_sinr",
+          "title": "SNR, SINAD, SINR",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_SNR.html",
+          "summary": "Signal vs noise metrics; SINR is the air-interface quality measure used for NR scheduling and drive-test KPIs.",
+          "related_kpis": ["ss_sinr", "ss_rsrq"],
+          "test_use": "Interpret drive-test SINR/RSRQ; correlate with throughput and handover margin."
+        },
+        {
+          "id": "link_budget",
+          "title": "Link budget",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_LinkBudget.html",
+          "summary": "Tx power, pathloss, antenna gain, margins — predicts coverage and DL/UL reach.",
+          "related_kpis": ["ss_rsrp", "rssi"],
+          "test_use": "Validate cell range, compare measured RSRP vs predicted pathloss from site data."
+        },
+        {
+          "id": "friis",
+          "title": "Friis transmission equation",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_FriisTransmissionEquation.html",
+          "summary": "Free-space and baseline pathloss model between Tx/Rx antennas.",
+          "related_kpis": ["ss_rsrp"],
+          "test_use": "Sanity-check pathloss vs distance in drive-test or chamber cal."
+        },
+        {
+          "id": "db_units",
+          "title": "dB, dBm, dBc",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_dB_dBm_dBc.html",
+          "summary": "Logarithmic units for power, gain, and relative levels in RF specs and logs.",
+          "related_kpis": ["ss_rsrp", "rssi"],
+          "test_use": "Convert between dBm reports, cable loss, and amplifier gain in BTS validation."
+        },
+        {
+          "id": "time_freq",
+          "title": "Time domain vs frequency domain",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_TimeDomain_FrequencyDomain.html",
+          "summary": "FFT/spectrum view vs time-domain waveform — foundation for spectrum analyzer and IQ capture.",
+          "test_use": "Debug spurs, ACLR, and filter response in lab traces."
+        }
+      ]
+    },
+    {
+      "id": "receiver_chain",
+      "label": "Receiver & sensitivity",
+      "topics": [
+        {
+          "id": "rx_chain",
+          "title": "RF front-end Rx chain tutorial",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_RF_FrontEnd_RxChain_Tutorial.html",
+          "summary": "LNA, mixer, filter, ADC chain from antenna to baseband.",
+          "test_use": "Troubleshoot desense, NF degradation, and IM products in UE or RRH receive path."
+        },
+        {
+          "id": "noise_figure",
+          "title": "Noise figure",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_NoiseFigure.html",
+          "summary": "Receiver noise contribution; sets sensitivity floor with bandwidth.",
+          "related_kpis": ["ss_sinr"],
+          "test_use": "Explain poor UL or weak-cell SINR when Tx power and RSRP look acceptable."
+        },
+        {
+          "id": "sensitivity",
+          "title": "Sensitivity / TIS context",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_Sensitivity.html",
+          "summary": "Minimum detectable signal; relates to OTA receiver performance (TIS family of tests).",
+          "test_use": "OTA receiver validation; compare lab sensitivity vs field edge-of-cell behavior."
+        },
+        {
+          "id": "ip3",
+          "title": "Third-order intercept (IP3)",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_IP3.html",
+          "summary": "Linearity metric; predicts intermod distortion under strong interferers.",
+          "test_use": "Investigate PIM-like degradation or IM3 in multi-band RRH/UE RF paths."
+        }
+      ]
+    },
+    {
+      "id": "bts_hardware",
+      "label": "BTS / RRH hardware",
+      "topics": [
+        {
+          "id": "rrh",
+          "title": "Remote radio head (RRH)",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_RRH.html",
+          "summary": "Distributed RU architecture, CPRI/eCPRI/RoE to BBU, tower-mounted radio.",
+          "test_use": "Map alarms and VSWR/PIM faults to RRH vs baseband when debugging site issues."
+        },
+        {
+          "id": "roe",
+          "title": "Radio over Ethernet (RoE / RoC)",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_RadioOverEthernet.html",
+          "summary": "Fronthaul transport of IQ samples over Ethernet vs legacy CPRI.",
+          "test_use": "Fronthaul latency/bandwidth checks on open-RAN or C-RAN deployments."
+        },
+        {
+          "id": "pim",
+          "title": "Passive intermodulation (PIM)",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_PIM.html",
+          "summary": "Non-linear mixing at corroded connectors/antennas causing UL desense.",
+          "related_kpis": ["ss_sinr", "bler"],
+          "test_use": "UL throughput collapse or high BLER on otherwise good RSRP — sweep for PIM at site."
+        },
+        {
+          "id": "aclr",
+          "title": "ACLR / ACPR",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_ACLR_ACPR.html",
+          "summary": "Adjacent-channel leakage from PA non-linearity; regulatory and coexistence metric.",
+          "test_use": "NR/LTE coexistence, filter/PA tuning, and spectrum mask compliance tests."
+        }
+      ]
+    },
+    {
+      "id": "antenna_ota",
+      "label": "Antenna & OTA",
+      "topics": [
+        {
+          "id": "near_far_field",
+          "title": "Near field vs far field",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_NearField_FarField.html",
+          "summary": "Fraunhofer distance; when chamber/OTA measurements represent radiated far-field.",
+          "test_use": "OTA test setup, mmWave beam validation, anechoic chamber distance planning."
+        },
+        {
+          "id": "array_antenna",
+          "title": "Array antenna / beamforming",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_ArrayAntenna.html",
+          "summary": "Phased-array gain and beam steering — ties to NR SSB/MIMO beam management.",
+          "test_use": "Explain beam-centric RSRP variation in mmWave drive tests."
+        },
+        {
+          "id": "vswr",
+          "title": "VSWR / return loss",
+          "url": "https://www.sharetechnote.com/html/RF_Handbook_VSWR.html",
+          "summary": "Antenna-port matching; high VSWR reduces effective radiated power.",
+          "test_use": "Site acceptance VSWR sweeps; correlate with coverage holes or RRH alarms."
+        }
+      ]
+    }
+  ],
+  "kpi_crosswalk": {
+    "ss_rsrp": {
+      "topics": ["link_budget", "friis", "db_units"],
+      "note": "Received sync reference power — primary coverage KPI."
+    },
+    "ss_rsrq": {
+      "topics": ["snr_sinr"],
+      "note": "Quality metric combining RSRP and interference load."
+    },
+    "ss_sinr": {
+      "topics": ["snr_sinr", "noise_figure", "pim"],
+      "note": "Post-FFT SINR; throughput and mobility correlate strongly."
+    },
+    "rssi": {
+      "topics": ["db_units", "rx_chain"],
+      "note": "Wideband received strength; not equivalent to RSRP."
+    },
+    "bler": {
+      "topics": ["pim", "aclr", "ip3"],
+      "note": "Elevated BLER under good RSRP often RF interference or mobility."
+    },
+    "cqi": {
+      "topics": ["snr_sinr", "link_budget"],
+      "note": "Scheduler input derived from channel quality reports."
+    }
+  },
+  "nr_power_class": {
+    "url": "https://www.sharetechnote.com/html/5G/5G_PowerClass.html",
+    "summary": "FR1 PC3=23 dBm default; PC2/PC1.5 HPUE on n77/n78; FR2 PC1–PC7 for FWA/handheld/RedCap",
+    "related_kpis": ["ss_rsrp"],
+    "test_use": "Cell-edge UL, HPUE validation, mmWave OTA EIRP/TRP, RedCap PC7"
+  },
+  "quick_topics_from_index": [
+    "SNR / SINAD / SINR",
+    "TRP (Total Radiated Power)",
+    "TIS (Total Isotropic Sensitivity)",
+    "RRH (Remote Radio Head)",
+    "RF Front End Rx Chain",
+    "Radio Over Ethernet",
+    "IP3",
+    "Time vs Frequency Domain"
+  ]
+}

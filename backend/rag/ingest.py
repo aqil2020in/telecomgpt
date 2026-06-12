@@ -31,6 +31,21 @@ SEED_URLS = [
     "https://www.sharetechnote.com/html/5G/5G_BeamManagement.html",
     "https://www.sharetechnote.com/html/5G/5G_EN_DC.html",
     "https://www.sharetechnote.com/html/5G/5G_NetworkArchitecture.html",
+    "https://www.sharetechnote.com/html/5G/5G_CallProcess_InitialAttach.html",
+    "https://www.sharetechnote.com/html/5G/5G_UE_Capability.html",
+    "https://www.sharetechnote.com/html/5G/5G_PowerClass.html",
+    "https://www.sharetechnote.com/html/5G/5G_RadioProtocolStackArchitecture.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_Index.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_SNR.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_LinkBudget.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_RF_FrontEnd_RxChain_Tutorial.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_FriisTransmissionEquation.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_NoiseFigure.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_dB_dBm_dBc.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_RRH.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_Sensitivity.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_PIM.html",
+    "https://www.sharetechnote.com/html/RF_Handbook_ACLR_ACPR.html",
     "https://www.sharetechnote.com/html/LTE/LTE_Overview.html",
     "https://www.3gpp.org/technologies/5g-system-overview",
 ]
@@ -99,6 +114,19 @@ def discover_sharetechnote_links(html: str, base_url: str) -> list[str]:
     return sorted(links)
 
 
+def discover_rf_handbook_links(html: str, base_url: str) -> list[str]:
+    links = set()
+    for href in re.findall(r'href=["\']([^"\']+)["\']', html, re.I):
+        if href.startswith("#") or href.startswith("mailto:"):
+            continue
+        full = urljoin(base_url, href)
+        if not full.endswith(".html") or "sharetechnote.com/html/" not in full:
+            continue
+        if "RF_Handbook" in full or full.rsplit("/", 1)[-1].startswith("RF_"):
+            links.add(full.split("#")[0])
+    return sorted(links)
+
+
 def chunk_text(text: str, *, url: str, title: str, source: str) -> list[dict]:
     text = text.strip()
     if not text:
@@ -133,15 +161,21 @@ def chunk_text(text: str, *, url: str, title: str, source: str) -> list[dict]:
 def ingest_urls(urls: Iterable[str], *, follow_index: bool = True) -> list[dict]:
     all_urls = list(dict.fromkeys(urls))
     if follow_index:
-        extra: list[str] = []
+        extra_5g: list[str] = []
+        extra_rf: list[str] = []
         for url in list(all_urls):
-            if "Handbook_5G_Index" in url:
-                try:
+            try:
+                if "Handbook_5G_Index" in url:
                     html = fetch_html(url)
-                    extra.extend(discover_sharetechnote_links(html, url))
-                except Exception:
-                    pass
-        all_urls = list(dict.fromkeys([*all_urls, *extra]))[:80]
+                    extra_5g.extend(discover_sharetechnote_links(html, url))
+                if "RF_Handbook_Index" in url:
+                    html = fetch_html(url)
+                    extra_rf.extend(discover_rf_handbook_links(html, url))
+            except Exception:
+                pass
+        merged = list(dict.fromkeys([*all_urls, *extra_5g]))[:80]
+        rf_add = [u for u in extra_rf if u not in merged][:40]
+        all_urls = list(dict.fromkeys([*merged, *rf_add]))[:120]
 
     out: list[dict] = []
     seen_text: set[str] = set()

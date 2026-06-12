@@ -82,6 +82,10 @@ def _chart_specs(df: pd.DataFrame, rf: dict[str, str | None]) -> list[dict[str, 
 
     time_col = _find_col(df, "timestamp", "time", "date")
     rsrp = rf.get("rsrp") or _find_col(df, "rsrp", "signal strength", "signal_strength")
+    rsrq = rf.get("rsrq") or _find_col(df, "rsrq")
+    sinr = rf.get("sinr") or _find_col(df, "sinr", "ss-sinr")
+    cqi = rf.get("cqi") or _find_col(df, "cqi")
+    bler = rf.get("bler") or _find_col(df, "bler")
     throughput = rf.get("throughput") or _find_col(
         df, "throughput", "throughput_mbps", "data throughput", "qos metric"
     )
@@ -92,6 +96,14 @@ def _chart_specs(df: pd.DataFrame, rf: dict[str, str | None]) -> list[dict[str, 
         specs.append({"chart_type": "line", "x": time_col, "y": throughput, "title": f"{throughput} over time"})
     if rsrp:
         specs.append({"chart_type": "histogram", "x": rsrp, "title": f"Distribution: {rsrp}"})
+    if rsrq:
+        specs.append({"chart_type": "histogram", "x": rsrq, "title": f"Distribution: {rsrq}"})
+    if sinr:
+        specs.append({"chart_type": "histogram", "x": sinr, "title": f"Distribution: {sinr}"})
+    if cqi:
+        specs.append({"chart_type": "histogram", "x": cqi, "title": f"Distribution: {cqi}"})
+    if bler:
+        specs.append({"chart_type": "histogram", "x": bler, "title": f"Distribution: {bler}"})
     if rsrp and throughput:
         specs.append({"chart_type": "scatter", "x": rsrp, "y": throughput, "title": f"{throughput} vs {rsrp}"})
     if latency:
@@ -103,7 +115,7 @@ def _chart_specs(df: pd.DataFrame, rf: dict[str, str | None]) -> list[dict[str, 
     elif not specs and numeric:
         specs.append({"chart_type": "histogram", "x": numeric[0], "title": f"Distribution: {numeric[0]}"})
 
-    return specs[:4]
+    return specs[:6]
 
 
 def build_kaggle_dashboard(

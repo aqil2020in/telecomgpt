@@ -7,20 +7,25 @@ from typing import Literal
 AgentCategory = Literal["task", "retrieval", "autonomous", "orchestration"]
 
 AGENT_TAXONOMY: dict[str, dict] = {
-    # Task agents — execute bounded workflows with tools
+    # Task agents — Test Engineer workflow
     "analytics": {"category": "task", "description": "CSV/Kaggle dashboards, charts, summaries"},
-    "drive_test": {"category": "task", "description": "Drive-test SLA rules and RF maps"},
-    "log": {"category": "task", "description": "UE/QXDM log parsing and error extraction"},
+    "rf_metrics": {"category": "task", "description": "RF KPI grading, per-band stats, network campaign CSV"},
+    "drive_test": {"category": "task", "description": "Drive-test SLA, RF maps, full KPI when columns present"},
+    "log_debug": {"category": "task", "description": "QXDM/QCAT log parse, RRC/NAS scan, error clustering"},
+    "log": {"category": "task", "description": "Alias — UE log analysis (see log_debug)"},
+    "fault_analysis": {"category": "task", "description": "Symptom → cause → checks; alarm/fault catalog"},
+    "feature_validation": {"category": "task", "description": "3GPP feature test templates and pass criteria"},
+    "bts_config": {"category": "task", "description": "gNB/BTS config inspect and 3GPP parameter check"},
     "prediction": {"category": "task", "description": "KPI trend and correlation analysis"},
     "presentation": {"category": "task", "description": "PowerPoint report generation"},
     "comparison": {"category": "task", "description": "Device and technology comparison"},
     "compliance": {"category": "task", "description": "FCC/regulatory band checks"},
     "deploy": {"category": "task", "description": "Production health and deployment status"},
     "eval": {"category": "task", "description": "Smoke/regression eval on KB"},
-    # Retrieval agents — search and cite knowledge
+    # Retrieval agents
     "research": {"category": "retrieval", "description": "Hybrid RAG + memory search"},
     "spec": {"category": "retrieval", "description": "3GPP specification retrieval"},
-    # Autonomous agents — dynamic tool selection / reasoning
+    # Autonomous agents
     "telecom_kb": {"category": "autonomous", "description": "KB lookups with multi-tool reasoning"},
     "react": {"category": "autonomous", "description": "ReAct loop — LLM picks tools iteratively"},
     "autogen": {"category": "autonomous", "description": "Microsoft AutoGen — multi-turn tool calling"},

@@ -1,0 +1,145 @@
+{
+  "version": "1.0",
+  "title": "NR Radio Protocol Stack Architecture",
+  "reference": "https://www.sharetechnote.com/html/5G/5G_RadioProtocolStackArchitecture.html",
+  "overview": "NR stack mirrors LTE: C-Plane (signaling) and U-Plane (user data) share PHY→MAC→RLC→PDCP; U-Plane adds SDAP→UPF, C-Plane adds RRC→NAS→AMF. Based on TS 38.300 (RAN) and TS 23.501 (5GC).",
+  "planes": {
+    "u_plane": {
+      "label": "User plane",
+      "stack_bottom_up": ["PHY", "MAC", "RLC", "PDCP", "SDAP"],
+      "top_connection": "UPF (User Plane Function)",
+      "note": "SA data sessions; SDAP maps QoS flows (5QI) to DRBs."
+    },
+    "c_plane": {
+      "label": "Control plane",
+      "stack_bottom_up": ["PHY", "MAC", "RLC", "PDCP", "RRC", "NAS"],
+      "top_connection": "AMF (Access and Mobility Management Function)",
+      "note": "Attach, registration, security, RRC reconfiguration, capability exchange."
+    }
+  },
+  "system_split": {
+    "radio_access": ["UE", "gNB (RAN)"],
+    "core_network": ["AMF", "SMF", "UPF", "AUSF", "UDM", "PCF", "..."]
+  },
+  "message_flow_summary": [
+    "App on UE generates data → modem/AP encode",
+    "RF frontend transmits over the air",
+    "gNB receives → forwards toward core",
+    "Core routes to internet / data server",
+    "Response reverses path to UE"
+  ],
+  "l2_overview": {
+    "downlink_u_plane": "Per-carrier SDAP → PDCP → RLC → multiplex/schedule in common MAC (CA from day one in NR)",
+    "uplink_u_plane": "Same as DL except UL does not support CA in L2 structure per ShareTechnote",
+    "ca_note": "Each CC processed separately in SDAP/PDCP/RLC; MAC schedules across carriers"
+  },
+  "layers": [
+    {
+      "id": "phy",
+      "name": "PHY",
+      "specs": ["TS 38.211", "TS 38.212", "TS 38.213", "TS 38.214"],
+      "topics": ["SSB", "PRACH", "PDCCH", "PDSCH", "PUSCH", "PUCCH", "beam management", "MIMO", "power control", "frame structure", "CSI"],
+      "test_use": "RF/drive-test KPIs, sync/cell search, BLER, RSRP/SINR at physical channels"
+    },
+    {
+      "id": "mac",
+      "name": "MAC",
+      "spec": "TS 38.321",
+      "topics": ["scheduling", "HARQ", "RACH", "LCID", "CA multiplexing"],
+      "test_use": "HARQ failures, UL grant issues, PRACH/RACH debug"
+    },
+    {
+      "id": "rlc",
+      "name": "RLC",
+      "spec": "TS 38.322",
+      "topics": ["AM/UM/TM modes", "segmentation", "reassembly", "status PDUs"],
+      "test_use": "Retransmission loops, throughput collapse with good RF"
+    },
+    {
+      "id": "pdcp",
+      "name": "PDCP",
+      "spec": "TS 38.323",
+      "topics": ["ciphering", "integrity", "ROHC", "duplication (CA)", "9000 byte SDU limit"],
+      "test_use": "Security mode, capa segmentation (ULDedicatedMessageSegment), DRB setup"
+    },
+    {
+      "id": "sdap",
+      "name": "SDAP",
+      "spec": "TS 37.324",
+      "topics": ["QoS flow to DRB mapping", "reflective QoS", "5QI"],
+      "test_use": "VoNR/data QoS, wrong QFI/DRB mapping"
+    },
+    {
+      "id": "rrc",
+      "name": "RRC",
+      "specs": ["TS 38.331", "TS 38.306"],
+      "topics": ["connection setup", "reconfiguration", "UE capability", "measurements", "handover"],
+      "test_use": "Attach checklist, HO failures, reconfig reject"
+    },
+    {
+      "id": "nas",
+      "name": "NAS (5GMM/5GSM)",
+      "spec": "TS 24.501",
+      "topics": ["registration", "authentication", "PDU session", "security mode"],
+      "test_use": "Registration reject, auth failure, PDU session setup"
+    }
+  ],
+  "core_functions": [
+    {"id": "amf", "name": "AMF", "specs": ["TS 33.512", "TS 29.518"], "role": "Access and mobility, NAS termination"},
+    {"id": "smf", "name": "SMF", "spec": "TS 29.502", "role": "PDU session management"},
+    {"id": "upf", "name": "UPF", "spec": "TS 33.513", "role": "User-plane anchor, IP forwarding"},
+    {"id": "ausf", "name": "AUSF", "spec": "TS 29.509", "role": "Authentication"},
+    {"id": "udm", "name": "UDM", "spec": "TS 29.503", "role": "Subscription data"}
+  ],
+  "spec_cheatsheet": {
+    "ran_overview": "TS 38.300",
+    "core_overview": ["TS 23.501", "TS 24.501", "TS 24.502", "TS 23.003"],
+    "access_stratum": {
+      "NAS": "TS 24.501",
+      "RRC": ["TS 38.331", "TS 38.306"],
+      "SDAP": "TS 37.324",
+      "PDCP": "TS 38.323",
+      "RLC": "TS 38.322",
+      "MAC": "TS 38.321",
+      "PHY": ["TS 38.211", "TS 38.212", "TS 38.213", "TS 38.214"]
+    }
+  },
+  "log_layer_patterns": {
+    "PHY": ["PSS", "SSS", "SSB", "PRACH", "PDCCH", "PDSCH", "PUSCH", "PUCCH", "CSI-RS"],
+    "MAC": ["MAC CE", "RACH", "HARQ", "BSR", "PHR"],
+    "RLC": ["RLC", "AM PDU", "UM PDU", "STATUS PDU"],
+    "PDCP": ["PDCP", "securityMode", "ciphering", "integrity"],
+    "SDAP": ["SDAP", "QFI", "5QI", "QoS flow"],
+    "RRC": ["RRC Setup", "RRC Reconfiguration", "UECapability", "MeasurementReport"],
+    "NAS": ["Registration", "Authentication", "PDU session", "5GMM", "5GSM"]
+  },
+  "troubleshooting": [
+    {
+      "symptom": "Data works but signaling fails (or vice versa)",
+      "checks": [
+        "Determine C-Plane vs U-Plane — separate SRB/DRB and NAS vs SDAP paths",
+        "Check if RRC connected but PDU session missing (NAS/SMF path)",
+        "Verify PDCP security active on DRB before user traffic"
+      ]
+    },
+    {
+      "symptom": "Failure after RRC but before IP address",
+      "checks": [
+        "Trace NAS: Registration → PDU Session Establishment (SMF/UPF)",
+        "RRC may be OK while 5GSM fails — not an RF-only issue"
+      ]
+    },
+    {
+      "symptom": "Good RSRP but no throughput",
+      "checks": [
+        "Descend stack: PHY (CQI/BLER) → MAC (HARQ) → RLC (retransmissions) → PDCP/SDAP (DRB/QoS)",
+        "Confirm CA/SCell active if testing aggregated throughput"
+      ]
+    }
+  ],
+  "related_pages": {
+    "initial_attach": "https://www.sharetechnote.com/html/5G/5G_CallProcess_InitialAttach.html",
+    "ue_capability": "https://www.sharetechnote.com/html/5G/5G_UE_Capability.html",
+    "network_architecture": "https://www.sharetechnote.com/html/5G/5G_NetworkArchitecture.html"
+  }
+}

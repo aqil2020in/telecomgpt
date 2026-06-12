@@ -1,0 +1,58 @@
+{
+  "version": "1.0",
+  "description": "Expected dataset shapes for TelecomGPT Test Engineer agents. Upload matching files to unlock full analysis.",
+  "schemas": {
+    "drive_test_rf": {
+      "label": "Drive-test RF trace",
+      "agent": "drive_test",
+      "formats": ["csv"],
+      "required_columns_any": [
+        ["SS-RSRP", "rsrp", "Signal Strength (dBm)"],
+        ["latitude", "lat"],
+        ["longitude", "lon"]
+      ],
+      "optional_columns": [
+        "SS-RSRQ", "SS-SINR", "CQI", "BLER", "RI", "PCI", "NR-ARFCN",
+        "throughput", "Download Speed (Mbps)", "MCS DL", "MCS UL"
+      ],
+      "notes": "Full 3GPP KPI grading when SS-RSRQ/SINR/CQI/BLER/RI present."
+    },
+    "network_kpi": {
+      "label": "Network KPI / campaign CSV",
+      "agent": "rf_metrics",
+      "formats": ["csv"],
+      "required_columns_any": [
+        ["Signal Strength (dBm)", "SS-RSRP", "rsrp"],
+        ["Download Speed (Mbps)", "throughput", "dl_throughput"]
+      ],
+      "optional_columns": [
+        "Upload Speed (Mbps)", "Latency (ms)", "Jitter (ms)", "Band",
+        "Network Type", "Dropped Connection", "Handover Count", "Carrier"
+      ],
+      "notes": "Works with partial KPIs; maps Signal Strength to SS-RSRP proxy."
+    },
+    "qxdm_log": {
+      "label": "UE / QXDM / QCAT log",
+      "agent": "log_debug",
+      "formats": ["log", "txt"],
+      "required_columns": [],
+      "notes": "Text log with RRC/NAS/MAC keywords. Upload .log or .txt."
+    },
+    "bts_config": {
+      "label": "gNB / BTS configuration export",
+      "agent": "bts_config",
+      "formats": ["json", "xml", "txt", "csv"],
+      "required_columns": [],
+      "notes": "CLI dump, XML, or JSON export. Parameter validation vs 3GPP when uploaded."
+    },
+    "feature_test_plan": {
+      "label": "Feature validation checklist",
+      "agent": "feature_validation",
+      "formats": ["json", "csv"],
+      "required_columns_any": [
+        ["feature", "test_case", "3gpp_ref"]
+      ],
+      "notes": "Optional — built-in NR SA/NSA/CA templates used when no file uploaded."
+    }
+  }
+}

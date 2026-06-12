@@ -98,6 +98,14 @@ def root():
             "POST /api/ppt/generate": "Generate PowerPoint report",
             "GET /api/reports/{filename}": "Download generated .pptx or .xlsx",
             "POST /api/upload": "Upload CSV/log for session-scoped analysis",
+            "POST /api/nr-sa/attach-report": "One-click NR SA attach checklist on log",
+            "POST /api/nr-sa/attach-report/export": "Export attach report as PDF or Excel",
+            "GET /api/nr/ue-capability/reference": "UE Capability reference (TS 38.306 categories)",
+            "POST /api/nr/ue-capability/report": "One-click UE Capability log report",
+            "POST /api/nr/ue-capability/report/export": "Export UE Capability report as PDF or Excel",
+            "GET /api/nr/protocol-stack/reference": "NR radio protocol stack (C/U-plane, PHY→NAS)",
+            "GET /api/nr/protocol-stack/lookup": "Lookup stack layers by keyword",
+            "GET /api/nr-sa/attach-checklist": "Attach message checklist schema",
             "GET /api/profile/{session_id}": "Get user profile (bands, devices)",
             "POST /api/profile/{session_id}": "Update user profile",
             "POST /api/eval/smoke": "Run KB smoke-test eval",
@@ -119,6 +127,8 @@ def _is_slow_query(query: str) -> bool:
     slow_kw = (
         "chart", "ppt", "powerpoint", "csv", "upload", "compare", "eval", "deploy",
         "kaggle", "dashboard", "map", "excel", "report", "predict", "log", "smoke",
+        "drive test", "fault", "troubleshoot", "validate", "validation", "config",
+        "rf kpi", "kpi assessment", "qxdm", "qcat",
     )
     return any(k in ql for k in slow_kw)
 
@@ -234,6 +244,8 @@ def download_report(filename: str):
         media = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
     elif suffix == ".xlsx":
         media = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    elif suffix == ".pdf":
+        media = "application/pdf"
     else:
         return {"error": "Unsupported report type"}
     return FileResponse(path, media_type=media, filename=filename)
@@ -426,3 +438,266 @@ def devices():
 @app.get("/api/bands")
 def bands():
     return agent.db.list_bands()
+
+
+@app.get("/api/bands/nr")
+def bands_nr(fr: str | None = None):
+    from analytics.nr_bands import list_nr_bands, load_nr_bands_catalog
+
+    catalog = load_nr_bands_catalog()
+    filtered = list_nr_bands(fr=fr)
+    return {
+        "meta": {
+            "source": catalog.get("source"),
+            "spec": catalog.get("spec"),
+            "count": len(filtered),
+            "total": catalog.get("count"),
+            "updated": catalog.get("updated"),
+        },
+        "bands": filtered,
+    }
+
+
+@app.get("/api/bands/nr/search")
+def bands_nr_search(q: str = "", limit: int = 20):
+    from analytics.nr_bands import search_nr_bands
+
+    return {"query": q, "results": search_nr_bands(q, limit=min(limit, 100))}
+
+
+@app.get("/api/bands/nr/{band_id}")
+def band_nr_detail(band_id: str):
+    from analytics.nr_bands import get_nr_band
+
+    bid = band_id.strip().lower()
+    if not bid.startswith("n"):
+        bid = f"n{bid}"
+    info = get_nr_band(bid)
+    if not info:
+        return {"ok": False, "error": f"Band {band_id} not found"}
+    return {"ok": True, "band": bid, **info}
+
+
+@app.get("/api/rf/kpi-thresholds")
+def rf_kpi_thresholds():
+    from analytics.rf_kpi import load_kpi_thresholds
+
+    return load_kpi_thresholds()
+
+
+@app.get("/api/rf/handbook/reference")
+def rf_handbook_reference():
+    from analytics.rf_handbook import load_rf_handbook_reference
+
+    return load_rf_handbook_reference()
+
+
+@app.get("/api/rf/handbook/topics")
+def rf_handbook_topics(q: str = "", limit: int = 8):
+    from analytics.rf_handbook import lookup_rf_topics
+
+    return {"query": q, "topics": lookup_rf_topics(q, limit=min(limit, 20))}
+
+
+@app.get("/api/nr/power-class/reference")
+def nr_power_class_reference():
+    from analytics.nr_power_class import load_power_class_reference
+
+    return load_power_class_reference()
+
+
+@app.get("/api/nr/power-class/lookup")
+def nr_power_class_lookup(q: str = ""):
+    from analytics.nr_power_class import lookup_power_class
+
+    return {"query": q, **lookup_power_class(q)}
+
+
+@app.get("/api/nr/protocol-stack/reference")
+def nr_protocol_stack_reference():
+    from analytics.nr_protocol_stack import load_protocol_stack_reference
+
+    return load_protocol_stack_reference()
+
+
+@app.get("/api/nr/protocol-stack/lookup")
+def nr_protocol_stack_lookup(q: str = ""):
+    from analytics.nr_protocol_stack import lookup_layers
+
+    return {"query": q, "layers": lookup_layers(q)}
+
+
+@app.get("/api/nr-sa/attach-checklist")
+def nr_sa_attach_checklist():
+    from analytics.log_attach_check import load_attach_checklist
+
+    return load_attach_checklist()
+
+
+def _get_latest_session_log(session_id: str) -> tuple[Path | None, dict | None]:
+    uploads_dir = Path(__file__).resolve().parent / "data" / "uploads" / session_id
+    if not uploads_dir.exists():
+        return None, {"ok": False, "error": "No log in session. Upload a .log or .txt file first."}
+
+    logs = sorted(
+        list(uploads_dir.glob("*.log")) + list(uploads_dir.glob("*.txt")),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True,
+    )
+    if not logs:
+        return None, {"ok": False, "error": "No .log or .txt file in session. Upload a trace first."}
+    return logs[0], None
+
+
+def _run_attach_report(session_id: str) -> dict:
+    from analytics.log_attach_check import analyze_log_file
+
+    path, err = _get_latest_session_log(session_id)
+    if err:
+        return err
+    return analyze_log_file(path)
+
+
+def _attach_report_with_exports(report: dict, *, generate_exports: bool = True) -> dict:
+    if not generate_exports or not report.get("ok", True):
+        return report
+    from export.attach_report_export import export_attach_reports
+
+    report["exports"] = export_attach_reports(report)
+    return report
+
+
+@app.post("/api/nr-sa/attach-report")
+async def nr_sa_attach_report(
+    file: UploadFile | None = File(None),
+    session_id: str = Form("default"),
+    generate_exports: str = Form("1"),
+):
+    """One-click NR SA Initial Attach report from uploaded file or session log."""
+    from analytics.log_attach_check import build_attach_report
+
+    do_export = generate_exports.strip().lower() not in ("0", "false", "no")
+
+    if file and file.filename:
+        raw = await file.read()
+        text = raw.decode("utf-8", errors="replace")
+        report = build_attach_report(text, filename=Path(file.filename).name)
+        return _attach_report_with_exports(report, generate_exports=do_export)
+
+    report = _run_attach_report(session_id)
+    return _attach_report_with_exports(report, generate_exports=do_export)
+
+
+@app.post("/api/nr-sa/attach-report/export")
+async def nr_sa_attach_report_export(
+    file: UploadFile | None = File(None),
+    session_id: str = Form("default"),
+    format: str = Form("both"),
+):
+    """Export attach report as PDF, Excel, or both (re-analyzes session log or uploaded file)."""
+    from analytics.log_attach_check import build_attach_report
+    from export.attach_report_export import export_attach_excel, export_attach_pdf
+
+    if file and file.filename:
+        raw = await file.read()
+        text = raw.decode("utf-8", errors="replace")
+        report = build_attach_report(text, filename=Path(file.filename).name)
+    else:
+        report = _run_attach_report(session_id)
+
+    if not report.get("ok", True):
+        return report
+
+    fmt = format.strip().lower()
+    out: dict = {"ok": True, "overall": report.get("overall"), "filename": report.get("filename")}
+    if fmt in ("xlsx", "excel", "both"):
+        out["xlsx"] = export_attach_excel(report)
+    if fmt in ("pdf", "both"):
+        out["pdf"] = export_attach_pdf(report)
+    return out
+
+
+@app.get("/api/nr/ue-capability/reference")
+def nr_ue_capability_reference():
+    from analytics.log_ue_capability_check import load_ue_capability_reference
+
+    return load_ue_capability_reference()
+
+
+def _ue_cap_report_with_exports(report: dict, *, generate_exports: bool = True) -> dict:
+    if not generate_exports or not report.get("ok", True):
+        return report
+    from export.ue_capability_report_export import export_ue_capability_reports
+
+    report["exports"] = export_ue_capability_reports(report)
+    return report
+
+
+@app.post("/api/nr/ue-capability/report")
+async def nr_ue_capability_report(
+    file: UploadFile | None = File(None),
+    session_id: str = Form("default"),
+    generate_exports: str = Form("1"),
+):
+    """One-click NR UE Capability procedure report from uploaded file or session log."""
+    from analytics.log_ue_capability_check import analyze_ue_capability_file, build_ue_capability_report
+
+    do_export = generate_exports.strip().lower() not in ("0", "false", "no")
+
+    if file and file.filename:
+        raw = await file.read()
+        text = raw.decode("utf-8", errors="replace")
+        report = build_ue_capability_report(text, filename=Path(file.filename).name)
+        return _ue_cap_report_with_exports(report, generate_exports=do_export)
+
+    path, err = _get_latest_session_log(session_id)
+    if err:
+        return err
+    report = analyze_ue_capability_file(path)
+    return _ue_cap_report_with_exports(report, generate_exports=do_export)
+
+
+@app.post("/api/nr/ue-capability/report/export")
+async def nr_ue_capability_report_export(
+    file: UploadFile | None = File(None),
+    session_id: str = Form("default"),
+    format: str = Form("both"),
+):
+    """Export UE Capability report as PDF, Excel, or both."""
+    from analytics.log_ue_capability_check import analyze_ue_capability_file, build_ue_capability_report
+    from export.ue_capability_report_export import export_ue_capability_excel, export_ue_capability_pdf
+
+    if file and file.filename:
+        raw = await file.read()
+        text = raw.decode("utf-8", errors="replace")
+        report = build_ue_capability_report(text, filename=Path(file.filename).name)
+    else:
+        path, err = _get_latest_session_log(session_id)
+        if err:
+            return err
+        report = analyze_ue_capability_file(path)
+
+    if not report.get("ok", True):
+        return report
+
+    fmt = format.strip().lower()
+    out: dict = {"ok": True, "overall": report.get("overall"), "filename": report.get("filename")}
+    if fmt in ("xlsx", "excel", "both"):
+        out["xlsx"] = export_ue_capability_excel(report)
+    if fmt in ("pdf", "both"):
+        out["pdf"] = export_ue_capability_pdf(report)
+    return out
+
+
+@app.get("/api/datasets/schemas")
+def dataset_schemas():
+    from analytics.dataset_registry import load_schemas
+
+    return load_schemas()
+
+
+@app.get("/api/datasets/status")
+def dataset_status(session_id: str = "default"):
+    from analytics.dataset_registry import dataset_readiness
+
+    return dataset_readiness(session_id=session_id)

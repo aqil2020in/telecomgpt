@@ -129,6 +129,25 @@ class TelecomDB:
         with open(master, encoding="utf-8") as f:
             self.db: dict[str, Any] = json.load(f)
         self.db["devices"] = self._load_devices(master)
+        self._load_nr_bands_catalog(master.parent)
+
+    def _load_nr_bands_catalog(self, data_dir: Path) -> None:
+        catalog_path = data_dir / "nr_bands_catalog.json"
+        if not catalog_path.exists():
+            return
+        with open(catalog_path, encoding="utf-8") as f:
+            catalog = json.load(f)
+        bands = catalog.get("bands") or {}
+        if bands:
+            self.db["nr_bands"] = bands
+            self.db["nr_bands_meta"] = {
+                "source": catalog.get("source"),
+                "spec": catalog.get("spec"),
+                "count": catalog.get("count", len(bands)),
+                "fr1_count": catalog.get("fr1_count"),
+                "fr2_count": catalog.get("fr2_count"),
+                "updated": catalog.get("updated"),
+            }
 
     def _load_devices(self, master: Path) -> dict[str, dict[str, Any]]:
         spec = self.db.get("devices", {})
@@ -597,7 +616,10 @@ class TelecomDB:
         ]
 
     def list_bands(self) -> dict[str, Any]:
-        return {
+        out = {
             "nr_bands": self.db.get("nr_bands", {}),
             "lte_bands": self.db.get("lte_bands", {}),
         }
+        if self.db.get("nr_bands_meta"):
+            out["nr_bands_meta"] = self.db["nr_bands_meta"]
+        return out

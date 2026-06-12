@@ -22,6 +22,7 @@ def run_drive_test_agent(query: str, tools: "ToolRegistry", session_id: str = "d
         return {"agent": "drive_test", "content": "No CSV found. Upload a drive-test file or download Kaggle datasets.", "artifacts": []}
 
     rules = tools.run("run_drive_test_rules", path=path)
+    kpi = tools.run("evaluate_rf_kpis", path=path)
     dash = build_kaggle_dashboard(query, csv_path=path)
     maps = build_rf_map_artifacts(path)
     artifacts = list(dash.get("charts") or []) + maps
@@ -30,7 +31,17 @@ def run_drive_test_agent(query: str, tools: "ToolRegistry", session_id: str = "d
         lines.append(f"SLA overall: **{rules.output.get('overall')}**")
         for r in rules.output.get("rules", []):
             lines.append(f"  • {r['rule']}: {r['fail_pct']}% fail ({r['threshold']})")
-    return {"agent": "drive_test", "content": "\n".join(lines), "artifacts": artifacts, "tool_calls": [{"tool": "drive_test"}]}
+    if kpi.ok:
+        from analytics.rf_kpi import format_kpi_report
+
+        lines.append("")
+        lines.append(format_kpi_report(kpi.output))
+    return {
+        "agent": "drive_test",
+        "content": "\n".join(lines),
+        "artifacts": artifacts,
+        "tool_calls": [{"tool": "drive_test"}, {"tool": "evaluate_rf_kpis"}],
+    }
 
 
 def run_log_agent(query: str, tools: "ToolRegistry", session_id: str = "default") -> dict:

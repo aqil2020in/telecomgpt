@@ -1,0 +1,134 @@
+{
+  "version": "1.0",
+  "templates": [
+    {
+      "id": "nr_sa_registration",
+      "feature": "NR SA registration",
+      "3gpp_ref": "TS 23.501 / TS 24.501",
+      "preconditions": ["UE camps on NR cell", "Valid USIM", "PLMN allowed"],
+      "steps": [
+        "DL/UL sync (PSS/SSS, RACH/PRACH)",
+        "RRC Setup Request → RRC Setup → RRC Setup Complete",
+        "5GMM Registration Request",
+        "Authentication Request/Response",
+        "NAS Security Mode Complete + RRC Security Mode Complete",
+        "Registration Accept → RRC Reconfiguration Complete",
+        "5GMM Registration Complete",
+        "PDU Session Establishment Request → Accept (IP + DNS)"
+      ],
+      "pass_criteria": [
+        "All attach checklist steps found in log (see nr_sa_attach_checklist.json)",
+        "Registration Accept received",
+        "PDU session with assigned IPv4/IPv6",
+        "No Authentication failure or Registration reject"
+      ],
+      "reference": "https://www.sharetechnote.com/html/5G/5G_CallProcess_InitialAttach.html"
+    },
+    {
+      "id": "nr_nsa_endc",
+      "feature": "NSA EN-DC attach",
+      "3gpp_ref": "TS 37.340",
+      "preconditions": ["LTE anchor available", "NR SCG band configured"],
+      "steps": [
+        "LTE attach and E-RAB setup",
+        "SgNB addition via RRCConnectionReconfiguration",
+        "SCG bearer activation"
+      ],
+      "pass_criteria": [
+        "SCG active with NR leg",
+        "DL throughput on NR leg measurable",
+        "No SCG failure / split bearer drop"
+      ]
+    },
+    {
+      "id": "ca_n77_n78",
+      "feature": "CA n77 + n78",
+      "3gpp_ref": "TS 38.101-1 band combinations",
+      "preconditions": ["UE supports band combo", "Both cells on air"],
+      "steps": [
+        "Verify UE capability for CA combo",
+        "Configure SCell addition on n78",
+        "Traffic on DL CA"
+      ],
+      "pass_criteria": [
+        "Two DL CC active in UE report",
+        "Aggregated throughput > single carrier baseline",
+        "No SCell deactivation under stable RF"
+      ],
+      "reference": "https://www.sharetechnote.com/html/5G/5G_UE_Capability.html"
+    },
+    {
+      "id": "nr_ue_capability",
+      "feature": "NR UE Capability enquiry",
+      "3gpp_ref": "TS 38.331 / TS 38.306",
+      "preconditions": ["RRC connected", "AS security active (typical)"],
+      "steps": [
+        "gNB sends UE Capability Enquiry (filter RAT/container as needed)",
+        "UE responds with UE Capability Information",
+        "If capa > 9 KB: ULDedicatedMessageSegment until lastSegment",
+        "gNB configures CA/MIMO/bandwidth from bandCombinationList and featureSets"
+      ],
+      "pass_criteria": [
+        "Enquiry and Information both present in log",
+        "Target band/combo in supportedBandListNR or bandCombinationList",
+        "All segmentation segments received when capa is segmented",
+        "Network enables feature under test after capa exchange"
+      ],
+      "reference": "https://www.sharetechnote.com/html/5G/5G_UE_Capability.html"
+    },
+    {
+      "id": "nr_hpue_power_class",
+      "feature": "NR HPUE / power class validation",
+      "3gpp_ref": "TS 38.101-1 Table 6.2.1-1",
+      "preconditions": ["Band supports PC2/PC1.5 (e.g. n77/n78)", "UE declares matching ue-PowerClass in capa"],
+      "steps": [
+        "Capture UECapabilityInformation — verify ue-PowerClass for target band",
+        "Configure cell for HPUE if network supports PC2/PC1.5",
+        "Drive or static test at cell edge — measure UL throughput vs PC3 baseline",
+        "Confirm max UL power ~26 dBm (PC2) or 29 dBm (PC1.5) per 38.101-1"
+      ],
+      "pass_criteria": [
+        "UE capa declares expected power class",
+        "Measured max UL power within spec tolerance",
+        "UL throughput gain vs PC3 at edge (typically 2–5 dB link margin)",
+        "No ACLR/spurious regression at elevated power"
+      ],
+      "reference": "https://www.sharetechnote.com/html/5G/5G_PowerClass.html"
+    },
+    {
+      "id": "nr_protocol_stack",
+      "feature": "NR radio protocol stack (C/U-plane)",
+      "3gpp_ref": "TS 38.300 / TS 23.501",
+      "preconditions": ["UE and gNB in SA or NSA mode", "Log capture covering attach or data session"],
+      "steps": [
+        "Identify C-Plane path: PHY→MAC→RLC→PDCP→RRC→NAS→AMF",
+        "Identify U-Plane path: PHY→MAC→RLC→PDCP→SDAP→UPF",
+        "Scan log for layer keywords (RRC, NAS, PDCP, HARQ, SDAP/QFI)",
+        "Map failure to layer — RF (PHY) vs L2 (MAC/RLC) vs AS (RRC/PDCP) vs NAS/core"
+      ],
+      "pass_criteria": [
+        "Both planes understood for the test scenario",
+        "Failure localized to a single layer or interface",
+        "Relevant 3GPP spec identified (e.g. 38.331 RRC, 24.501 NAS)",
+        "Troubleshooting checks match layer (not treating NAS fail as RF-only)"
+      ],
+      "reference": "https://www.sharetechnote.com/html/5G/5G_RadioProtocolStackArchitecture.html"
+    },
+    {
+      "id": "vonr_call",
+      "feature": "VoNR",
+      "3gpp_ref": "TS 23.501 IMS over 5GS",
+      "preconditions": ["VoNR enabled on cell", "IMS APN configured"],
+      "steps": [
+        "Register IMS",
+        "MO/MT voice call setup",
+        "Maintain call during short mobility"
+      ],
+      "pass_criteria": [
+        "Call setup < 3s",
+        "MOS acceptable / no drop during test window",
+        "Correct QCI/5QI for voice bearer"
+      ]
+    }
+  ]
+}

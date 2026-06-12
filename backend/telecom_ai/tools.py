@@ -228,6 +228,12 @@ def build_tool_registry(db: Any) -> ToolRegistry:
         parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
     )
     reg.register(
+        "evaluate_rf_kpis",
+        lambda path: _evaluate_rf_kpis(path),
+        description="Grade SS-RSRP/RSRQ/SINR/CQI/RSSI/BLER/RI vs 3GPP-referenced thresholds",
+        parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+    )
+    reg.register(
         "plot_rf_map",
         lambda path: _plot_rf_map(path),
         description="Build RF map GeoJSON + geo chart from CSV",
@@ -311,6 +317,12 @@ def _drive_test_rules(path: str):
     from analytics.drive_test_rules import run_drive_test_rules
 
     return run_drive_test_rules(path)
+
+
+def _evaluate_rf_kpis(path: str):
+    from analytics.rf_kpi import evaluate_rf_kpis
+
+    return evaluate_rf_kpis(path)
 
 
 def _plot_rf_map(path: str):
