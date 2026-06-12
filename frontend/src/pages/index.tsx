@@ -22,27 +22,45 @@ type Artifact = {
   plotly_json?: string;
   chart_type?: string;
   source_csv?: string;
+  geojson?: object;
+  point_count?: number;
+};
+
+type Source = {
+  title?: string;
+  url?: string;
+  source?: string;
+  snippet?: string;
 };
 
 type Message = {
   role: "user" | "assistant";
   content: string;
   artifacts?: Artifact[];
+  sources?: Source[];
+  trace?: { steps?: string[]; plan?: { agents?: string[] } };
 };
 
 type AskResponse = {
   answer?: string;
   session_id?: string;
   artifacts?: Artifact[];
+  sources?: Source[];
+  steps?: string[];
+  plan?: { agents?: string[] };
+  confidence?: number;
 };
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
+  const [showTrace, setShowTrace] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -67,6 +85,7 @@ export default function Home() {
           query: text,
           history: messages,
           session_id: sessionId,
+          trace: showTrace,
         }),
       });
       const data: AskResponse = await res.json();
@@ -80,6 +99,10 @@ export default function Home() {
           role: "assistant",
           content: data.answer ?? "(empty response)",
           artifacts: data.artifacts,
+          sources: data.sources,
+          trace: showTrace
+            ? { steps: data.steps, plan: data.plan }
+            : undefined,
         },
       ]);
     } catch (e) {
@@ -94,11 +117,84 @@ export default function Home() {
     }
   };
 
+  const uploadFile = async (file: File) => {
+    setUploading(true);
+    setError("");
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("session_id", sessionId ?? "default");
+      const res = await fetch(`${API_URL}/api/upload`, { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error ?? "Upload failed");
+      }
+      if (data.session_id) setSessionId(data.session_id);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: `Uploaded **${data.filename}** (${data.size_bytes} bytes). Ask me to analyze this drive-test CSV or log file.`,
+        },
+      ]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Upload failed");
+    } finally {
+      setUploading(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
   const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       send();
     }
+  };
+
+  const renderArtifact = (a: Artifact, j: number) => {
+    if (a.type === "chart" && a.ok && a.plotly_json) {
+      return (
+        <PlotlyChart
+          key={`chart-${j}`}
+          plotlyJson={a.plotly_json}
+          title={a.title ?? a.source_csv}
+        />
+      );
+    }
+    if (a.type === "map" && a.ok) {
+      return (
+        <div key={`map-${j}`} style={{ marginTop: 10, fontSize: 13, color: "#475569" }}>
+          RF map: {a.point_count ?? 0} GPS points
+          {a.title ? ` — ${a.title}` : ""}
+        </div>
+      );
+    }
+    if (a.ok && a.download_url) {
+      const isExcel = a.type === "excel" || a.filename?.endsWith(".xlsx");
+      return (
+        <div key={`dl-${j}`} style={{ marginTop: 10 }}>
+          <a
+            href={`${API_URL}${a.download_url}`}
+            download={a.filename}
+            style={{
+              display: "inline-block",
+              padding: "8px 14px",
+              background: isExcel ? "#0d9488" : "#059669",
+              color: "#fff",
+              borderRadius: 6,
+              textDecoration: "none",
+              fontSize: 14,
+              fontWeight: 600,
+            }}
+          >
+            Download {a.filename ?? (isExcel ? "report.xlsx" : "report.pptx")}
+            {a.slides ? ` (${a.slides} slides)` : ""}
+          </a>
+        </div>
+      );
+    }
+    return null;
   };
 
   return (
@@ -115,7 +211,7 @@ export default function Home() {
       <header style={{ padding: "16px 20px", borderBottom: "1px solid #e0e0e0" }}>
         <h1 style={{ margin: 0, fontSize: 22 }}>TelecomGPT</h1>
         <p style={{ margin: "4px 0 0", color: "#666", fontSize: 14 }}>
-          Multi-agent orchestrator — bands, devices, Kaggle analytics charts, PowerPoint reports
+          Multi-agent orchestrator — KB, analytics, drive-test maps, logs, compliance, exports
         </p>
       </header>
 
@@ -132,12 +228,11 @@ export default function Home() {
             <p>Try asking:</p>
             <ul>
               <li>Chart the 5G KPI Kaggle dataset</li>
-              <li>Plot RSRP vs throughput from Kaggle data</li>
+              <li>Upload a drive-test CSV, then ask for RF map + SLA rules</li>
               <li>Generate a PowerPoint report on 5G network slicing</li>
-              <li>What is the difference between LTE and 5G?</li>
-              <li>What is n78?</li>
-              <li>Does the S23 support n77+n78 CA?</li>
-              <li>What is PRACH?</li>
+              <li>Compare S23 vs S24 CA support</li>
+              <li>What is n78? What is PRACH?</li>
+              <li>Run eval smoke test</li>
             </ul>
           </div>
         )}
@@ -153,7 +248,11 @@ export default function Home() {
           >
             <div
               style={{
-                maxWidth: m.role === "assistant" && m.artifacts?.some((a) => a.type === "chart") ? "95%" : "85%",
+                maxWidth:
+                  m.role === "assistant" &&
+                  m.artifacts?.some((a) => a.type === "chart" || a.type === "map")
+                    ? "95%"
+                    : "85%",
                 padding: "12px 16px",
                 borderRadius: 12,
                 background: m.role === "user" ? "#2563eb" : "#fff",
@@ -166,49 +265,47 @@ export default function Home() {
               }}
             >
               {m.content}
-              {m.role === "assistant" &&
-                m.artifacts?.map((a, j) => {
-                  if (a.type === "chart" && a.ok && a.plotly_json) {
-                    return (
-                      <PlotlyChart
-                        key={`chart-${j}`}
-                        plotlyJson={a.plotly_json}
-                        title={a.title ?? a.source_csv}
-                      />
-                    );
-                  }
-                  if (a.ok && a.download_url) {
-                    return (
-                      <div key={`ppt-${j}`} style={{ marginTop: 10 }}>
-                        <a
-                          href={`${API_URL}${a.download_url}`}
-                          download={a.filename}
-                          style={{
-                            display: "inline-block",
-                            padding: "8px 14px",
-                            background: "#059669",
-                            color: "#fff",
-                            borderRadius: 6,
-                            textDecoration: "none",
-                            fontSize: 14,
-                            fontWeight: 600,
-                          }}
-                        >
-                          Download {a.filename ?? "report.pptx"}
-                          {a.slides ? ` (${a.slides} slides)` : ""}
-                        </a>
-                      </div>
-                    );
-                  }
-                  return null;
-                })}
+              {m.role === "assistant" && m.artifacts?.map(renderArtifact)}
+              {m.role === "assistant" && m.sources && m.sources.length > 0 && (
+                <details style={{ marginTop: 10, fontSize: 13 }}>
+                  <summary style={{ cursor: "pointer", color: "#2563eb" }}>
+                    Sources ({m.sources.length})
+                  </summary>
+                  <ul style={{ margin: "6px 0 0", paddingLeft: 18 }}>
+                    {m.sources.slice(0, 8).map((s, k) => (
+                      <li key={k}>
+                        {s.url ? (
+                          <a href={s.url} target="_blank" rel="noreferrer">
+                            {s.title ?? s.source ?? s.url}
+                          </a>
+                        ) : (
+                          s.title ?? s.snippet?.slice(0, 80) ?? "Reference"
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {m.role === "assistant" && m.trace && (
+                <details style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                  <summary style={{ cursor: "pointer" }}>Agent trace</summary>
+                  {m.trace.plan?.agents && (
+                    <p style={{ margin: "4px 0" }}>
+                      Plan: {m.trace.plan.agents.join(" → ")}
+                    </p>
+                  )}
+                  {m.trace.steps && (
+                    <p style={{ margin: 0 }}>{m.trace.steps.join(" · ")}</p>
+                  )}
+                </details>
+              )}
             </div>
           </div>
         ))}
 
         {loading && (
           <div style={{ color: "#666", fontSize: 14, marginBottom: 12 }}>
-            Thinking…
+            Running multi-agent pipeline…
           </div>
         )}
 
@@ -227,17 +324,17 @@ export default function Home() {
           background: "#fff",
         }}
       >
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8, alignItems: "center" }}>
           {[
             "Chart 5G KPI dataset",
-            "Plot slicing QoS data",
-            "Signal metrics map data",
+            "Compare S23 vs S24",
+            "Run eval smoke test",
           ].map((label) => (
             <button
               key={label}
               type="button"
               disabled={loading}
-              onClick={() => setInput(`Chart and analyze the Kaggle ${label.toLowerCase()}`)}
+              onClick={() => setInput(label)}
               style={{
                 padding: "4px 10px",
                 fontSize: 12,
@@ -250,8 +347,42 @@ export default function Home() {
               {label}
             </button>
           ))}
+          <label style={{ fontSize: 12, marginLeft: 8, display: "flex", alignItems: "center", gap: 4 }}>
+            <input
+              type="checkbox"
+              checked={showTrace}
+              onChange={(e) => setShowTrace(e.target.checked)}
+            />
+            Show agent trace
+          </label>
         </div>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, alignItems: "flex-end" }}>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".csv,.log,.txt"
+            style={{ display: "none" }}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) uploadFile(f);
+            }}
+          />
+          <button
+            type="button"
+            disabled={uploading || loading}
+            onClick={() => fileRef.current?.click()}
+            title="Upload CSV or log"
+            style={{
+              padding: "10px 12px",
+              borderRadius: 8,
+              border: "1px solid #cbd5e1",
+              background: "#f8fafc",
+              cursor: uploading || loading ? "default" : "pointer",
+              fontSize: 18,
+            }}
+          >
+            {uploading ? "…" : "📎"}
+          </button>
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}

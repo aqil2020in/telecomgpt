@@ -191,6 +191,40 @@ def build_tool_registry(db: Any) -> ToolRegistry:
         parameters={"type": "object", "properties": {}},
     )
     reg.register(
+        "hybrid_search",
+        lambda query, session_id="", k=5: _hybrid_search(query, session_id, k),
+        description="Hybrid BM25 + vector memory search",
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string"}, "session_id": {"type": "string"}, "k": {"type": "integer"}},
+            "required": ["query"],
+        },
+    )
+    reg.register(
+        "run_drive_test_rules",
+        lambda path: _drive_test_rules(path),
+        description="Run SLA rules on drive-test CSV",
+        parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+    )
+    reg.register(
+        "plot_rf_map",
+        lambda path: _plot_rf_map(path),
+        description="Build RF map GeoJSON + geo chart from CSV",
+        parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+    )
+    reg.register(
+        "compare_devices",
+        lambda query: _compare_devices(db, query),
+        description="Compare two devices mentioned in query",
+        parameters={"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
+    )
+    reg.register(
+        "export_excel",
+        lambda path: _export_excel(path),
+        description="Export CSV summary to Excel workbook",
+        parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
+    )
+    reg.register(
         "generate_presentation",
         lambda topic, content, session_id="default": _generate_ppt(topic, content, session_id),
         description="Generate a PowerPoint report (.pptx) from topic and content",
@@ -231,3 +265,51 @@ def _generate_ppt(topic: str, content: str, session_id: str = "default") -> dict
     from ppt.generator import generate_presentation
 
     return generate_presentation(topic=topic, content=content, session_id=session_id)
+
+
+def _hybrid_search(query: str, session_id: str = "", k: int = 5):
+    from rag.hybrid_retrieve import hybrid_retrieve
+
+    return hybrid_retrieve(query, k=k, session_id=session_id or None)
+
+
+def _drive_test_rules(path: str):
+    from analytics.drive_test_rules import run_drive_test_rules
+
+    return run_drive_test_rules(path)
+
+
+def _plot_rf_map(path: str):
+    from analytics.rf_map import build_rf_map_artifacts
+
+    return build_rf_map_artifacts(path)
+
+
+def _compare_devices(db: Any, query: str) -> str:
+    ql = query.lower()
+    found = []
+    for dev_id in db.devices:
+        label = dev_id.replace("_", " ").replace("samsung", "s").replace("google", "")
+        if dev_id.replace("_", " ") in ql or dev_id in ql or label in ql:
+            found.append(dev_id)
+    if len(found) < 2:
+        for hint in ("s23", "s24", "s25", "iphone 16", "pixel"):
+            if hint in ql:
+                for dev_id in db.devices:
+                    if hint.replace(" ", "") in dev_id.replace("_", ""):
+                        if dev_id not in found:
+                            found.append(dev_id)
+    if len(found) < 2:
+        return "Could not find two devices to compare. Try: 'Compare S23 vs S24'."
+    lines = []
+    for d in found[:2]:
+        ans = db.answer_device(d.replace("_", " "))
+        lines.append(f"**{d}**\n{ans[:800]}")
+    return "\n\n---\n\n".join(lines)
+
+
+def _export_excel(path: str):
+    from analytics.csv_tools import csv_summary, load_csv_path
+    from export.excel_report import export_csv_summary_excel
+
+    return export_csv_summary_excel(path, csv_summary(load_csv_path(path)))

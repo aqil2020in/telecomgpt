@@ -50,7 +50,7 @@ def run_research_agent(query: str, tools: "ToolRegistry", session_id: str = "def
     tool_calls: list[dict] = []
     parts: list[str] = []
 
-    rag = tools.run("rag_search", query=query, k=5)
+    rag = tools.run("hybrid_search", query=query, session_id=session_id, k=5)
     if rag.ok and rag.output:
         context, cites = rag.output if isinstance(rag.output, tuple) else (str(rag.output), [])
         parts.append(f"**Reference excerpts**\n{context[:3500]}")
@@ -187,6 +187,9 @@ def run_synthesizer(
     else:
         answer, llm_sources = llm_answer_with_sources(query, db, history=history)
         all_sources.extend(llm_sources)
+
+    if not answer and combined.strip():
+        answer = combined[:6000]
 
     return {
         "agent": "synthesizer",

@@ -15,7 +15,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, Form, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
@@ -46,7 +46,13 @@ class PptRequest(BaseModel):
     session_id: str = "default"
 
 
-app = FastAPI(title="TelecomGPT", version="0.4.0")
+class ProfileUpdate(BaseModel):
+    bands: list[str] = []
+    devices: list[str] = []
+    notes: str = ""
+
+
+app = FastAPI(title="TelecomGPT", version="0.5.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -82,7 +88,11 @@ def root():
             "POST /api/analytics/logs/analyze": "Log upload -> level counts + errors",
             "GET /api/tools": "List agent tools",
             "POST /api/ppt/generate": "Generate PowerPoint report",
-            "GET /api/reports/{filename}": "Download generated .pptx",
+            "GET /api/reports/{filename}": "Download generated .pptx or .xlsx",
+            "POST /api/upload": "Upload CSV/log for session-scoped analysis",
+            "GET /api/profile/{session_id}": "Get user profile (bands, devices)",
+            "POST /api/profile/{session_id}": "Update user profile",
+            "POST /api/eval/smoke": "Run KB smoke-test eval",
         },
         "analytics_ui": "streamlit run analytics/app.py",
     }
@@ -98,6 +108,9 @@ def ask(q: Query):
         "answer": result.get("answer") or "",
         "session_id": result.get("session_id"),
         "artifacts": result.get("artifacts") or [],
+        "sources": result.get("sources") or [],
+        "confidence": result.get("confidence"),
+        "plan": result.get("plan"),
     }
 
 
@@ -121,13 +134,66 @@ def generate_ppt(req: PptRequest):
 def download_report(filename: str):
     reports_dir = Path(__file__).resolve().parent / "data" / "reports"
     path = reports_dir / filename
-    if not path.exists() or path.suffix.lower() != ".pptx":
+    if not path.exists():
         return {"error": "Report not found"}
-    return FileResponse(
-        path,
-        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        filename=filename,
-    )
+    suffix = path.suffix.lower()
+    if suffix == ".pptx":
+        media = "application/vnd.openxmlformats-officedocument.presentationml.presentation"
+    elif suffix == ".xlsx":
+        media = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    else:
+        return {"error": "Unsupported report type"}
+    return FileResponse(path, media_type=media, filename=filename)
+
+
+@app.post("/api/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    session_id: str = Form("default"),
+):
+    uploads_dir = Path(__file__).resolve().parent / "data" / "uploads" / session_id
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    safe_name = Path(file.filename or "upload").name
+    dest = uploads_dir / safe_name
+    content = await file.read()
+    dest.write_bytes(content)
+    return {
+        "ok": True,
+        "filename": safe_name,
+        "path": str(dest),
+        "session_id": session_id,
+        "size_bytes": len(content),
+    }
+
+
+@app.get("/api/profile/{session_id}")
+def get_profile(session_id: str):
+    from memory.user_profile import UserProfile
+
+    return UserProfile(session_id).load()
+
+
+@app.post("/api/profile/{session_id}")
+def update_profile(session_id: str, body: ProfileUpdate):
+    from memory.user_profile import UserProfile
+
+    profile = UserProfile(session_id)
+    data = profile.load()
+    if body.bands:
+        data["bands"] = body.bands
+    if body.devices:
+        data["devices"] = body.devices
+    if body.notes:
+        data["notes"] = body.notes
+    profile.save(data)
+    return data
+
+
+@app.post("/api/eval/smoke")
+def eval_smoke():
+    from telecom_ai.agents.extended import run_eval_agent
+
+    return run_eval_agent(agent.db)
 
 
 @app.post("/api/memory/ingest-rag")

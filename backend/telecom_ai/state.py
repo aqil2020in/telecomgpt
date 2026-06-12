@@ -47,6 +47,8 @@ class OrchestratorState(TypedDict, total=False):
     answer: str | None
     sources: list[dict]
     artifacts: list[dict]
+    confidence: float | None
+    needs_clarification: bool
     steps: Annotated[list[str], operator.add]
 
 
@@ -70,5 +72,7 @@ def initial_orchestrator_state(
         "answer": None,
         "sources": [],
         "artifacts": [],
+        "confidence": None,
+        "needs_clarification": False,
         "steps": [],
     }

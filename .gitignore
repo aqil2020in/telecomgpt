@@ -23,6 +23,7 @@ backend/data/kaggle/*/
 # Agent memory & reports (generated at runtime)
 backend/data/memory/
 backend/data/reports/
+backend/data/uploads/
 .kaggle/
 
 # IDE / OS
