@@ -158,15 +158,37 @@ class VectorMemory:
         count = 0
         for i in range(0, len(chunks), batch_size):
             batch = chunks[i : i + batch_size]
+            ids: list[str] = []
+            documents: list[str] = []
+            metadatas: list[dict] = []
             for ch in batch:
                 text = ch.get("text", "")
                 if not text.strip():
                     continue
-                self.remember(
-                    text[:2000],
-                    session_id="rag",
-                    kind="reference",
-                    metadata={"url": ch.get("url"), "title": ch.get("title")},
+                doc_id = hashlib.sha256(
+                    f"rag:{ch.get('id', '')}:{text[:120]}".encode()
+                ).hexdigest()[:16]
+                ids.append(doc_id)
+                documents.append(text[:2000])
+                metadatas.append(
+                    {
+                        "session_id": "rag",
+                        "kind": "reference",
+                        "ts": datetime.now(timezone.utc).isoformat(),
+                        "url": ch.get("url") or "",
+                        "title": ch.get("title") or "",
+                    }
                 )
                 count += 1
+            if not ids:
+                continue
+            if self._collection is not None:
+                try:
+                    self._collection.add(ids=ids, documents=documents, metadatas=metadatas)
+                    continue
+                except Exception:
+                    pass
+            for doc_id, text, meta in zip(ids, documents, metadatas):
+                self._fallback.add(doc_id, text, meta)
+            self._save_fallback()
         return count

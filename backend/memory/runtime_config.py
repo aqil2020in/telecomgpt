@@ -1,4 +1,4 @@
-"""Runtime flags for memory-constrained hosts (e.g. Render 512MB)."""
+"""Runtime flags for memory-constrained hosts (e.g. Render 512MB). Set TELECOMGPT_LOW_MEMORY=0 on 2GB+."""
 
 from __future__ import annotations
 
