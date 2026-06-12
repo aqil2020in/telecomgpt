@@ -13,6 +13,7 @@ Endpoints:
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, UploadFile
@@ -115,7 +116,10 @@ def root():
 @app.post("/ask")
 def ask(q: Query):
     history = [{"role": m.role, "content": m.content} for m in q.history]
-    result = agent.run_with_trace(q.query, history=history, session_id=q.session_id)
+    if _should_use_fast_ask(q.query, q.trace):
+        result = agent.run_fast(q.query, history=history, session_id=q.session_id)
+    else:
+        result = agent.run_with_trace(q.query, history=history, session_id=q.session_id)
     if q.trace:
         return result
     return {
@@ -127,7 +131,24 @@ def ask(q: Query):
         "plan": result.get("plan"),
         "workflow_tasks": result.get("workflow_tasks") or [],
         "guardrail_issues": result.get("guardrail_issues") or [],
+        "mode": result.get("mode"),
     }
+
+
+def _should_use_fast_ask(query: str, trace: bool) -> bool:
+    """Use fast RAG+LLM path for typical Q&A (avoids Render timeout)."""
+    if trace:
+        return False
+    if os.environ.get("TELECOMGPT_FAST_ASK", "1") != "1":
+        return False
+    ql = query.lower()
+    slow_kw = (
+        "chart", "ppt", "powerpoint", "csv", "upload", "compare", "eval", "deploy",
+        "kaggle", "dashboard", "map", "excel", "report", "predict", "log", "smoke",
+    )
+    if any(k in ql for k in slow_kw):
+        return False
+    return len(query.split()) <= 24
 
 
 @app.get("/api/tools")

@@ -48,7 +48,7 @@ def guess_sharetechnote_url(query: str) -> str | None:
 
 def fetch_page_excerpt(url: str, *, max_chars: int = 3500) -> dict[str, Any]:
     """Fetch and return live page text excerpt."""
-    html = fetch_html(url, timeout=20)
+    html = fetch_html(url, timeout=12)
     text = html_to_text(html)
     title = extract_title(html, url)
     if not text.strip():
@@ -77,7 +77,7 @@ def fetch_live_for_query(query: str, rag_cites: list[dict] | None = None) -> tup
 
     parts: list[str] = []
     cites: list[dict] = []
-    for url in urls[:2]:
+    for url in urls[:1]:
         try:
             page = fetch_page_excerpt(url)
             if not page.get("ok"):

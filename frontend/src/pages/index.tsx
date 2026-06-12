@@ -67,12 +67,19 @@ export default function Home() {
   const [error, setError] = useState("");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [showTrace, setShowTrace] = useState(false);
+  const [apiReady, setApiReady] = useState<boolean | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, loading]);
+
+  useEffect(() => {
+    fetch(`${API_URL}/api/health`, { method: "GET" })
+      .then((r) => setApiReady(r.ok))
+      .catch(() => setApiReady(false));
+  }, []);
 
   const send = async () => {
     const text = input.trim();
@@ -120,11 +127,13 @@ export default function Home() {
         },
       ]);
     } catch (e) {
-      setError(
+      const msg =
         e instanceof Error
-          ? e.message
-          : "Could not reach the API. Wait a moment and try again."
-      );
+          ? e.message.includes("fetch") || e.name === "TypeError"
+            ? `Could not reach the API at ${API_URL}. The server may be waking up — wait 30s and try again.`
+            : e.message
+          : "Could not reach the API. Wait a moment and try again.";
+      setError(msg);
       setMessages(messages);
     } finally {
       setLoading(false);
@@ -237,6 +246,12 @@ export default function Home() {
           background: "#fafafa",
         }}
       >
+        {apiReady === false && (
+          <p style={{ color: "#b45309", fontSize: 13, marginBottom: 8 }}>
+            API waking up or unreachable — first request may take up to a minute on Render.
+          </p>
+        )}
+
         {messages.length === 0 && !loading && (
           <div style={{ color: "#888", fontSize: 14, lineHeight: 1.6 }}>
             <p>Try asking:</p>

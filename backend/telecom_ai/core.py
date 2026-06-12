@@ -64,3 +64,49 @@ class TelecomAI:
         from .tools import build_tool_registry
 
         return build_tool_registry(self.db).list_specs()
+
+    def run_fast(
+        self,
+        query: str,
+        history: list[dict[str, str]] | None = None,
+        session_id: str | None = None,
+    ) -> dict:
+        """Fast grounded path — hybrid RAG + LLM, no full multi-agent graph."""
+        import uuid
+
+        from .guardrails import check_input, check_output
+        from .reasoning import llm_answer_with_sources
+        from memory.memory_manager import MemoryManager
+
+        pre = check_input(query)
+        if not pre["allowed"]:
+            return {
+                "answer": pre["message"],
+                "session_id": session_id or "default",
+                "sources": [],
+                "mode": "fast",
+                "guardrail_issues": pre.get("issues") or [],
+            }
+
+        q = pre.get("redacted_query") or query
+        sid = session_id or str(uuid.uuid4())[:12]
+        mem_ctx = MemoryManager(sid).assemble_context(q)
+        extra = f"Session & memory:\n{mem_ctx[:2500]}" if mem_ctx else None
+
+        answer, sources = llm_answer_with_sources(
+            q, self.db, history=history, extra_context=extra
+        )
+        post = check_output(answer or "")
+        answer = post.get("filtered_answer") or answer or ""
+
+        if answer:
+            MemoryManager(sid).persist_exchange(q, answer)
+
+        return {
+            "answer": answer,
+            "session_id": sid,
+            "sources": sources or [],
+            "artifacts": [],
+            "mode": "fast",
+            "guardrail_issues": list(pre.get("issues") or []) + list(post.get("issues") or []),
+        }

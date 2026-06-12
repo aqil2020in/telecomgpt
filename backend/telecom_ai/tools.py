@@ -288,10 +288,10 @@ def _generate_ppt(topic: str, content: str, session_id: str = "default") -> dict
     return generate_presentation(topic=topic, content=content, session_id=session_id)
 
 
-def _hybrid_search(query: str, session_id: str = "", k: int = 5):
+def _hybrid_search(query: str, session_id: str = "", k: int = 5, live: bool = False):
     from rag.hybrid_retrieve import hybrid_retrieve
 
-    return hybrid_retrieve(query, k=k, session_id=session_id or None)
+    return hybrid_retrieve(query, k=k, session_id=session_id or None, live=live)
 
 
 def _web_search(query: str):

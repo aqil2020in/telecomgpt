@@ -18,3 +18,5 @@ services:
         value: "1"
       - key: TELECOMGPT_ENGINE
         value: "hybrid"
+      - key: TELECOMGPT_FAST_ASK
+        value: "1"
