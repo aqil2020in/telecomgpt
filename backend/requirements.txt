@@ -10,3 +10,5 @@ requests
 python-pptx
 chromadb
 openpyxl
+crewai>=0.86.0
+pyautogen>=0.2.34

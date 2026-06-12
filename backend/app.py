@@ -99,6 +99,7 @@ def root():
             "GET /api/guardrails": "Guardrails & compliance policy",
             "GET /api/integrations": "External API / serverless integrations",
             "GET /api/monitoring/runs": "Recent orchestrator run summaries",
+            "GET /api/engines": "Hybrid engine status (LangGraph + CrewAI + AutoGen)",
         },
         "analytics_ui": "streamlit run analytics/app.py",
     }
@@ -267,6 +268,13 @@ def monitoring_runs(limit: int = 20):
     return {"runs": recent_runs(limit=min(limit, 50))}
 
 
+@app.get("/api/engines")
+def engines_status():
+    from telecom_ai.engines import engine_status
+
+    return engine_status()
+
+
 @app.post("/api/memory/ingest-rag")
 def ingest_rag_to_memory():
     """Index RAG chunks into vector memory for hybrid retrieval."""
@@ -293,6 +301,7 @@ def rag_reindex():
 def health():
     import os
 
+    from telecom_ai.engines import engine_status
     from telecom_ai.reasoning import _ollama_reachable
 
     return {
@@ -303,6 +312,7 @@ def health():
             "ollama_reachable": _ollama_reachable(),
             "mode": os.environ.get("TELECOMGPT_MODE", "orchestrator"),
         },
+        "engines": engine_status(),
     }
 
 

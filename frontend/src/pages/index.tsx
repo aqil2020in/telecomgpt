@@ -225,7 +225,7 @@ export default function Home() {
       <header style={{ padding: "16px 20px", borderBottom: "1px solid #e0e0e0" }}>
         <h1 style={{ margin: 0, fontSize: 22 }}>TelecomGPT</h1>
         <p style={{ margin: "4px 0 0", color: "#666", fontSize: 14 }}>
-          LangGraph orchestrator — task · retrieval · autonomous agents · layered memory · guardrails
+          LangGraph hub — hybrid CrewAI + AutoGen · layered memory · guardrails
         </p>
       </header>
 

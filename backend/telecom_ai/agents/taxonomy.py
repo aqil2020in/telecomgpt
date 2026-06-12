@@ -23,6 +23,8 @@ AGENT_TAXONOMY: dict[str, dict] = {
     # Autonomous agents — dynamic tool selection / reasoning
     "telecom_kb": {"category": "autonomous", "description": "KB lookups with multi-tool reasoning"},
     "react": {"category": "autonomous", "description": "ReAct loop — LLM picks tools iteratively"},
+    "autogen": {"category": "autonomous", "description": "Microsoft AutoGen — multi-turn tool calling"},
+    "crew": {"category": "autonomous", "description": "CrewAI — role-based researcher + RF + compliance crew"},
     # Orchestration
     "synthesizer": {"category": "orchestration", "description": "Merge agent outputs into final answer"},
     "verifier": {"category": "orchestration", "description": "Cross-check answer against KB/RAG"},

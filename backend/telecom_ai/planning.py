@@ -28,8 +28,8 @@ _PHY_KW = ("arfcn", "gscn", "throughput", "mhz", "ghz", "ssb")
 
 ALL_AGENTS = (
     "telecom_kb", "research", "analytics", "drive_test", "log", "prediction",
-    "compliance", "spec", "comparison", "react", "presentation", "verifier",
-    "synthesizer", "deploy", "eval",
+    "compliance", "spec", "comparison", "react", "autogen", "crew",
+    "presentation", "verifier", "synthesizer", "deploy", "eval",
 )
 
 
@@ -93,7 +93,7 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
 
     steps = [{"step": i + 1, "agent": a, "action": f"Run {a} agent"} for i, a in enumerate(agents)]
 
-    return {
+    plan = {
         "goal": query,
         "agents": agents,
         "parallel_agents": parallel,
@@ -104,6 +104,10 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
         "requires_tools": True,
         "requires_ppt": flags["ppt"],
     }
+
+    from .engine_plan import apply_engine_to_plan
+
+    return apply_engine_to_plan(plan, flags)
 
 
 def refine_plan_with_llm(query: str, base_plan: dict) -> dict:
@@ -118,7 +122,10 @@ def refine_plan_with_llm(query: str, base_plan: dict) -> dict:
         return base_plan
     base_plan["agents"] = refined["agents"]
     base_plan["parallel_agents"] = [a for a in refined["agents"] if a not in ("presentation", "synthesizer", "verifier")]
-    return base_plan
+    from .engine_plan import apply_engine_to_plan
+
+    flags = {k: True for k in refined["agents"]}
+    return apply_engine_to_plan(base_plan, flags)
 
 
 def parse_tool_calls(text: str) -> list[dict]:

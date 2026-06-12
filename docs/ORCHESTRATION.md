@@ -171,13 +171,45 @@ Errors are captured per agent; parallel batch continues on individual failures.
 
 `GET /api/guardrails` — policy summary.
 
+## Hybrid Engines — LangGraph + CrewAI + AutoGen
+
+TelecomGPT uses **LangGraph as the master orchestrator**. CrewAI and AutoGen run as **specialist nodes** inside the graph, not as replacements.
+
+```mermaid
+flowchart TB
+    LG[LangGraph master] --> TASK[Task agents]
+    LG --> CREW[CrewAI crew]
+    LG --> AUTO[AutoGen tools]
+    LG --> SYN[Synthesizer]
+    CREW --> SYN
+    AUTO --> SYN
+    TASK --> SYN
+```
+
+| Engine | Agent name | When used |
+| --- | --- | --- |
+| **LangGraph** | (pipeline) | Always — memory, guardrails, workflow |
+| **CrewAI** | `crew` | Hybrid: multi-domain queries, PPT reports; `TELECOMGPT_ENGINE=crew` for crew-only |
+| **AutoGen** | `autogen` | Hybrid: replaces `react` for autonomous tool loops |
+
+| Env var | Default | Values |
+| --- | --- | --- |
+| `TELECOMGPT_ENGINE` | `hybrid` | `langgraph` / `hybrid` / `crew` / `autogen` |
+| `TELECOMGPT_AUTONOMOUS` | (auto) | `react` / `autogen` — override autonomous agent |
+
+`GET /api/engines` — installed engines and active mode.
+
+**Fallbacks:** If `crewai` or `pyautogen` are not installed (or no API key), internal fallback crews / ReAct loop run automatically.
+
 ## LangChain / LangGraph / OpenAI Agents
 
 | Framework | Role in TelecomGPT |
 | --- | --- |
-| **LangGraph** | Orchestrator graph, optional `MemorySaver` checkpoint |
+| **LangGraph** | Master orchestrator graph, optional `MemorySaver` checkpoint |
+| **CrewAI** | Role-based Researcher + RF Engineer + Compliance crew |
+| **AutoGen** | Multi-turn autonomous tool calling |
 | **LangChain-core** | Compatible tool/message patterns |
-| **OpenAI** | Synthesis, optional ReAct tool picking |
+| **OpenAI** | Synthesis, CrewAI/AutoGen LLM backend |
 | **Multi-agent** | Parallel specialists + sequential synthesizer |
 
 ## Next-Gen Agent Protocols (roadmap)
@@ -190,6 +222,8 @@ Errors are captured per agent; parallel batch continues on individual failures.
 
 | Env var | Default | Purpose |
 | --- | --- | --- |
+| `TELECOMGPT_ENGINE` | `hybrid` | `langgraph` / `hybrid` / `crew` / `autogen` |
+| `TELECOMGPT_AUTONOMOUS` | (auto) | `react` / `autogen` |
 | `TELECOMGPT_MODE` | `orchestrator` | `legacy` for keyword router |
 | `TELECOMGPT_MEMORY` | `chroma` | `mem0` / `langmem` / `letta` |
 | `TELECOMGPT_LLM` | `auto` | `openai` / `ollama` |
@@ -206,7 +240,11 @@ backend/telecom_ai/
   workflow.py           Task tracking
   monitoring.py         Run observability
   agents/taxonomy.py    Task / retrieval / autonomous
-  integrations/         Web API + serverless
+  engines/              CrewAI + AutoGen hybrid runners
+    crew_runner.py
+    autogen_runner.py
+    tool_bridge.py
+  engine_plan.py        Hybrid routing in planner
 backend/memory/
   memory_manager.py     Semantic / episodic / procedural
   adapters.py           Mem0, LangMem, Letta, Chroma

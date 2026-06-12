@@ -70,4 +70,32 @@ def list_integrations() -> list[dict]:
             "description": "Mem0 long-term memory (pip install mem0ai)",
             "configured": os.environ.get("TELECOMGPT_MEMORY") == "mem0",
         },
+        {
+            "name": "crewai",
+            "description": "CrewAI role-based crews (TELECOMGPT_ENGINE=hybrid|crew)",
+            "configured": _crewai_ok(),
+        },
+        {
+            "name": "autogen",
+            "description": "Microsoft AutoGen tool loops (TELECOMGPT_ENGINE=hybrid|autogen)",
+            "configured": _autogen_ok(),
+        },
     ]
+
+
+def _crewai_ok() -> bool:
+    try:
+        from telecom_ai.engines.crew_runner import crew_available
+
+        return crew_available()
+    except Exception:
+        return False
+
+
+def _autogen_ok() -> bool:
+    try:
+        from telecom_ai.engines.autogen_runner import autogen_available
+
+        return autogen_available()
+    except Exception:
+        return False

@@ -28,7 +28,8 @@ from .tools import ToolRegistry
 # Agents that run in parallel batch (not sequential loop)
 PARALLEL_AGENTS = frozenset({
     "telecom_kb", "research", "analytics", "drive_test", "log",
-    "prediction", "compliance", "spec", "comparison", "react", "deploy", "eval",
+    "prediction", "compliance", "spec", "comparison", "react", "autogen", "crew",
+    "deploy", "eval",
 })
 
 SEQUENTIAL_AGENTS = frozenset({"presentation", "synthesizer", "verifier"})
@@ -79,6 +80,23 @@ def run_agent(
     elif name == "react":
         from .react_loop import run_react_tools
         out = run_react_tools(query, tools.list_specs(), tools)
+    elif name == "autogen":
+        from .engines.autogen_runner import run_autogen_tools
+        out = run_autogen_tools(
+            query,
+            tools.list_specs(),
+            tools,
+            memory_context=memory_context,
+        )
+    elif name == "crew":
+        from .engines.crew_runner import run_telecom_crew
+        out = run_telecom_crew(
+            query,
+            tools,
+            db,
+            session_id=session_id,
+            memory_context=memory_context,
+        )
     elif name == "synthesizer":
         out = run_synthesizer(
             query,

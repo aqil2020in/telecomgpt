@@ -77,6 +77,7 @@ def build_orchestrator_graph(db: TelecomDB):
         explicit = {
             "analytics", "presentation", "eval", "deploy", "log",
             "drive_test", "prediction", "comparison", "compliance", "spec",
+            "crew", "autogen",
         }
         if len(agents) > 2 or any(a in agents for a in explicit):
             return {
