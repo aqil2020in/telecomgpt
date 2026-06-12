@@ -10,6 +10,67 @@ _log = logging.getLogger("telecomgpt.startup")
 _reindex_lock = threading.Lock()
 _reindex_done = False
 
+_vector_ingest_lock = threading.Lock()
+_vector_ingest_state: dict = {
+    "running": False,
+    "done": False,
+    "indexed": 0,
+    "chunks": 0,
+    "error": None,
+}
+
+
+def vector_ingest_status() -> dict:
+    return dict(_vector_ingest_state)
+
+
+def run_vector_ingest_background() -> dict:
+    """Index RAG chunks into vector memory without blocking the HTTP request."""
+    global _vector_ingest_state
+
+    with _vector_ingest_lock:
+        if _vector_ingest_state.get("running"):
+            return {"status": "running", **vector_ingest_status()}
+        _vector_ingest_state = {
+            "running": True,
+            "done": False,
+            "indexed": 0,
+            "chunks": 0,
+            "error": None,
+        }
+
+    try:
+        from rag.store import load_chunks
+
+        chunks = load_chunks()
+        _vector_ingest_state["chunks"] = len(chunks)
+    except Exception as e:
+        _vector_ingest_state.update({"running": False, "done": True, "error": str(e)[:300]})
+        return {"status": "error", **vector_ingest_status()}
+
+    def _job() -> None:
+        try:
+            from memory.runtime_config import vector_enabled
+            from memory.vector_store import VectorMemory
+            from rag.store import load_chunks
+
+            if not vector_enabled():
+                _vector_ingest_state["error"] = "vector_disabled"
+                return
+            chunks = load_chunks()
+            count = VectorMemory().ingest_rag_chunks(chunks)
+            _vector_ingest_state["indexed"] = count
+            _log.info("Background vector ingest: %s chunks", count)
+        except Exception as e:
+            _vector_ingest_state["error"] = str(e)[:300]
+            _log.warning("Background vector ingest failed: %s", e)
+        finally:
+            _vector_ingest_state["running"] = False
+            _vector_ingest_state["done"] = True
+
+    threading.Thread(target=_job, name="vector-ingest", daemon=True).start()
+    return {"status": "started", "chunks": _vector_ingest_state["chunks"]}
+
 
 def reindex_rag_chunks(*, ingest: bool = False) -> dict:
     """Rebuild chunk store (optional) and index into vector memory."""

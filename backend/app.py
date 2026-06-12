@@ -386,15 +386,28 @@ def rag_status():
     }
 
 
+@app.get("/api/memory/ingest-rag/status")
+def ingest_rag_status():
+    """Poll background vector RAG ingest progress."""
+    from telecom_ai.startup_tasks import vector_ingest_status
+
+    return vector_ingest_status()
+
+
 @app.post("/api/memory/ingest-rag")
-def ingest_rag_to_memory():
+def ingest_rag_to_memory(sync: bool = False):
     """Index RAG chunks into vector memory for hybrid retrieval."""
+    from telecom_ai.startup_tasks import run_vector_ingest_background
+
+    if not sync:
+        return run_vector_ingest_background()
+
     from memory.vector_store import VectorMemory
     from rag.store import load_chunks
 
     chunks = load_chunks()
     count = VectorMemory().ingest_rag_chunks(chunks)
-    return {"status": "ok", "indexed": count}
+    return {"status": "ok", "indexed": count, "chunks": len(chunks)}
 
 
 @app.post("/api/rag/reindex")
