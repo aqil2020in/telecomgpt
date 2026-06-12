@@ -7,3 +7,6 @@ pandas
 plotly
 python-multipart
 requests
+python-pptx
+chromadb
+pydantic

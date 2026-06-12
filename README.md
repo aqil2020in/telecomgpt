@@ -1,21 +1,24 @@
 # TelecomGPT
 
-A domain-specific AI assistant for cellular/RF engineering. It answers questions about
-5G NR and LTE bands, device capabilities, CA/EN-DC/NR-DC, and performs 3GPP-grounded
-calculations (NR-ARFCN, GSCN, peak throughput). Core routing is deterministic; an
-optional LLM fallback (OpenAI) handles open-ended questions with knowledge-base context.
+A domain-specific AI assistant for cellular/RF engineering with a **multi-agent orchestrator**:
+planning, tool use, vector memory, RAG, analytics, and **PowerPoint report** generation.
 
 ## Architecture
 
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full next-gen diagram (orchestrator, agents, memory, tools, PPT).
+
 ```
-backend/                  FastAPI + knowledge base + calculators
-  app.py                  REST API (POST /ask, /api/devices, /api/bands)
-  telecom_ai/             Engine package
-    core.py               TelecomAI — LangGraph router over TelecomDB handlers
-    graph.py              LangGraph workflow (classify → handler → LLM)
-    state.py              Shared graph state (query, intent, steps, answer)
-    loaders.py            TelecomDB — knowledge layer with answer_* methods
-    reasoning.py          llm_answer — optional LLM fallback with KB context
+backend/                  FastAPI + multi-agent orchestrator
+  app.py                  REST API (POST /ask, /api/ppt/generate, /api/tools)
+  telecom_ai/
+    orchestrator.py       Multi-agent LangGraph (supervisor → specialists → synthesizer)
+    planning.py           Autonomous planner
+    tools.py              Tool-use framework (KB, RAG, analytics, PPT)
+    agents/specialists.py telecom_kb | research | analytics | presentation
+    graph.py              Legacy keyword router (TELECOMGPT_MODE=legacy)
+    core.py               TelecomAI facade
+  memory/                 Session + vector memory (ChromaDB)
+  ppt/                    PowerPoint report generator (python-pptx)
   data/
     telecom_master_db.json  NR/LTE band plans, CA/EN-DC/NR-DC combos, FCC lists, glossary
     devices/*.json          Per-device sheets incl. validated ca/endc/nrdc combo lists
@@ -54,8 +57,45 @@ streamlit run analytics/app.py            # http://localhost:8501
 | `POST /api/analytics/csv/summary` | CSV file | Row/column stats + preview |
 | `POST /api/analytics/csv/chart` | CSV + chart_type, x, y | Plotly JSON |
 | `POST /api/analytics/logs/analyze` | `.log` / `.txt` | Level counts + top errors + chart |
+| `GET /api/analytics/kaggle/datasets` | — | Curated 5G Kaggle catalog + download status |
+| `GET /api/analytics/kaggle/local` | — | List downloaded CSV files under `backend/data/kaggle/` |
 
 Try in Swagger: http://localhost:8000/docs
+
+### Kaggle 5G datasets
+
+Curated datasets from [Kaggle search: 5g](https://www.kaggle.com/datasets?search=5g) are listed in
+`backend/data/kaggle/datasets.json`. Download them locally for analytics / ML experiments.
+
+**One-time setup**
+
+1. Create a Kaggle account and accept each dataset’s license on its Kaggle page.
+2. Install the CLI: `pip install kaggle`
+3. Authenticate (pick one):
+   - **OAuth (recommended):** `kaggle auth login`
+   - **API token:** [Kaggle Settings → API](https://www.kaggle.com/settings) → Generate New Token → save as `%USERPROFILE%\.kaggle\kaggle.json`
+
+**Download**
+
+```powershell
+cd backend
+python scripts/download_kaggle.py list
+python scripts/download_kaggle.py download --all
+# or: python scripts/download_kaggle.py download srikumarnayak/5g-network-kpi-dataset
+```
+
+Files land in `backend/data/kaggle/<dataset-name>/`. CSV summaries auto-detect RF columns (RSRP, lat/lon, throughput, etc.).
+
+**Included datasets**
+
+| Dataset | Use case |
+| --- | --- |
+| [5G Network KPI Dataset](https://www.kaggle.com/datasets/srikumarnayak/5g-network-kpi-dataset) | KPI trends, throughput, latency-style ML |
+| [Wireless Network Slicing](https://www.kaggle.com/datasets/ziya07/wireless-network-slicing-dataset) | Slicing, RSRP-based QoS / handover |
+| [ITU AI/ML in 5G (LLM pairs)](https://www.kaggle.com/datasets/adamlogman/llms-for-telecom-networks-by-itu-aiml-in-5g) | Telecom Q&A fine-tuning / eval |
+| [Cellular Network Analysis](https://www.kaggle.com/datasets/suraj520/cellular-network-analysis-dataset) | Signal strength, throughput, RF features |
+
+For GPS drive-test mapping, see also **Vienna 4G/5G (Zenodo)** and **Berlin V2X (IEEE DataPort)** in the catalog JSON.
 
 ### RAG (ShareTechnote + 3GPP references)
 

@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
+
+const PlotlyChart = dynamic(() => import("../components/PlotlyChart"), { ssr: false });
 
 function apiBaseUrl(): string {
   const raw =
@@ -9,13 +12,36 @@ function apiBaseUrl(): string {
 
 const API_URL = apiBaseUrl();
 
-type Message = { role: "user" | "assistant"; content: string };
+type Artifact = {
+  type?: string;
+  ok?: boolean;
+  filename?: string;
+  download_url?: string;
+  slides?: number;
+  title?: string;
+  plotly_json?: string;
+  chart_type?: string;
+  source_csv?: string;
+};
+
+type Message = {
+  role: "user" | "assistant";
+  content: string;
+  artifacts?: Artifact[];
+};
+
+type AskResponse = {
+  answer?: string;
+  session_id?: string;
+  artifacts?: Artifact[];
+};
 
 export default function Home() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -40,15 +66,21 @@ export default function Home() {
         body: JSON.stringify({
           query: text,
           history: messages,
+          session_id: sessionId,
         }),
       });
-      const data = await res.json();
+      const data: AskResponse = await res.json();
       if (!res.ok) {
-        throw new Error(data.detail ?? `Request failed (${res.status})`);
+        throw new Error((data as { detail?: string }).detail ?? `Request failed (${res.status})`);
       }
+      if (data.session_id) setSessionId(data.session_id);
       setMessages([
         ...nextMessages,
-        { role: "assistant", content: data.answer ?? "(empty response)" },
+        {
+          role: "assistant",
+          content: data.answer ?? "(empty response)",
+          artifacts: data.artifacts,
+        },
       ]);
     } catch (e) {
       setError(
@@ -75,7 +107,7 @@ export default function Home() {
         display: "flex",
         flexDirection: "column",
         height: "100vh",
-        maxWidth: 820,
+        maxWidth: 900,
         margin: "0 auto",
         fontFamily: "system-ui, sans-serif",
       }}
@@ -83,7 +115,7 @@ export default function Home() {
       <header style={{ padding: "16px 20px", borderBottom: "1px solid #e0e0e0" }}>
         <h1 style={{ margin: 0, fontSize: 22 }}>TelecomGPT</h1>
         <p style={{ margin: "4px 0 0", color: "#666", fontSize: 14 }}>
-          Chat about 5G NR, LTE, bands, devices, and RF engineering
+          Multi-agent orchestrator — bands, devices, Kaggle analytics charts, PowerPoint reports
         </p>
       </header>
 
@@ -99,6 +131,9 @@ export default function Home() {
           <div style={{ color: "#888", fontSize: 14, lineHeight: 1.6 }}>
             <p>Try asking:</p>
             <ul>
+              <li>Chart the 5G KPI Kaggle dataset</li>
+              <li>Plot RSRP vs throughput from Kaggle data</li>
+              <li>Generate a PowerPoint report on 5G network slicing</li>
               <li>What is the difference between LTE and 5G?</li>
               <li>What is n78?</li>
               <li>Does the S23 support n77+n78 CA?</li>
@@ -118,7 +153,7 @@ export default function Home() {
           >
             <div
               style={{
-                maxWidth: "85%",
+                maxWidth: m.role === "assistant" && m.artifacts?.some((a) => a.type === "chart") ? "95%" : "85%",
                 padding: "12px 16px",
                 borderRadius: 12,
                 background: m.role === "user" ? "#2563eb" : "#fff",
@@ -131,6 +166,42 @@ export default function Home() {
               }}
             >
               {m.content}
+              {m.role === "assistant" &&
+                m.artifacts?.map((a, j) => {
+                  if (a.type === "chart" && a.ok && a.plotly_json) {
+                    return (
+                      <PlotlyChart
+                        key={`chart-${j}`}
+                        plotlyJson={a.plotly_json}
+                        title={a.title ?? a.source_csv}
+                      />
+                    );
+                  }
+                  if (a.ok && a.download_url) {
+                    return (
+                      <div key={`ppt-${j}`} style={{ marginTop: 10 }}>
+                        <a
+                          href={`${API_URL}${a.download_url}`}
+                          download={a.filename}
+                          style={{
+                            display: "inline-block",
+                            padding: "8px 14px",
+                            background: "#059669",
+                            color: "#fff",
+                            borderRadius: 6,
+                            textDecoration: "none",
+                            fontSize: 14,
+                            fontWeight: 600,
+                          }}
+                        >
+                          Download {a.filename ?? "report.pptx"}
+                          {a.slides ? ` (${a.slides} slides)` : ""}
+                        </a>
+                      </div>
+                    );
+                  }
+                  return null;
+                })}
             </div>
           </div>
         ))}
@@ -156,6 +227,30 @@ export default function Home() {
           background: "#fff",
         }}
       >
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 8 }}>
+          {[
+            "Chart 5G KPI dataset",
+            "Plot slicing QoS data",
+            "Signal metrics map data",
+          ].map((label) => (
+            <button
+              key={label}
+              type="button"
+              disabled={loading}
+              onClick={() => setInput(`Chart and analyze the Kaggle ${label.toLowerCase()}`)}
+              style={{
+                padding: "4px 10px",
+                fontSize: 12,
+                borderRadius: 999,
+                border: "1px solid #cbd5e1",
+                background: "#f8fafc",
+                cursor: loading ? "default" : "pointer",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
         <div style={{ display: "flex", gap: 8 }}>
           <textarea
             value={input}
@@ -194,6 +289,7 @@ export default function Home() {
             onClick={() => {
               setMessages([]);
               setError("");
+              setSessionId(null);
             }}
             style={{
               marginTop: 8,

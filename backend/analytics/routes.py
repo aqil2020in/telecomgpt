@@ -38,6 +38,40 @@ async def analyze_csv_chart(
     }
 
 
+@router.get("/kaggle/datasets")
+def list_kaggle_datasets():
+    import json
+    from pathlib import Path
+
+    catalog_path = Path(__file__).resolve().parent.parent / "data" / "kaggle" / "datasets.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    kaggle_dir = catalog_path.parent
+    local = []
+    for d in catalog.get("datasets", []):
+        folder = kaggle_dir / d["slug"].split("/")[-1]
+        local.append({**d, "downloaded": folder.exists() and any(folder.iterdir())})
+    return {"datasets": local, "external": catalog.get("external_alternatives", []), "setup": catalog.get("setup")}
+
+
+@router.get("/kaggle/charts")
+def kaggle_charts(query: str = "", path: str | None = None):
+    from .kaggle_charts import build_kaggle_dashboard
+
+    return build_kaggle_dashboard(query, csv_path=path)
+
+
+@router.get("/kaggle/local")
+def list_local_kaggle_files():
+    from pathlib import Path
+
+    base = Path(__file__).resolve().parent.parent / "data" / "kaggle"
+    files = []
+    for p in base.rglob("*.csv"):
+        if p.is_file():
+            files.append({"path": str(p.relative_to(base)), "size_kb": round(p.stat().st_size / 1024, 1)})
+    return {"files": sorted(files, key=lambda x: x["path"])}
+
+
 @router.post("/logs/analyze")
 async def analyze_log(file: UploadFile = File(...)):
     raw = await file.read()

@@ -17,6 +17,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from telecom_ai.core import TelecomAI
@@ -36,9 +37,16 @@ class Query(BaseModel):
     query: str
     trace: bool = False
     history: list[ChatMessage] = []
+    session_id: str | None = None
 
 
-app = FastAPI(title="TelecomGPT", version="0.3.0")
+class PptRequest(BaseModel):
+    topic: str
+    content: str
+    session_id: str = "default"
+
+
+app = FastAPI(title="TelecomGPT", version="0.4.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -70,7 +78,11 @@ def root():
             "GET /api/bands": "NR + LTE band plans",
             "POST /api/analytics/csv/summary": "CSV upload -> summary",
             "POST /api/analytics/csv/chart": "CSV upload -> Plotly chart JSON",
+            "GET /api/analytics/kaggle/charts": "Kaggle CSV auto-charts (query, path)",
             "POST /api/analytics/logs/analyze": "Log upload -> level counts + errors",
+            "GET /api/tools": "List agent tools",
+            "POST /api/ppt/generate": "Generate PowerPoint report",
+            "GET /api/reports/{filename}": "Download generated .pptx",
         },
         "analytics_ui": "streamlit run analytics/app.py",
     }
@@ -79,9 +91,54 @@ def root():
 @app.post("/ask")
 def ask(q: Query):
     history = [{"role": m.role, "content": m.content} for m in q.history]
+    result = agent.run_with_trace(q.query, history=history, session_id=q.session_id)
     if q.trace:
-        return agent.run_with_trace(q.query, history=history)
-    return {"answer": agent.run(q.query, history=history)}
+        return result
+    return {
+        "answer": result.get("answer") or "",
+        "session_id": result.get("session_id"),
+        "artifacts": result.get("artifacts") or [],
+    }
+
+
+@app.get("/api/tools")
+def list_tools():
+    return {"tools": agent.list_tools()}
+
+
+@app.post("/api/ppt/generate")
+def generate_ppt(req: PptRequest):
+    from ppt.generator import generate_presentation
+
+    return generate_presentation(
+        topic=req.topic,
+        content=req.content,
+        session_id=req.session_id,
+    )
+
+
+@app.get("/api/reports/{filename}")
+def download_report(filename: str):
+    reports_dir = Path(__file__).resolve().parent / "data" / "reports"
+    path = reports_dir / filename
+    if not path.exists() or path.suffix.lower() != ".pptx":
+        return {"error": "Report not found"}
+    return FileResponse(
+        path,
+        media_type="application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        filename=filename,
+    )
+
+
+@app.post("/api/memory/ingest-rag")
+def ingest_rag_to_memory():
+    """Index RAG chunks into vector memory for hybrid retrieval."""
+    from memory.vector_store import VectorMemory
+    from rag.store import load_chunks
+
+    chunks = load_chunks()
+    count = VectorMemory().ingest_rag_chunks(chunks)
+    return {"status": "ok", "indexed": count}
 
 
 @app.post("/api/rag/reindex")
@@ -97,7 +154,19 @@ def rag_reindex():
 
 @app.get("/api/health")
 def health():
-    return {"status": "ok", "devices": len(agent.db.devices)}
+    import os
+
+    from telecom_ai.reasoning import _ollama_reachable
+
+    return {
+        "status": "ok",
+        "devices": len(agent.db.devices),
+        "llm": {
+            "openai_configured": bool(os.environ.get("OPENAI_API_KEY")),
+            "ollama_reachable": _ollama_reachable(),
+            "mode": os.environ.get("TELECOMGPT_MODE", "orchestrator"),
+        },
+    }
 
 
 @app.get("/api/devices")

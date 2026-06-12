@@ -1,0 +1,42 @@
+{
+  "description": "Curated Kaggle datasets for TelecomGPT analytics (RF, QoS, KPI). Accept each dataset license on Kaggle before download.",
+  "setup": "https://www.kaggle.com/docs/api — place kaggle.json in ~/.kaggle/ (or %USERPROFILE%\\.kaggle\\)",
+  "datasets": [
+    {
+      "slug": "srikumarnayak/5g-network-kpi-dataset",
+      "name": "5G Network KPI Dataset",
+      "use_case": "KPI trends, throughput, latency-style telecom ML",
+      "url": "https://www.kaggle.com/datasets/srikumarnayak/5g-network-kpi-dataset"
+    },
+    {
+      "slug": "ziya07/wireless-network-slicing-dataset",
+      "name": "Wireless Network Slicing Dataset",
+      "use_case": "Network slicing, RSRP-based QoS / handover research",
+      "url": "https://www.kaggle.com/datasets/ziya07/wireless-network-slicing-dataset"
+    },
+    {
+      "slug": "adamlogman/llms-for-telecom-networks-by-itu-aiml-in-5g",
+      "name": "LLMs for Telecom Networks (ITU AI/ML in 5G)",
+      "use_case": "Telecom Q&A fine-tuning / evaluation pairs",
+      "url": "https://www.kaggle.com/datasets/adamlogman/llms-for-telecom-networks-by-itu-aiml-in-5g"
+    },
+    {
+      "slug": "suraj520/cellular-network-analysis-dataset",
+      "name": "Cellular Network Analysis Dataset",
+      "use_case": "Signal strength, throughput, cell-level RF analysis (replaces removed prashant111 dataset)",
+      "url": "https://www.kaggle.com/datasets/suraj520/cellular-network-analysis-dataset"
+    }
+  ],
+  "external_alternatives": [
+    {
+      "name": "Vienna 4G/5G Drive-Test (Zenodo)",
+      "url": "https://zenodo.org/records/18338399",
+      "use_case": "GPS georeferenced LTE/NR scanner + UE logs — best for mapping"
+    },
+    {
+      "name": "Berlin V2X (IEEE DataPort)",
+      "url": "https://ieee-dataport.org/open-access/berlin-v2x",
+      "use_case": "RSRP/RSRQ/SINR + GPS + downlink throughput prediction"
+    }
+  ]
+}

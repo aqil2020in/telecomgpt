@@ -75,6 +75,24 @@ def _normalize_combo_text(text: str) -> str:
     return re.sub(r"\s*[-_/+]\s*", "+", text.lower())
 
 
+_IDENTITY_PATTERNS = (
+    "who are you",
+    "what are you",
+    "what is telecomgpt",
+    "introduce yourself",
+    "your name",
+    "what can you do",
+    "what do you do",
+    "help me get started",
+    "how do you work",
+)
+
+
+def _is_meta_query(query: str) -> bool:
+    ql = query.lower().strip()
+    return any(p in ql for p in _IDENTITY_PATTERNS) or ql in ("hello", "hi", "hey")
+
+
 def looks_like_phy_math(query: str) -> bool:
     """True when the query is likely an ARFCN/GSCN/throughput calculation."""
     ql = query.lower().strip()
@@ -505,6 +523,25 @@ class TelecomDB:
         if has_lte and has_5g:
             return self.db.get("comparisons", {}).get("lte_5g", "")
         return ""
+
+    def answer_meta(self, query: str) -> str:
+        """Identity / capability intro — works without an LLM."""
+        if not _is_meta_query(query):
+            return ""
+        return (
+            "I'm **TelecomGPT**, a domain-specific AI assistant for cellular and RF engineering.\n\n"
+            "I can help with:\n"
+            "• 5G NR / LTE bands, FCC plans, and regulatory info\n"
+            "• Device capabilities (Samsung S23/S24/S25, iPhone, Pixel)\n"
+            "• CA, EN-DC, and NR-DC combination checks\n"
+            "• 3GPP calculations (NR-ARFCN, GSCN, peak throughput)\n"
+            "• Kaggle 5G dataset charts and CSV/log analytics\n"
+            "• PowerPoint reports on telecom topics\n\n"
+            "Try: *What is n78?*, *Does the S24 support n77+n78 CA?*, "
+            "*Chart the 5G KPI Kaggle dataset*, or *Generate a PowerPoint on network slicing*.\n\n"
+            "I'm powered by a multi-agent orchestrator (LangGraph) with knowledge-base lookup, "
+            "BM25 RAG over ShareTechnote/3GPP references, and an optional LLM for open-ended answers."
+        )
 
     def answer_unknown_query(self, query: str) -> str:
         """Helpful offline response when a define/explain query misses the glossary."""

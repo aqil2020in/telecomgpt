@@ -43,6 +43,7 @@ def llm_answer_with_sources(
     query: str,
     db: "TelecomDB",
     history: list[dict[str, str]] | None = None,
+    extra_context: str | None = None,
 ) -> tuple[str, list[dict]]:
     kb_context = db.context_for(query)
     rag_context, cites = _retrieve(query)
@@ -52,12 +53,18 @@ def llm_answer_with_sources(
     merged = _merge_context(kb_context, rag_context)
     if comparison:
         merged = f"Built-in comparison summary:\n{comparison}\n\n{merged}".strip()
+    if extra_context:
+        merged = f"Multi-agent research outputs:\n{extra_context}\n\n{merged}".strip()
 
     answer = _call_configured_llm(query, merged, history=history)
     if answer:
         return _append_sources(answer, cites), cites
 
-    rag_only = _rag_only_answer(cites, rag_context)
+    meta = db.answer_meta(query)
+    if meta:
+        return meta, cites
+
+    rag_only = _rag_only_answer(query, cites, rag_context)
     if rag_only:
         return rag_only, cites
 
@@ -122,11 +129,16 @@ def _append_sources(answer: str, cites: list[dict]) -> str:
     return answer + "\n\nSources:\n" + "\n".join(lines)
 
 
-def _rag_only_answer(cites: list[dict], rag_context: str) -> str:
+def _rag_only_answer(query: str, cites: list[dict], rag_context: str) -> str:
     if not rag_context:
         return ""
+    from .loaders import _is_meta_query
+
+    if _is_meta_query(query):
+        return ""
     header = (
-        "Detailed reference material (no LLM configured or LLM unavailable):\n\n"
+        "I couldn't reach the LLM on this server, so here is reference material instead. "
+        "For full conversational answers, set OPENAI_API_KEY on Render (or run Ollama locally).\n\n"
     )
     return header + rag_context[:4000]
 
@@ -243,4 +255,21 @@ def _call_chat_api(
         content = response.choices[0].message.content
         return content.strip() if content else None
     except Exception:
+        return None
+
+
+def call_llm_json(prompt: str) -> dict | None:
+    """Call LLM and parse JSON object from response."""
+    import json
+    import re
+
+    answer = _call_configured_llm(prompt, "", history=None)
+    if not answer:
+        return None
+    match = re.search(r"\{.*\}", answer, re.DOTALL)
+    if not match:
+        return None
+    try:
+        return json.loads(match.group(0))
+    except json.JSONDecodeError:
         return None

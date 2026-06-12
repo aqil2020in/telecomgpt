@@ -16,6 +16,15 @@ frontend/next-env.d.ts
 .env
 .env.local
 
+# Kaggle downloads (keep catalog only)
+backend/data/kaggle/*/
+!backend/data/kaggle/datasets.json
+
+# Agent memory & reports (generated at runtime)
+backend/data/memory/
+backend/data/reports/
+.kaggle/
+
 # IDE / OS
 .vscode/
 .idea/
