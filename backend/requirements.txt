@@ -10,5 +10,5 @@ requests
 python-pptx
 chromadb
 openpyxl
-crewai>=0.86.0
-pyautogen>=0.2.34
+# Hybrid engines (CrewAI / AutoGen) are optional — see requirements-engines.txt
+# Core app uses LangGraph fallbacks when these are not installed.

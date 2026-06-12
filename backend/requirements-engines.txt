@@ -1,0 +1,9 @@
+# Optional hybrid engines — NOT installed on Render by default (conflicts + heavy deps).
+# Install ONE of these locally for full CrewAI or AutoGen (not both together):
+#
+#   pip install pyautogen==0.1.14
+#   pip install crewai==0.11.2
+#
+# TelecomGPT falls back to internal crew + ReAct when packages are absent.
+
+pyautogen==0.1.14

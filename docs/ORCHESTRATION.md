@@ -199,7 +199,7 @@ flowchart TB
 
 `GET /api/engines` — installed engines and active mode.
 
-**Fallbacks:** If `crewai` or `pyautogen` are not installed (or no API key), internal fallback crews / ReAct loop run automatically.
+**Fallbacks:** If `crewai` or `pyautogen` are not installed (or no API key), internal fallback crew + ReAct run automatically. These packages are **not** in `requirements.txt` (they conflict and break Render builds). Optional local install: `pip install -r requirements-engines.txt`.
 
 ## LangChain / LangGraph / OpenAI Agents
 
