@@ -56,4 +56,24 @@ def apply_engine_to_plan(plan: dict, flags: dict) -> dict:
     plan["steps"] = [{"step": i + 1, "agent": a, "action": f"Run {a} agent"} for i, a in enumerate(agents)]
     if agents:
         plan["primary_agent"] = agents[0]
+
+    # Faster grounded Q&A — research/spec only (skip autogen/crew for explain queries)
+    if flags.get("research") and not any(
+        flags.get(k) for k in ("ppt", "analytics", "compare", "predict", "log", "map")
+    ):
+        agents = [a for a in agents if a not in (auto, "react", "crew", "autogen")]
+        for req in ("research", "spec", "telecom_kb"):
+            if req not in agents:
+                agents.insert(0, req)
+        seen2: set[str] = set()
+        deduped: list[str] = []
+        for a in agents:
+            if a not in seen2:
+                deduped.append(a)
+                seen2.add(a)
+        agents = deduped
+        plan["agents"] = agents
+        plan["parallel_agents"] = [a for a in agents if a not in ("presentation", "synthesizer", "verifier")]
+        plan["fast_rag"] = True
+
     return plan

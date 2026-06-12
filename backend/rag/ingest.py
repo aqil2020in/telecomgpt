@@ -17,6 +17,8 @@ DEFAULT_HEADERS = {
 SEED_URLS = [
     "https://www.sharetechnote.com/html/5G/Handbook_5G_Index.html",
     "https://www.sharetechnote.com/html/5G/5G_PRACH.html",
+    "https://www.sharetechnote.com/html/5G/5G_CSI_RS.html",
+    "https://www.sharetechnote.com/html/5G/5G_CarrierAggregation.html",
     "https://www.sharetechnote.com/html/5G/5G_RACH.html",
     "https://www.sharetechnote.com/html/5G/5G_PDCCH.html",
     "https://www.sharetechnote.com/html/5G/5G_PDSCH.html",

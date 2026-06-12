@@ -29,7 +29,8 @@ _BLOCKED_OUTPUT_PATTERNS = [
 TOOL_POLICY: dict[str, set[str] | None] = {
     "task": None,
     "retrieval": {
-        "hybrid_search", "rag_search", "memory_search", "lookup_glossary",
+        "hybrid_search", "rag_search", "memory_search", "web_search", "live_reference_fetch",
+        "lookup_glossary",
     },
     "autonomous": None,
     "orchestration": set(),

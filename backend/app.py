@@ -71,6 +71,13 @@ if analytics_router is not None:
     app.include_router(analytics_router)
 
 
+@app.on_event("startup")
+def _startup_reindex() -> None:
+    from telecom_ai.startup_tasks import run_startup_reindex_background
+
+    run_startup_reindex_background()
+
+
 @app.get("/")
 def root():
     return {
@@ -273,6 +280,21 @@ def engines_status():
     from telecom_ai.engines import engine_status
 
     return engine_status()
+
+
+@app.get("/api/rag/status")
+def rag_status():
+    import os
+
+    from rag.store import load_chunks
+
+    chunks = load_chunks()
+    return {
+        "chunks": len(chunks),
+        "live_fetch": os.environ.get("TELECOMGPT_LIVE_FETCH", "1") == "1",
+        "web_search": bool(os.environ.get("TAVILY_API_KEY")),
+        "auto_reindex": os.environ.get("TELECOMGPT_AUTO_REINDEX", "1") == "1",
+    }
 
 
 @app.post("/api/memory/ingest-rag")

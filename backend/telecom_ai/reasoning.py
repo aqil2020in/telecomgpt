@@ -22,6 +22,8 @@ _SYSTEM_PROMPT = (
     "compare technologies side-by-side when asked, and cite 3GPP spec clauses "
     "where applicable. Use the knowledge-base and reference excerpts provided; "
     "when reference excerpts are included, synthesize them and mention source URLs. "
+    "Always end with a 'Sources' section listing ShareTechnote/3GPP/web URLs used. "
+    "Prefer provided excerpts over general knowledge; if excerpts conflict with memory, trust excerpts. "
     "If you are not sure, say so."
 )
 
@@ -107,9 +109,15 @@ def llm_answer_with_sources(
 
 
 def _retrieve(query: str) -> tuple[str, list[dict]]:
+    k = int(os.environ.get("RAG_TOP_K", "5"))
+    try:
+        from rag.hybrid_retrieve import hybrid_retrieve
+
+        return hybrid_retrieve(query, k=k)
+    except Exception:
+        pass
     if retrieve_with_citations is None:
         return "", []
-    k = int(os.environ.get("RAG_TOP_K", "5"))
     return retrieve_with_citations(query, k=k)
 
 

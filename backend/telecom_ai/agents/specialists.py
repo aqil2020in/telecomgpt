@@ -50,11 +50,12 @@ def run_research_agent(query: str, tools: "ToolRegistry", session_id: str = "def
     tool_calls: list[dict] = []
     parts: list[str] = []
 
-    rag = tools.run("hybrid_search", query=query, session_id=session_id, k=5)
+    rag = tools.run("hybrid_search", query=query, session_id=session_id, k=6)
+    cites: list[dict] = []
     if rag.ok and rag.output:
         context, cites = rag.output if isinstance(rag.output, tuple) else (str(rag.output), [])
-        parts.append(f"**Reference excerpts**\n{context[:3500]}")
-        tool_calls.append({"tool": "rag_search", "ok": True, "citations": cites})
+        parts.append(f"**Reference excerpts (RAG + live + web)**\n{context[:4500]}")
+        tool_calls.append({"tool": "hybrid_search", "ok": True, "citations": cites})
 
     mem = tools.run("memory_search", query=query, session_id=session_id, k=3)
     if mem.ok and mem.output:

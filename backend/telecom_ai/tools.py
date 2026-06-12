@@ -202,12 +202,24 @@ def build_tool_registry(db: Any) -> ToolRegistry:
     reg.register(
         "hybrid_search",
         lambda query, session_id="", k=5: _hybrid_search(query, session_id, k),
-        description="Hybrid BM25 + vector memory search",
+        description="Hybrid BM25 + vector + live ShareTechnote fetch + Tavily web search",
         parameters={
             "type": "object",
             "properties": {"query": {"type": "string"}, "session_id": {"type": "string"}, "k": {"type": "integer"}},
             "required": ["query"],
         },
+    )
+    reg.register(
+        "web_search",
+        lambda query: _web_search(query),
+        description="Telecom web search (Tavily) biased to sharetechnote.com and 3gpp.org",
+        parameters={"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
+    )
+    reg.register(
+        "live_reference_fetch",
+        lambda query: _live_reference_fetch(query),
+        description="Live-fetch ShareTechnote/3GPP page for query topic",
+        parameters={"type": "object", "properties": {"query": {"type": "string"}}, "required": ["query"]},
     )
     reg.register(
         "run_drive_test_rules",
@@ -280,6 +292,19 @@ def _hybrid_search(query: str, session_id: str = "", k: int = 5):
     from rag.hybrid_retrieve import hybrid_retrieve
 
     return hybrid_retrieve(query, k=k, session_id=session_id or None)
+
+
+def _web_search(query: str):
+    from rag.web_search import web_search_telecom
+
+    return web_search_telecom(query)
+
+
+def _live_reference_fetch(query: str):
+    from rag.live_fetch import fetch_live_for_query
+
+    context, cites = fetch_live_for_query(query, [])
+    return {"context": context, "citations": cites, "ok": bool(context)}
 
 
 def _drive_test_rules(path: str):

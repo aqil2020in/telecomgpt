@@ -80,6 +80,11 @@ def list_integrations() -> list[dict]:
             "description": "Microsoft AutoGen tool loops (TELECOMGPT_ENGINE=hybrid|autogen)",
             "configured": _autogen_ok(),
         },
+        {
+            "name": "tavily",
+            "description": "Telecom web search (set TAVILY_API_KEY)",
+            "configured": bool(os.environ.get("TAVILY_API_KEY")),
+        },
     ]
 
 

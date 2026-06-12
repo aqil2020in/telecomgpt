@@ -4,9 +4,17 @@ services:
     runtime: python
     plan: starter
     rootDir: backend
-    buildCommand: pip install -r requirements.txt
+    buildCommand: pip install -r requirements.txt && python scripts/ingest_rag.py
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
+      - key: TELECOMGPT_AUTO_REINDEX
+        value: "1"
+      - key: TELECOMGPT_LIVE_FETCH
+        value: "1"
+      - key: TELECOMGPT_WEB_SEARCH
+        value: "1"
+      - key: TELECOMGPT_ENGINE
+        value: "hybrid"
