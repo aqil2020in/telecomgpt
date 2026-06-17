@@ -17,7 +17,10 @@ _LOG_KW = ("log", "qxdm", "qcat", "rrc", "nas", "ue log", "log debug")
 _FAULT_KW = ("fault", "troubleshoot", "troubleshooting", "alarm", "root cause", "failure analysis", "debug analysis")
 _VALID_KW = ("validate", "validation", "test case", "feature test", "pass criteria", "vonr", "registration test")
 _CONFIG_KW = ("bts", "gnb", "gnodeb", "config", "parameter", "configuration", "ssb pattern", "prach config")
-_RF_METRICS_KW = ("rf kpi", "rf metrics", "kpi assessment", "rsrq", "sinr", "cqi", "bler", "network kpi")
+_RF_METRICS_KW = (
+    "rf kpi", "rf metrics", "kpi assessment", "rsrq", "sinr", "cqi", "bler", "network kpi",
+    "link budget", "linkbudget", "friis", "path loss", "pathloss",
+)
 _MAP_KW = ("map", "gps", "geo", "coverage map", "latitude", "longitude")
 _PREDICT_KW = ("predict", "forecast", "trend", "anomaly", "ml")
 _COMPLIANCE_KW = ("fcc", "regulatory", "compliance", "licensed", "eirp")
@@ -78,11 +81,16 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
     elif flags["config"]:
         agents = ["bts_config", "spec", "compliance", "synthesizer"]
     elif flags["rf_metrics"]:
-        agents = (
-            ["rf_metrics", "synthesizer"]
-            if low_memory_mode()
-            else ["rf_metrics", "drive_test", "analytics", "synthesizer"]
+        ql = q
+        link_budget_only = any(k in ql for k in ("link budget", "linkbudget", "friis")) or (
+            ("sinr" in ql or "rsrq" in ql) and any(k in ql for k in ("explain", " vs ", " versus ", "compare", "difference"))
         )
+        if link_budget_only:
+            agents = ["rf_metrics", "synthesizer"] if low_memory_mode() else ["rf_metrics", "spec", "synthesizer"]
+        elif low_memory_mode():
+            agents = ["rf_metrics", "synthesizer"]
+        else:
+            agents = ["rf_metrics", "drive_test", "analytics", "synthesizer"]
     elif flags["ppt"]:
         agents = (
             ["research", "telecom_kb", "presentation", "synthesizer"]

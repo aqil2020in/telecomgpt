@@ -234,6 +234,16 @@ def build_tool_registry(db: Any) -> ToolRegistry:
         parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
     )
     reg.register(
+        "explain_link_budget",
+        lambda query="": _explain_link_budget(query),
+        description="Explain SINR vs RSRQ and compute DL link budget with worked example (TS 38.215 / Friis)",
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": [],
+        },
+    )
+    reg.register(
         "plot_rf_map",
         lambda path: _plot_rf_map(path),
         description="Build RF map GeoJSON + geo chart from CSV",
@@ -323,6 +333,12 @@ def _evaluate_rf_kpis(path: str):
     from analytics.rf_kpi import evaluate_rf_kpis
 
     return evaluate_rf_kpis(path)
+
+
+def _explain_link_budget(query: str = ""):
+    from analytics.link_budget import explain_link_budget_dict
+
+    return explain_link_budget_dict(query or "")
 
 
 def _plot_rf_map(path: str):

@@ -512,6 +512,13 @@ def rf_handbook_topics(q: str = "", limit: int = 8):
     return {"query": q, "topics": lookup_rf_topics(q, limit=min(limit, 20))}
 
 
+@app.get("/api/rf/link-budget")
+def rf_link_budget(q: str = "Explain SINR vs RSRQ link budget"):
+    from analytics.link_budget import explain_link_budget_dict
+
+    return explain_link_budget_dict(q)
+
+
 @app.get("/api/nr/power-class/reference")
 def nr_power_class_reference():
     from analytics.nr_power_class import load_power_class_reference

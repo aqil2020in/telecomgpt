@@ -126,7 +126,11 @@ class TelecomAI:
 
     def _instant_answer(self, query: str) -> str:
         """Cheap TelecomDB lookups — no LLM, no vector/Chroma."""
+        from analytics.link_budget import explain_sinr_vs_rsrq_link_budget, looks_like_link_budget_query
         from .loaders import looks_like_phy_math
+
+        if looks_like_link_budget_query(query):
+            return explain_sinr_vs_rsrq_link_budget(query)
 
         db = self.db
         checks = (

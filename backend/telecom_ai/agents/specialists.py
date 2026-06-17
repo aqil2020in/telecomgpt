@@ -14,6 +14,19 @@ def run_telecom_kb_agent(query: str, db: "TelecomDB", tools: "ToolRegistry") -> 
     parts: list[str] = []
     tool_calls: list[dict] = []
 
+    from analytics.link_budget import looks_like_link_budget_query
+
+    if looks_like_link_budget_query(query):
+        result = tools.run("explain_link_budget", query=query)
+        if result.ok and result.output:
+            md = result.output.get("markdown") if isinstance(result.output, dict) else str(result.output)
+            if md:
+                return {
+                    "agent": "telecom_kb",
+                    "content": md,
+                    "tool_calls": [{"tool": "explain_link_budget", "ok": True}],
+                }
+
     for tool, arg_key in (
         ("lookup_device", "query"),
         ("lookup_ca_endc", "query"),
@@ -162,6 +175,25 @@ def run_synthesizer(
 ) -> dict:
     """Merge agent outputs into final answer via LLM or template."""
     from ..reasoning import llm_answer_with_sources
+
+    # Deterministic computed reports (link budget) — preserve tables, skip LLM rewrite.
+    for o in agent_outputs:
+        tools_used = {t.get("tool") for t in (o.get("tool_calls") or []) if t.get("ok")}
+        if o.get("agent") == "rf_metrics" and "explain_link_budget" in tools_used and o.get("content"):
+            all_sources: list[dict] = []
+            for ao in agent_outputs:
+                all_sources.extend(ao.get("sources") or [])
+            artifacts = [o.get("artifact") for o in agent_outputs if o.get("artifact")]
+            for ao in agent_outputs:
+                for a in ao.get("artifacts") or []:
+                    if a and a not in artifacts:
+                        artifacts.append(a)
+            return {
+                "agent": "synthesizer",
+                "content": o["content"],
+                "sources": all_sources,
+                "artifacts": [a for a in artifacts if a],
+            }
 
     combined = "\n\n---\n\n".join(
         f"[{o.get('agent', 'agent')}]\n{o.get('content', '')}"

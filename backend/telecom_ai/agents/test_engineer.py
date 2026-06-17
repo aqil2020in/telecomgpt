@@ -52,11 +52,36 @@ def _readiness_note(agent: str) -> str:
 
 def run_rf_metrics_agent(query: str, tools: "ToolRegistry", session_id: str = "default") -> dict:
     from analytics.kaggle_charts import pick_csv_path, build_kaggle_dashboard
+    from analytics.link_budget import explain_sinr_vs_rsrq_link_budget, looks_like_link_budget_query
     from analytics.network_kpi import analyze_network_kpi
 
     path = _upload_csv(session_id) or str(pick_csv_path(query) or "")
     ql = query.lower()
     net_filter = "5g" if "5g" in ql and "4g" not in ql else None
+
+    if looks_like_link_budget_query(query):
+        lb = explain_sinr_vs_rsrq_link_budget(query)
+        parts = [lb]
+        if path:
+            result = analyze_network_kpi(path, network_filter=net_filter)
+            parts.append("\n\n---\n\n**Measured KPIs from uploaded CSV**\n\n" + result.get("report", ""))
+            dash = build_kaggle_dashboard(query, csv_path=path)
+            return {
+                "agent": "rf_metrics",
+                "content": "\n".join(parts) + _readiness_note("rf_metrics"),
+                "artifacts": list(dash.get("charts") or []),
+                "tool_calls": [{"tool": "explain_link_budget", "ok": True}, {"tool": "analyze_network_kpi", "path": path}],
+                "ready": True,
+                "data_status": "loaded",
+            }
+        return {
+            "agent": "rf_metrics",
+            "content": lb,
+            "artifacts": [],
+            "tool_calls": [{"tool": "explain_link_budget", "ok": True}],
+            "ready": True,
+            "data_status": "computed",
+        }
 
     if not path:
         return {
