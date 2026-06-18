@@ -3,18 +3,36 @@
   "symptoms": [
     {
       "id": "rrc_setup_fail",
-      "keywords": ["rrc setup failure", "rrc setup reject", "rrcconnectionreject"],
+      "keywords": [
+        "rrc setup failure",
+        "rrc setup fail",
+        "rrc setup reject",
+        "rrcconnectionreject",
+        "rrc fail",
+        "rrc failure",
+        "fault analysis rrc"
+      ],
       "likely_causes": [
         "Cell barred or UE not allowed on cell",
         "T300 expiry — no RRCSetup from gNB",
-        "Security / authentication failure before AS security"
+        "Security / authentication failure before AS security",
+        "Msg4 contention resolution failure — UE HARQ-ACK not received (K1 / PUCCH timing)",
+        "RRC Setup PDSCH HARQ retx exhausted (RV 0→2→3→1) — CRC fail on setup TB",
+        "Wrong dl-DataToUL-ACK / K1 index vs active BWP SCS or TDD pattern",
+        "PRACH/Msg3 failure before RRC Setup Request reaches gNB"
       ],
       "checks": [
         "Verify SSB-RSRP/RSRQ and cell selection criteria (TS 38.304)",
         "Check barring and access class in SIB1",
-        "Inspect RRC Reject cause in log"
+        "Inspect RRC Reject cause in log",
+        "Log: harq_feedback_timing / k1= on DCI before Msg4 and RRC Setup PDSCH",
+        "Log: rv_idx and crc= on Msg4 / RRC Setup PDSCH retx",
+        "Log: re-PRACH after Msg3 → Msg4 ACK or contention timer issue",
+        "Compare dl-DataToUL-ACK table in SIB1/RRCSetup with DCI K1 row index (TS 38.213 §9.2.3)",
+        "Verify nrofHARQ-ProcessesForPDSCH if parallel setup traffic"
       ],
-      "spec_refs": ["TS 38.331", "TS 38.300"]
+      "spec_refs": ["TS 38.331", "TS 38.300", "TS 38.321", "TS 38.213", "TS 38.212"],
+      "harq_sections": ["k1_configuration", "redundancy_version", "harq_processor", "frame_structure", "practical_examples"]
     },
     {
       "id": "pdu_session_fail",

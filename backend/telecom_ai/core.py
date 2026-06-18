@@ -132,6 +132,11 @@ class TelecomAI:
         if looks_like_link_budget_query(query):
             return explain_sinr_vs_rsrq_link_budget(query)
 
+        from analytics.harq_rrc_fault import explain_rrc_harq_fault, looks_like_rrc_harq_fault_query
+
+        if looks_like_rrc_harq_fault_query(query):
+            return explain_rrc_harq_fault(query)
+
         db = self.db
         checks = (
             db.glossary_lookup,

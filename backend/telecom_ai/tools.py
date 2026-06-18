@@ -244,6 +244,16 @@ def build_tool_registry(db: Any) -> ToolRegistry:
         },
     )
     reg.register(
+        "explain_rrc_harq_fault",
+        lambda query="", session_id="default": _explain_rrc_harq_fault(query, session_id),
+        description="HARQ/K1/RV/frame-structure fault analysis for NR RRC setup failure",
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string"}, "session_id": {"type": "string"}},
+            "required": [],
+        },
+    )
+    reg.register(
         "plot_rf_map",
         lambda path: _plot_rf_map(path),
         description="Build RF map GeoJSON + geo chart from CSV",
@@ -339,6 +349,19 @@ def _explain_link_budget(query: str = ""):
     from analytics.link_budget import explain_link_budget_dict
 
     return explain_link_budget_dict(query or "")
+
+
+def _explain_rrc_harq_fault(query: str = "", session_id: str = "default"):
+    from analytics.harq_rrc_fault import explain_rrc_harq_fault_dict
+    from pathlib import Path
+
+    log_text = None
+    uploads = Path(__file__).resolve().parent.parent / "data" / "uploads" / (session_id or "default")
+    if uploads.exists():
+        for p in sorted(list(uploads.glob("*.log")) + list(uploads.glob("*.txt"))):
+            log_text = p.read_text(encoding="utf-8", errors="replace")
+            break
+    return explain_rrc_harq_fault_dict(query or "", log_text=log_text)
 
 
 def _plot_rf_map(path: str):

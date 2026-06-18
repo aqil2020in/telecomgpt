@@ -122,7 +122,16 @@ def root():
     }
 
 
+def _is_deterministic_instant_query(query: str) -> bool:
+    from analytics.harq_rrc_fault import looks_like_rrc_harq_fault_query
+    from analytics.link_budget import looks_like_link_budget_query
+
+    return looks_like_link_budget_query(query) or looks_like_rrc_harq_fault_query(query)
+
+
 def _is_slow_query(query: str) -> bool:
+    if _is_deterministic_instant_query(query):
+        return False
     ql = query.lower()
     slow_kw = (
         "chart", "ppt", "powerpoint", "csv", "upload", "compare", "eval", "deploy",
@@ -517,6 +526,13 @@ def rf_link_budget(q: str = "Explain SINR vs RSRQ link budget"):
     from analytics.link_budget import explain_link_budget_dict
 
     return explain_link_budget_dict(q)
+
+
+@app.get("/api/fault/rrc-harq")
+def rrc_harq_fault(q: str = "Fault analysis RRC fail"):
+    from analytics.harq_rrc_fault import explain_rrc_harq_fault_dict
+
+    return explain_rrc_harq_fault_dict(q)
 
 
 @app.get("/api/nr/power-class/reference")

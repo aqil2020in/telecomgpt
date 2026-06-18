@@ -1,0 +1,83 @@
+{
+  "version": "1.0",
+  "title": "HARQ / MAC fault angles on NR RRC setup failure",
+  "references": [
+    "https://www.sharetechnote.com/html/5G/5G_HARQ.html",
+    "https://www.sharetechnote.com/html/5G/5G_RACH.html",
+    "https://www.sharetechnote.com/html/5G/5G_FrameStructure.html",
+    "https://www.sharetechnote.com/html/5G/5G_CallProcess_InitialAttach.html"
+  ],
+  "spec_refs": ["TS 38.321", "TS 38.213", "TS 38.212", "TS 38.331", "TS 38.214"],
+  "k1_configuration": {
+    "summary": "K1 is the PDSCH-to-HARQ-ACK timing indicator in DL DCI (harq_feedback_timing / PDSCH-to-HARQ_feedback). RRC dl-DataToUL-ACK lists allowed slot offsets; DCI picks the row index.",
+    "rrc_ie": "dl-DataToUL-ACK in PDSCH-Config / ServingCellConfig",
+    "dci_field": "PDSCH-to-HARQ_feedback timing indicator (3 bits in DCI 1_0 → row index into dl-DataToUL-ACK)",
+    "rrc_fail_link": "Msg4 contention resolution and RRC Setup PDSCH require UE HARQ-ACK on PUCCH. Wrong K1 → ACK on wrong slot → gNB treats Msg4/RRC Setup as failed → setup timeout or re-RACH.",
+    "checks": [
+      "Log: harq_feedback_timing= or k1= on PDCCH before RRC Setup PDSCH",
+      "Verify dl-DataToUL-ACK table in SIB1/RRCSetup matches DCI K1 index",
+      "PUCCH resource indicator + K1 consistent with active BWP SCS",
+      "TS 38.213 §9.2.3 minimum time between last PDSCH symbol and PUCCH"
+    ],
+    "note_rar": "DCI 1_0 with RA-RNTI has no K1 — gNB does not expect HARQ-ACK for Msg2 RAR (TS 38.213 §8.2)."
+  },
+  "redundancy_version": {
+    "summary": "RV selects which bits are transmitted from the HARQ circular buffer after rate matching. Receiver soft-combines retransmissions.",
+    "dci_field": "Redundancy version (2 bits) per transport block",
+    "typical_sequence": ["0", "2", "3", "1"],
+    "table_ref": "TS 38.212 Table 5.4.2.1-2 — starting position per RV",
+    "rrc_fail_link": "Msg4 or RRC Setup PDSCH CRC fail → RV retx loop. Persistent NACK with rv_idx cycling then stall looks like RRC setup failure.",
+    "checks": [
+      "Log: rv_idx=0/1/2/3 on PDSCH carrying Msg4 or RRC Setup",
+      "crc=NOK / retx count before giving up",
+      "BLER on setup PDSCH vs RF (RSRP/SINR) — rule out pure RF vs config"
+    ]
+  },
+  "harq_processor": {
+    "summary": "NR uses asynchronous HARQ on DL and UL. DCI carries HARQ process number (4 bits); up to 16 DL processes via RRC.",
+    "rrc_ie": "nrofHARQ-ProcessesForPDSCH in PDSCH-ServingCellConfig (n2, n4, n6, n10, n12, n16; default 8 if absent)",
+    "hybrid_note": "Hybrid = FEC (LDPC) + ARQ with soft combining at MAC — corrupted TB stored, RV retx adds LLR.",
+    "rrc_fail_link": "RACH + contention + RRC Setup may all use process 0 in logs; process exhaustion or ID mismatch rare at setup but visible in parallel traffic cases.",
+    "checks": [
+      "Log: harq_process= or harq= on Msg3/Msg4/RRC Setup PDSCH",
+      "Compare nrofHARQ-ProcessesForPDSCH in cell config vs lab expectation",
+      "Async: retx order may differ from initial TX slot"
+    ]
+  },
+  "frame_structure": {
+    "summary": "Slot/symbol layout (SCS, TDD pattern, PDSCH mapping) determines valid K0/K1/K2 and RACH occasions.",
+    "topics": ["slot format", "self-contained slot", "PRACH occasion vs PDSCH slot", "SCS 15/30 kHz"],
+    "rrc_fail_link": "K1 must fit within active DL/UL pattern. TDD DL-heavy or short PUCCH window → ACK miss during setup.",
+    "checks": [
+      "Cell SCS and TDD UL/DL pattern vs PRACH/RAR window",
+      "Msg3 K2 (PUSCH after RAR) from pusch-TimeDomainAllocationList",
+      "Symbol allocation: PDSCH @ symb=1:13 then PUCCH K1 slots later"
+    ]
+  },
+  "practical_examples": [
+    {
+      "id": "sa_cbra_success",
+      "title": "SA CBRA — RRC Setup Request after Msg3",
+      "sequence": ["PRACH Msg1", "RAR Msg2 (no HARQ-ACK)", "Msg3 PUSCH harq=0 rv_idx=0 crc=OK", "RRC Setup Request", "DCI k1/harq_feedback_timing → RRC Setup PDSCH", "PUCCH HARQ-ACK"],
+      "log_patterns": ["RRC setup request", "harq_feedback_timing", "k1=", "rv_idx", "RRC setup"]
+    },
+    {
+      "id": "msg4_ack_miss",
+      "title": "Msg4 contention resolution — HARQ-ACK failure",
+      "sequence": ["Msg3 OK", "Msg4 PDSCH decoded", "UE should send PUCCH ACK per K1", "gNB no ACK → contention timer expiry → re-PRACH"],
+      "log_patterns": ["contention", "Msg4", "TC-RNTI", "ra-ContentionResolutionTimer", "PRACH again"]
+    },
+    {
+      "id": "rrc_setup_retx",
+      "title": "RRC Setup PDSCH retx exhaustion",
+      "sequence": ["RRC Setup PDSCH rv_idx=0 NACK", "rv_idx=2 retx", "rv_idx=3 retx", "still NACK → setup fail"],
+      "log_patterns": ["rrcSetup", "rv_idx", "retx=", "crc=NOK", "RRC setup reject"]
+    }
+  ],
+  "log_scan_patterns": {
+    "k1": ["harq_feedback_timing", "k1=", "pdsch-to-harq"],
+    "rv": ["rv_idx", "rv_idx1", "redundancy version"],
+    "harq_proc": ["harq_process", "harq=0", "harq=si"],
+    "ack_fail": ["crc=NOK", "nack", "contentionresolutiontimer", "prach again", "rrc setup reject", "rrcconnectionreject"]
+  }
+}
