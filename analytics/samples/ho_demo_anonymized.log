@@ -1,0 +1,12 @@
+2026-06-10 10:00:00 INFO  [RRC] MeasurementReport serving PCI=101 band=n78 RSRP=-88 SINR=22
+2026-06-10 10:00:01 INFO  [RRC] EventA3 triggered target PCI=205 RSRP=-91
+2026-06-10 10:00:02 INFO  [RRC] MobilityFromNRCommand target PCI=205 band=n78
+2026-06-10 10:00:03 INFO  [RRC] reconfigurationWithSync target SpCell PCI=205
+2026-06-10 10:00:04 WARN  [RRC] T304 timer started
+2026-06-10 10:00:05 ERROR [RRC] Handover execution failure — target SSB not found
+2026-06-10 10:00:06 ERROR [RRC] RLF T310 expiry
+2026-06-10 10:00:07 INFO  [RRC] ConnectionReestablishmentRequest
+2026-06-10 10:00:08 INFO  [RRC] PRACH preamble sent occasion=2 rootSeq=42
+2026-06-10 10:00:09 ERROR [MAC] RAR not received within ra-ResponseWindow
+2026-06-10 10:00:10 ERROR [RRC] RACH failure after HO — re-PRACH attempt=2
+2026-06-10 10:00:11 INFO  [PHY] serving RSRP=-95 RSRQ=-12 SINR=8
