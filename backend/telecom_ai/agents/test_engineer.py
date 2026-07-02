@@ -52,11 +52,36 @@ def _readiness_note(agent: str) -> str:
 
 def run_rf_metrics_agent(query: str, tools: "ToolRegistry", session_id: str = "default") -> dict:
     from analytics.kaggle_charts import pick_csv_path, build_kaggle_dashboard
+    from analytics.link_budget import explain_sinr_vs_rsrq_link_budget, looks_like_link_budget_query
     from analytics.network_kpi import analyze_network_kpi
 
     path = _upload_csv(session_id) or str(pick_csv_path(query) or "")
     ql = query.lower()
     net_filter = "5g" if "5g" in ql and "4g" not in ql else None
+
+    if looks_like_link_budget_query(query):
+        lb = explain_sinr_vs_rsrq_link_budget(query)
+        parts = [lb]
+        if path:
+            result = analyze_network_kpi(path, network_filter=net_filter)
+            parts.append("\n\n---\n\n**Measured KPIs from uploaded CSV**\n\n" + result.get("report", ""))
+            dash = build_kaggle_dashboard(query, csv_path=path)
+            return {
+                "agent": "rf_metrics",
+                "content": "\n".join(parts) + _readiness_note("rf_metrics"),
+                "artifacts": list(dash.get("charts") or []),
+                "tool_calls": [{"tool": "explain_link_budget", "ok": True}, {"tool": "analyze_network_kpi", "path": path}],
+                "ready": True,
+                "data_status": "loaded",
+            }
+        return {
+            "agent": "rf_metrics",
+            "content": lb,
+            "artifacts": [],
+            "tool_calls": [{"tool": "explain_link_budget", "ok": True}],
+            "ready": True,
+            "data_status": "computed",
+        }
 
     if not path:
         return {
@@ -172,6 +197,11 @@ def run_log_debug_agent(query: str, tools: "ToolRegistry", session_id: str = "de
 
 
 def run_fault_analysis_agent(query: str, tools: "ToolRegistry", session_id: str = "default") -> dict:
+    from analytics.harq_rrc_fault import (
+        explain_rrc_harq_fault,
+        looks_like_rrc_harq_fault_query,
+    )
+
     catalog_path = _DATA / "fault_catalog.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"symptoms": []}
     ql = query.lower()
@@ -191,33 +221,68 @@ def run_fault_analysis_agent(query: str, tools: "ToolRegistry", session_id: str 
     if not matches:
         matches = catalog.get("symptoms", [])[:2]
 
-    lines = ["**Fault Analysis Agent** (catalog ready — improves with your logs/alarms)\n"]
-    for m in matches[:3]:
-        lines.append(f"### {m.get('id', 'symptom').replace('_', ' ').title()}")
-        lines.append("**Likely causes:**")
-        for c in m.get("likely_causes", []):
-            lines.append(f"- {c}")
-        lines.append("**Recommended checks:**")
-        for c in m.get("checks", []):
-            lines.append(f"- {c}")
-        lines.append(f"**Specs:** {', '.join(m.get('spec_refs', []))}")
+    tool_calls: list[dict] = []
+    parts: list[str] = []
 
     logs = _upload_logs(session_id)
+    log_text = None
     if logs:
-        lines.append(f"\n*Session logs available ({len(logs)}) — use Log Debug agent for line-level parse.*")
+        log_text = logs[0].read_text(encoding="utf-8", errors="replace")
+
+    if looks_like_rrc_harq_fault_query(query):
+        rrc = next(
+            (m for m in json.loads((_DATA / "fault_catalog.json").read_text(encoding="utf-8")).get("symptoms", [])
+             if m.get("id") == "rrc_setup_fail"),
+            None,
+        ) if (_DATA / "fault_catalog.json").exists() else None
+        header: list[str] = []
+        if rrc:
+            header = [
+                "**Fault catalog — RRC setup fail** (expanded)",
+                "",
+                "**Top likely causes:**",
+            ]
+            for c in (rrc.get("likely_causes") or [])[:4]:
+                header.append(f"- {c}")
+            header.append("")
+        harq_md = explain_rrc_harq_fault(query, log_text=log_text)
+        parts.append(("\n".join(header) + "\n\n" + harq_md) if header else harq_md)
+        tool_calls.append({"tool": "explain_rrc_harq_fault", "ok": True})
+    else:
+        lines = ["**Fault Analysis Agent** (catalog ready — improves with your logs/alarms)\n"]
+        for m in matches[:3]:
+            lines.append(f"### {m.get('id', 'symptom').replace('_', ' ').title()}")
+            lines.append("**Likely causes:**")
+            for c in m.get("likely_causes", []):
+                lines.append(f"- {c}")
+            lines.append("**Recommended checks:**")
+            for c in m.get("checks", []):
+                lines.append(f"- {c}")
+            lines.append(f"**Specs:** {', '.join(m.get('spec_refs', []))}")
+        parts.append("\n".join(lines))
+
+        rrc_match = next((m for m in matches if m.get("id") == "rrc_setup_fail"), None)
+        if rrc_match and rrc_match.get("harq_sections"):
+            harq_md = explain_rrc_harq_fault(query, log_text=log_text)
+            parts.append("\n\n---\n\n" + harq_md)
+            tool_calls.append({"tool": "explain_rrc_harq_fault", "ok": True})
+
+    if logs and not looks_like_rrc_harq_fault_query(query):
+        parts.append(f"\n*Session logs available ({len(logs)}) — HARQ/RRC scan included when RRC fault is detected.*")
 
     from analytics.nr_protocol_stack import format_protocol_stack_brief
 
     stack = format_protocol_stack_brief(query)
-    if stack:
-        lines.append("\n" + stack)
+    if stack and not looks_like_rrc_harq_fault_query(query):
+        parts.append("\n" + stack)
 
     return {
         "agent": "fault_analysis",
-        "content": "\n".join(lines),
+        "content": "\n\n".join(p for p in parts if p),
         "artifacts": [],
+        "tool_calls": tool_calls,
         "ready": True,
-        "data_status": "builtin_catalog",
+        "data_status": "builtin_catalog" if not log_text else "catalog_and_log",
     }
 
 

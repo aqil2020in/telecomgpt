@@ -2,7 +2,7 @@
 
 Domain-specific multi-agent AI for **5G/LTE RF & Test Engineering**: Adaptive RAG + LangGraph + FastAPI + Next.js.
 
-See also: **[ORCHESTRATION.md](./ORCHESTRATION.md)** (guardrails, integrations, env vars) · **Agent deck:** `python backend/scripts/generate_agent_architecture_ppt.py`
+See also: **[ORCHESTRATION.md](./ORCHESTRATION.md)** (guardrails, integrations, env vars) · **[LEARNING_SYLLABUS.md](./LEARNING_SYLLABUS.md)** (12-week RAN → AI study guide) · **[DEMO_HANDOVER_OPERATOR.md](./DEMO_HANDOVER_OPERATOR.md)** (HO/RACH operator demo) · **Agent deck:** `python backend/scripts/generate_agent_architecture_ppt.py`
 
 ---
 

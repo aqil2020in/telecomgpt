@@ -10,6 +10,7 @@ AGENT_TAXONOMY: dict[str, dict] = {
     # Task agents — Test Engineer workflow
     "analytics": {"category": "task", "description": "CSV/Kaggle dashboards, charts, summaries"},
     "rf_metrics": {"category": "task", "description": "RF KPI grading, per-band stats, network campaign CSV"},
+    "coverage_optimizer": {"category": "task", "description": "Best UE locations and weak zones within GPS radius from drive-test CSV"},
     "drive_test": {"category": "task", "description": "Drive-test SLA, RF maps, full KPI when columns present"},
     "log_debug": {"category": "task", "description": "QXDM/QCAT log parse, RRC/NAS scan, error clustering"},
     "log": {"category": "task", "description": "Alias — UE log analysis (see log_debug)"},

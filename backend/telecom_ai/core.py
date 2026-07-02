@@ -126,7 +126,24 @@ class TelecomAI:
 
     def _instant_answer(self, query: str) -> str:
         """Cheap TelecomDB lookups — no LLM, no vector/Chroma."""
+        from analytics.link_budget import explain_sinr_vs_rsrq_link_budget, looks_like_link_budget_query
         from .loaders import looks_like_phy_math
+
+        if looks_like_link_budget_query(query):
+            return explain_sinr_vs_rsrq_link_budget(query)
+
+        from analytics.harq_rrc_fault import explain_rrc_harq_fault, looks_like_rrc_harq_fault_query
+
+        if looks_like_rrc_harq_fault_query(query):
+            return explain_rrc_harq_fault(query)
+
+        from analytics.coverage_optimizer import (
+            explain_coverage_optimizer,
+            looks_like_coverage_optimizer_query,
+        )
+
+        if looks_like_coverage_optimizer_query(query):
+            return explain_coverage_optimizer(query)
 
         db = self.db
         checks = (

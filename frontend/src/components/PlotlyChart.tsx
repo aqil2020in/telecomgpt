@@ -54,7 +54,7 @@ export default function PlotlyChart({ plotlyJson, title }: PlotlyChartProps) {
         marginTop: 12,
         width: "100%",
         minWidth: 280,
-        maxWidth: 640,
+        maxWidth: 900,
         background: "#fff",
         borderRadius: 8,
         border: "1px solid #e5e7eb",

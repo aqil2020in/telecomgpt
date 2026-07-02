@@ -17,8 +17,17 @@ _LOG_KW = ("log", "qxdm", "qcat", "rrc", "nas", "ue log", "log debug")
 _FAULT_KW = ("fault", "troubleshoot", "troubleshooting", "alarm", "root cause", "failure analysis", "debug analysis")
 _VALID_KW = ("validate", "validation", "test case", "feature test", "pass criteria", "vonr", "registration test")
 _CONFIG_KW = ("bts", "gnb", "gnodeb", "config", "parameter", "configuration", "ssb pattern", "prach config")
-_RF_METRICS_KW = ("rf kpi", "rf metrics", "kpi assessment", "rsrq", "sinr", "cqi", "bler", "network kpi")
+_RF_METRICS_KW = (
+    "rf kpi", "rf metrics", "kpi assessment", "rsrq", "sinr", "cqi", "bler", "network kpi",
+    "link budget", "linkbudget", "friis", "path loss", "pathloss",
+)
 _MAP_KW = ("map", "gps", "geo", "coverage map", "latitude", "longitude")
+_COVERAGE_OPT_KW = (
+    "coverage optimizer", "better coverage", "best location", "best locations",
+    "where is coverage better", "predict coverage", "recommend location",
+    "coverage radius", "mile radius", "miles radius", "weak zone", "coverage hole",
+    "rf coverage",
+)
 _PREDICT_KW = ("predict", "forecast", "trend", "anomaly", "ml")
 _COMPLIANCE_KW = ("fcc", "regulatory", "compliance", "licensed", "eirp")
 _SPEC_KW = ("3gpp", "ts 38", "ts 36", "specification", "spec clause", "38.331", "38.104")
@@ -31,7 +40,7 @@ _CA_KW = ("ca", "carrier aggregation", "endc", "nrdc")
 _PHY_KW = ("arfcn", "gscn", "throughput", "mhz", "ghz", "ssb")
 
 ALL_AGENTS = (
-    "telecom_kb", "research", "analytics", "rf_metrics", "drive_test", "log_debug", "log",
+    "telecom_kb", "research", "analytics", "rf_metrics", "coverage_optimizer", "drive_test", "log_debug", "log",
     "fault_analysis", "feature_validation", "bts_config",
     "prediction", "compliance", "spec", "comparison", "react", "autogen", "crew",
     "presentation", "verifier", "synthesizer", "deploy", "eval",
@@ -61,12 +70,20 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
         "validation": any(k in q for k in _VALID_KW),
         "config": any(k in q for k in _CONFIG_KW),
         "rf_metrics": any(k in q for k in _RF_METRICS_KW),
+        "coverage_opt": any(k in q for k in _COVERAGE_OPT_KW)
+        or bool(re.search(r"-?\d{1,2}\.\d{4,}\s*,\s*-\d{1,3}\.\d{4,}", q)),
     }
 
     if flags["eval"]:
         agents = ["eval", "synthesizer"]
     elif flags["deploy"]:
         agents = ["deploy", "synthesizer"]
+    elif flags["coverage_opt"]:
+        agents = (
+            ["coverage_optimizer", "synthesizer"]
+            if low_memory_mode()
+            else ["coverage_optimizer", "drive_test", "rf_metrics", "synthesizer"]
+        )
     elif flags["fault"]:
         agents = (
             ["fault_analysis", "log_debug", "spec", "synthesizer"]
@@ -78,11 +95,16 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
     elif flags["config"]:
         agents = ["bts_config", "spec", "compliance", "synthesizer"]
     elif flags["rf_metrics"]:
-        agents = (
-            ["rf_metrics", "synthesizer"]
-            if low_memory_mode()
-            else ["rf_metrics", "drive_test", "analytics", "synthesizer"]
+        ql = q
+        link_budget_only = any(k in ql for k in ("link budget", "linkbudget", "friis")) or (
+            ("sinr" in ql or "rsrq" in ql) and any(k in ql for k in ("explain", " vs ", " versus ", "compare", "difference"))
         )
+        if link_budget_only:
+            agents = ["rf_metrics", "synthesizer"] if low_memory_mode() else ["rf_metrics", "spec", "synthesizer"]
+        elif low_memory_mode():
+            agents = ["rf_metrics", "synthesizer"]
+        else:
+            agents = ["rf_metrics", "drive_test", "analytics", "synthesizer"]
     elif flags["ppt"]:
         agents = (
             ["research", "telecom_kb", "presentation", "synthesizer"]

@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import AttachReport, { type AttachReportData } from "../components/AttachReport";
 import UeCapabilityReport, { type UeCapabilityReportData } from "../components/UeCapabilityReport";
+import type { CoverageDriveMapData } from "../components/CoverageDriveMap";
 
 const PlotlyChart = dynamic(() => import("../components/PlotlyChart"), { ssr: false });
+const CoverageDriveMap = dynamic(() => import("../components/CoverageDriveMap"), { ssr: false });
 
 function apiBaseUrl(): string {
   const raw =
@@ -26,6 +28,8 @@ type Artifact = {
   source_csv?: string;
   geojson?: object;
   point_count?: number;
+  map_provider?: string;
+  map_data?: CoverageDriveMapData;
   attach_report?: AttachReportData;
   ue_capability_report?: UeCapabilityReportData;
 };
@@ -312,6 +316,15 @@ export default function Home() {
   };
 
   const renderArtifact = (a: Artifact, j: number) => {
+    if (a.type === "coverage_drive_map" && a.ok && a.map_data) {
+      return (
+        <CoverageDriveMap
+          key={`gmap-${j}`}
+          title={a.title ?? "Drive route map — Google Maps"}
+          data={a.map_data}
+        />
+      );
+    }
     if (a.type === "ue_capability_report" && a.ue_capability_report) {
       return (
         <UeCapabilityReport
@@ -335,6 +348,15 @@ export default function Home() {
       );
     }
     if (a.type === "map" && a.ok) {
+      if (a.plotly_json) {
+        return (
+          <PlotlyChart
+            key={`map-${j}`}
+            plotlyJson={a.plotly_json}
+            title={a.title ?? "Drive route map"}
+          />
+        );
+      }
       return (
         <div key={`map-${j}`} style={{ marginTop: 10, fontSize: 13, color: "#475569" }}>
           RF map: {a.point_count ?? 0} GPS points
@@ -430,7 +452,9 @@ export default function Home() {
               style={{
                 maxWidth:
                   m.role === "assistant" &&
-                  m.artifacts?.some((a) => a.type === "chart" || a.type === "map")
+                  m.artifacts?.some(
+                    (a) => a.type === "chart" || a.type === "map" || a.type === "coverage_drive_map"
+                  )
                     ? "95%"
                     : "85%",
                 padding: "12px 16px",

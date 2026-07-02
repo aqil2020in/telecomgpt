@@ -234,6 +234,40 @@ def build_tool_registry(db: Any) -> ToolRegistry:
         parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
     )
     reg.register(
+        "optimize_coverage",
+        lambda query="", path="", session_id="default": _optimize_coverage(query, path, session_id),
+        description="Rank best UE locations and weak zones within GPS radius from drive-test CSV",
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "path": {"type": "string"},
+                "session_id": {"type": "string"},
+            },
+            "required": [],
+        },
+    )
+    reg.register(
+        "explain_link_budget",
+        lambda query="": _explain_link_budget(query),
+        description="Explain SINR vs RSRQ and compute DL link budget with worked example (TS 38.215 / Friis)",
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string"}},
+            "required": [],
+        },
+    )
+    reg.register(
+        "explain_rrc_harq_fault",
+        lambda query="", session_id="default": _explain_rrc_harq_fault(query, session_id),
+        description="HARQ/K1/RV/frame-structure fault analysis for NR RRC setup failure",
+        parameters={
+            "type": "object",
+            "properties": {"query": {"type": "string"}, "session_id": {"type": "string"}},
+            "required": [],
+        },
+    )
+    reg.register(
         "plot_rf_map",
         lambda path: _plot_rf_map(path),
         description="Build RF map GeoJSON + geo chart from CSV",
@@ -323,6 +357,45 @@ def _evaluate_rf_kpis(path: str):
     from analytics.rf_kpi import evaluate_rf_kpis
 
     return evaluate_rf_kpis(path)
+
+
+def _optimize_coverage(query: str = "", path: str = "", session_id: str = "default"):
+    from analytics.coverage_optimizer import explain_coverage_optimizer, optimize_coverage, parse_geo_from_query
+    from pathlib import Path
+
+    lat, lon, radius = parse_geo_from_query(query or "")
+    if not path:
+        uploads = Path(__file__).resolve().parent.parent / "data" / "uploads" / (session_id or "default")
+        if uploads.exists():
+            csvs = sorted(uploads.glob("*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if csvs:
+                path = str(csvs[0])
+        if not path:
+            sample = Path(__file__).resolve().parent.parent / "data" / "samples" / "coverage_dallas_3mi.csv"
+            path = str(sample) if sample.exists() else ""
+    if not path:
+        return {"ok": False, "error": "No CSV path"}
+    result = optimize_coverage(path, center_lat=lat, center_lon=lon, radius_miles=radius)
+    return {"markdown": explain_coverage_optimizer(query, csv_path=path, session_id=session_id), **result}
+
+
+def _explain_link_budget(query: str = ""):
+    from analytics.link_budget import explain_link_budget_dict
+
+    return explain_link_budget_dict(query or "")
+
+
+def _explain_rrc_harq_fault(query: str = "", session_id: str = "default"):
+    from analytics.harq_rrc_fault import explain_rrc_harq_fault_dict
+    from pathlib import Path
+
+    log_text = None
+    uploads = Path(__file__).resolve().parent.parent / "data" / "uploads" / (session_id or "default")
+    if uploads.exists():
+        for p in sorted(list(uploads.glob("*.log")) + list(uploads.glob("*.txt"))):
+            log_text = p.read_text(encoding="utf-8", errors="replace")
+            break
+    return explain_rrc_harq_fault_dict(query or "", log_text=log_text)
 
 
 def _plot_rf_map(path: str):
