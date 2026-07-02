@@ -13,6 +13,7 @@
     "react-dom": "latest"
   },
   "devDependencies": {
+    "@types/google.maps": "^3.65.2",
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",

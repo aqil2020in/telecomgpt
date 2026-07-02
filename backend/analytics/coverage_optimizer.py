@@ -408,11 +408,14 @@ def format_coverage_report(result: dict[str, Any]) -> str:
 
     lines.extend([
         "",
-        "## Drive route map",
+        "## Drive route map (Google Maps)",
         "",
-        "Interactive map artifact: **gray line** = your drive path · **green stars** = best UE locations · "
-        "**red X** = weak zones · **blue diamonds** = suggested verify · **purple** = site center · "
-        f"**indigo ring** = {c['radius_miles']} mi radius.",
+        "Open the **Drive route map** below on Google Maps: **gray route** = drive path · "
+        "**green markers** = best UE locations · **red** = weak zones · "
+        "**blue** = suggested verify · **purple** = site center · "
+        f"**indigo circle** = {c['radius_miles']} mi radius.",
+        "",
+        "Requires `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` on Vercel (Maps JavaScript API enabled).",
         "",
         "## How to use",
         "",
@@ -714,9 +717,15 @@ def build_coverage_map_artifacts(result: dict[str, Any]) -> list[dict]:
         "source_csv": result.get("source"),
     }]
 
+    from .coverage_google_map import build_coverage_google_map_artifact
+
+    google_map = build_coverage_google_map_artifact(result)
+    if google_map:
+        artifacts.insert(0, google_map)
+
+    # Plotly fallback when Google Maps API key not set on frontend
     drive_chart = build_coverage_drive_route_chart(result)
     if drive_chart:
         artifacts.append(drive_chart)
-        artifacts[0]["plotly_json"] = drive_chart["plotly_json"]
 
     return artifacts

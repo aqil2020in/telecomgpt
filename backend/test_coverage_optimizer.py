@@ -84,10 +84,24 @@ def test_drive_route_chart():
     assert "coverage_drive_route" in (chart.get("chart_type") or "")
 
 
-def test_map_artifacts_include_route():
+def test_google_map_artifact():
+    result = optimize_coverage(str(SAMPLE), radius_miles=3.0)
+    from analytics.coverage_google_map import build_coverage_google_map_artifact
+
+    art = build_coverage_google_map_artifact(result)
+    assert art is not None
+    assert art["type"] == "coverage_drive_map"
+    assert art["map_provider"] == "google"
+    md = art["map_data"]
+    assert md["radius_miles"] == 3.0
+    assert len(md["drive_route"]) >= 10
+    assert len(md["best_locations"]) >= 1
+
+
+def test_map_artifacts_include_google():
     result = optimize_coverage(str(SAMPLE), radius_miles=3.0)
     arts = build_coverage_map_artifacts(result)
-    assert any(a.get("plotly_json") for a in arts)
+    assert any(a.get("type") == "coverage_drive_map" for a in arts)
 
 
 def test_instant_path():
@@ -110,7 +124,8 @@ if __name__ == "__main__":
         test_optimize_sample_csv,
         test_report_markdown,
         test_drive_route_chart,
-        test_map_artifacts_include_route,
+        test_google_map_artifact,
+        test_map_artifacts_include_google,
         test_instant_path,
     ]
     for t in tests:
