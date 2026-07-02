@@ -222,6 +222,8 @@ def _should_use_async_ask(query: str, trace: bool) -> bool:
 
 def _should_use_fast_ask(query: str, trace: bool) -> bool:
     """Use fast RAG+LLM path for typical Q&A (avoids Render timeout)."""
+    if _is_deterministic_instant_query(query):
+        return True
     if trace:
         return False
     if os.environ.get("TELECOMGPT_FAST_ASK", "1") != "1":
@@ -526,26 +528,56 @@ def rf_handbook_topics(q: str = "", limit: int = 8):
     return {"query": q, "topics": lookup_rf_topics(q, limit=min(limit, 20))}
 
 
+def _resolve_csv_path(session_id: str = "default", csv_path: str = "") -> str:
+    from pathlib import Path
+
+    if csv_path:
+        return csv_path
+    uploads = Path(__file__).resolve().parent / "data" / "uploads" / (session_id or "default")
+    if uploads.exists():
+        csvs = sorted(uploads.glob("*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+        if csvs:
+            return str(csvs[0])
+    sample = Path(__file__).resolve().parent / "data" / "samples" / "coverage_dallas_3mi.csv"
+    return str(sample) if sample.exists() else ""
+
+
 @app.get("/api/rf/coverage-optimizer")
 def rf_coverage_optimizer(
     q: str = "Coverage optimizer 3 mile radius",
-    lat: float = 32.93704401921274,
-    lon: float = -96.98407174060758,
-    radius_miles: float = 3.0,
+    lat: float | None = None,
+    lon: float | None = None,
+    radius_miles: float | None = None,
+    session_id: str = "default",
     csv_path: str = "",
 ):
-    from analytics.coverage_optimizer import explain_coverage_optimizer, optimize_coverage
-    from pathlib import Path
+    from analytics.coverage_optimizer import (
+        build_coverage_map_artifacts,
+        explain_coverage_optimizer,
+        optimize_coverage,
+        parse_geo_from_query,
+    )
 
-    path = csv_path
+    plat, plon, pradius = parse_geo_from_query(q)
+    clat = lat if lat is not None else plat
+    clon = lon if lon is not None else plon
+    cradius = radius_miles if radius_miles is not None else pradius
+    path = _resolve_csv_path(session_id, csv_path)
+    query = q if (str(clat) in q or str(clon) in q) else f"{q} {clat}, {clon} {cradius} mile radius"
     if not path:
-        sample = Path(__file__).resolve().parent / "data" / "samples" / "coverage_dallas_3mi.csv"
-        path = str(sample) if sample.exists() else ""
-    query = q if (str(lat) in q or str(lon) in q) else f"{q} {lat}, {lon} {radius_miles} mile radius"
-    if not path:
-        return {"ok": False, "error": "No CSV — upload drive-test or set csv_path"}
-    result = optimize_coverage(path, center_lat=lat, center_lon=lon, radius_miles=radius_miles)
-    return {"query": query, "markdown": explain_coverage_optimizer(query, csv_path=path), **result}
+        return {"ok": False, "error": "No CSV — upload drive-test CSV first", "artifacts": []}
+    result = optimize_coverage(path, center_lat=clat, center_lon=clon, radius_miles=cradius)
+    markdown = explain_coverage_optimizer(query, csv_path=path, session_id=session_id)
+    artifacts = build_coverage_map_artifacts(result) if result.get("ok") else []
+    return {
+        "query": query,
+        "answer": markdown,
+        "markdown": markdown,
+        "session_id": session_id,
+        "artifacts": artifacts,
+        "mode": "fast-kb",
+        **result,
+    }
 
 
 @app.get("/api/rf/link-budget")

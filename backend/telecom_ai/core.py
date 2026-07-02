@@ -96,6 +96,43 @@ class TelecomAI:
         q = pre.get("redacted_query") or query
         sid = session_id or str(uuid.uuid4())[:12]
 
+        from analytics.coverage_optimizer import (
+            build_coverage_map_artifacts,
+            explain_coverage_optimizer,
+            looks_like_coverage_optimizer_query,
+            optimize_coverage,
+            parse_geo_from_query,
+        )
+
+        if looks_like_coverage_optimizer_query(q):
+            from pathlib import Path
+
+            plat, plon, pradius = parse_geo_from_query(q)
+            uploads = Path(__file__).resolve().parent.parent / "data" / "uploads" / sid
+            csv_path = ""
+            if uploads.exists():
+                csvs = sorted(uploads.glob("*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+                if csvs:
+                    csv_path = str(csvs[0])
+            if not csv_path:
+                sample = Path(__file__).resolve().parent.parent / "data" / "samples" / "coverage_dallas_3mi.csv"
+                csv_path = str(sample) if sample.exists() else ""
+            md = explain_coverage_optimizer(q, csv_path=csv_path or None, session_id=sid)
+            artifacts: list = []
+            if csv_path:
+                result = optimize_coverage(csv_path, center_lat=plat, center_lon=plon, radius_miles=pradius)
+                artifacts = build_coverage_map_artifacts(result) if result.get("ok") else []
+            post = check_output(md)
+            answer = post.get("filtered_answer") or md
+            return {
+                "answer": answer,
+                "session_id": sid,
+                "sources": [],
+                "artifacts": artifacts,
+                "mode": "fast-kb",
+                "guardrail_issues": list(pre.get("issues") or []) + list(post.get("issues") or []),
+            }
+
         instant = self._instant_answer(q)
         if instant:
             post = check_output(instant)

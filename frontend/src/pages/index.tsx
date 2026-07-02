@@ -74,6 +74,17 @@ type AskResponse = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+function isCoverageOptimizerQuery(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    t.includes("coverage optimizer") ||
+    t.includes("best ue location") ||
+    t.includes("drive route map") ||
+    (/\d+\.\d{4,}\s*,\s*-?\d+\.\d{4,}/.test(text) &&
+      (t.includes("mile") || t.includes("radius") || t.includes("coverage")))
+  );
+}
+
 async function pollJob(jobId: string, onStatus?: (s: string) => void): Promise<AskResponse> {
   const deadline = Date.now() + 8 * 60_000;
   while (Date.now() < deadline) {
@@ -114,9 +125,18 @@ export default function Home() {
   }, [messages, loading]);
 
   useEffect(() => {
-    fetch(`${API_URL}/api/health`, { method: "GET" })
-      .then((r) => setApiReady(r.ok))
-      .catch(() => setApiReady(false));
+    const wake = async () => {
+      try {
+        const controller = new AbortController();
+        const timer = window.setTimeout(() => controller.abort(), 90_000);
+        const r = await fetch(`${API_URL}/api/health`, { method: "GET", signal: controller.signal });
+        window.clearTimeout(timer);
+        setApiReady(r.ok);
+      } catch {
+        setApiReady(false);
+      }
+    };
+    wake();
   }, []);
 
   const send = async () => {
@@ -137,26 +157,39 @@ export default function Home() {
       }
 
       const controller = new AbortController();
-      const timer = window.setTimeout(() => controller.abort(), 30_000);
+      const askTimeoutMs = isCoverageOptimizerQuery(text) ? 90_000 : 60_000;
+      const timer = window.setTimeout(() => controller.abort(), askTimeoutMs);
 
-      const res = await fetch(`${API_URL}/ask`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          query: text,
-          history: messages,
-          session_id: sessionId,
-          trace: showTrace,
-        }),
-        signal: controller.signal,
-      });
+      let res: Response;
+      if (isCoverageOptimizerQuery(text)) {
+        const params = new URLSearchParams({
+          q: text,
+          session_id: sessionId ?? "default",
+        });
+        res = await fetch(`${API_URL}/api/rf/coverage-optimizer?${params.toString()}`, {
+          method: "GET",
+          signal: controller.signal,
+        });
+      } else {
+        res = await fetch(`${API_URL}/ask`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            query: text,
+            history: messages,
+            session_id: sessionId,
+            trace: showTrace,
+          }),
+          signal: controller.signal,
+        });
+      }
       window.clearTimeout(timer);
       let data: AskResponse = await res.json();
       if (!res.ok) {
-        throw new Error((data as { detail?: string }).detail ?? `Request failed (${res.status})`);
+        throw new Error((data as { detail?: string }).detail ?? (data as { error?: string }).error ?? `Request failed (${res.status})`);
       }
 
-      if (data.async && data.job_id) {
+      if (!isCoverageOptimizerQuery(text) && data.async && data.job_id) {
         setJobStatus(data.status ?? "queued");
         data = await pollJob(data.job_id, setJobStatus);
       }
@@ -184,7 +217,7 @@ export default function Home() {
       const msg =
         e instanceof Error
           ? e.name === "AbortError"
-            ? "Could not start the request in time. The server may be waking up — wait 30s and try again."
+            ? "Could not start the request in time. The server may be waking up — wait 60s and try again."
             : e.message.includes("fetch") || e.name === "TypeError"
               ? `Could not reach the API at ${API_URL}. The server may be waking up — wait 30s and try again.`
               : e.message
