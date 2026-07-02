@@ -73,6 +73,8 @@ def looks_like_coverage_optimizer_query(query: str) -> bool:
         "coverage radius",
         "weak zone",
         "coverage hole",
+        "drive route map",
+        "drive route",
     )
     if any(k in ql for k in keys):
         return True
@@ -339,6 +341,8 @@ def optimize_coverage(
         "suggested_verify": suggested,
         "rf_columns": {k: v for k, v in rf.items() if v},
         "source": path.split("/")[-1].split("\\")[-1],
+        "csv_path": path,
+        "drive_route": _drive_route_points(in_radius, lat_col, lon_col, rf),
     }
 
 
@@ -404,6 +408,12 @@ def format_coverage_report(result: dict[str, Any]) -> str:
 
     lines.extend([
         "",
+        "## Drive route map",
+        "",
+        "Interactive map artifact: **gray line** = your drive path · **green stars** = best UE locations · "
+        "**red X** = weak zones · **blue diamonds** = suggested verify · **purple** = site center · "
+        f"**indigo ring** = {c['radius_miles']} mi radius.",
+        "",
         "## How to use",
         "",
         "1. **Best measured** — relocate UE test to top-ranked lat/lon.",
@@ -443,6 +453,215 @@ def explain_coverage_optimizer(
 
     result = optimize_coverage(path, center_lat=lat, center_lon=lon, radius_miles=radius)
     return format_coverage_report(result)
+
+
+def _timestamp_column(df: pd.DataFrame) -> str | None:
+    for c in df.columns:
+        if str(c).lower() in ("timestamp", "time", "datetime", "date_time"):
+            return str(c)
+    return None
+
+
+def _drive_route_points(
+    df: pd.DataFrame,
+    lat_col: str,
+    lon_col: str,
+    rf: dict[str, str | None],
+) -> list[dict[str, Any]]:
+    """GPS points in drive order for route map."""
+    route_df = df.dropna(subset=[lat_col, lon_col]).copy()
+    ts = _timestamp_column(route_df)
+    if ts:
+        route_df = route_df.sort_values(ts)
+    points: list[dict[str, Any]] = []
+    for _, row in route_df.iterrows():
+        p: dict[str, Any] = {
+            "latitude": round(float(row[lat_col]), 6),
+            "longitude": round(float(row[lon_col]), 6),
+            "rf_score": float(row["_rf_score"]) if "_rf_score" in row.index else None,
+        }
+        for k in ("rsrp", "sinr", "rsrq"):
+            col = rf.get(k)
+            if col and col in row.index and pd.notna(row[col]):
+                try:
+                    p[k] = float(row[col])
+                except (TypeError, ValueError):
+                    pass
+        points.append(p)
+    return points
+
+
+def _circle_lat_lon(center_lat: float, center_lon: float, radius_mi: float, n: int = 72) -> tuple[list[float], list[float]]:
+    lats: list[float] = []
+    lons: list[float] = []
+    for i in range(n + 1):
+        bearing = 2 * math.pi * i / n
+        ang_dist = radius_mi / EARTH_RADIUS_MI
+        rlat1 = math.radians(center_lat)
+        rlon1 = math.radians(center_lon)
+        rlat2 = math.asin(
+            math.sin(rlat1) * math.cos(ang_dist)
+            + math.cos(rlat1) * math.sin(ang_dist) * math.cos(bearing)
+        )
+        rlon2 = rlon1 + math.atan2(
+            math.sin(bearing) * math.sin(ang_dist) * math.cos(rlat1),
+            math.cos(ang_dist) - math.sin(rlat1) * math.sin(rlat2),
+        )
+        lats.append(math.degrees(rlat2))
+        lons.append(math.degrees(rlon2))
+    return lats, lons
+
+
+def build_coverage_drive_route_chart(result: dict[str, Any]) -> dict[str, Any] | None:
+    """Plotly drive-route map: route line, RF-colored samples, best/weak/suggested pins, radius ring."""
+    if not result.get("ok"):
+        return None
+
+    import plotly.graph_objects as go
+
+    c = result["center"]
+    clat, clon, radius = c["lat"], c["lon"], c["radius_miles"]
+    route = result.get("drive_route") or []
+    traces: list[Any] = []
+
+    # 3-mile radius ring
+    ring_lats, ring_lons = _circle_lat_lon(clat, clon, radius)
+    traces.append(
+        go.Scattergeo(
+            lat=ring_lats,
+            lon=ring_lons,
+            mode="lines",
+            line=dict(width=2, color="#6366f1"),
+            name=f"{radius} mi radius",
+            hoverinfo="skip",
+        )
+    )
+
+    # Drive route polyline (timestamp order)
+    if len(route) >= 2:
+        traces.append(
+            go.Scattergeo(
+                lat=[p["latitude"] for p in route],
+                lon=[p["longitude"] for p in route],
+                mode="lines+markers",
+                line=dict(width=3, color="#94a3b8"),
+                marker=dict(size=5, color="#64748b"),
+                name="Drive route",
+                text=[
+                    f"RSRP {p.get('rsrp', '—')} · SINR {p.get('sinr', '—')} · score {p.get('rf_score', '—')}"
+                    for p in route
+                ],
+                hoverinfo="text",
+            )
+        )
+    elif route:
+        traces.append(
+            go.Scattergeo(
+                lat=[route[0]["latitude"]],
+                lon=[route[0]["longitude"]],
+                mode="markers",
+                marker=dict(size=8, color="#64748b"),
+                name="Drive sample",
+            )
+        )
+
+    # Best UE locations (top 5)
+    best = result.get("best_measured") or []
+    if best:
+        traces.append(
+            go.Scattergeo(
+                lat=[p["latitude"] for p in best[:5]],
+                lon=[p["longitude"] for p in best[:5]],
+                mode="markers+text",
+                marker=dict(size=14, color="#16a34a", symbol="star"),
+                text=[f"#{i + 1}" for i in range(min(5, len(best)))],
+                textposition="top center",
+                name="Best UE locations",
+                hovertext=[
+                    f"Rank {i + 1}: score {p['rf_score']} · SINR {p.get('sinr', '—')} · RSRP {p.get('rsrp', '—')}"
+                    for i, p in enumerate(best[:5])
+                ],
+                hoverinfo="text",
+            )
+        )
+
+    # Weak zones
+    weak = result.get("weak_zones") or []
+    if weak:
+        traces.append(
+            go.Scattergeo(
+                lat=[p["latitude"] for p in weak[:5]],
+                lon=[p["longitude"] for p in weak[:5]],
+                mode="markers",
+                marker=dict(size=11, color="#dc2626", symbol="x"),
+                name="Weak zones",
+                hovertext=[
+                    f"Weak: score {p['rf_score']} · RSRP {p.get('rsrp', '—')}"
+                    for p in weak[:5]
+                ],
+                hoverinfo="text",
+            )
+        )
+
+    # Suggested verify
+    suggested = result.get("suggested_verify") or []
+    if suggested:
+        traces.append(
+            go.Scattergeo(
+                lat=[p["latitude"] for p in suggested],
+                lon=[p["longitude"] for p in suggested],
+                mode="markers",
+                marker=dict(size=12, color="#2563eb", symbol="diamond"),
+                name="Suggested verify",
+                hovertext=[
+                    f"Pred SINR {p.get('predicted_sinr_db', '—')} dB · {p.get('confidence', '')}"
+                    for p in suggested
+                ],
+                hoverinfo="text",
+            )
+        )
+
+    # Site center
+    traces.append(
+        go.Scattergeo(
+            lat=[clat],
+            lon=[clon],
+            mode="markers+text",
+            marker=dict(size=13, color="#7c3aed", symbol="circle"),
+            text=["Site"],
+            textposition="bottom center",
+            name="Center",
+            hovertext=[f"Center {clat:.5f}, {clon:.5f} · {radius} mi"],
+            hoverinfo="text",
+        )
+    )
+
+    fig = go.Figure(data=traces)
+    fig.update_layout(
+        title=f"Drive route map — coverage optimizer ({radius} mi)",
+        height=520,
+        margin=dict(l=20, r=20, t=56, b=20),
+        legend=dict(orientation="h", yanchor="bottom", y=1.02, x=0),
+        geo=dict(
+            scope="usa",
+            projection_type="albers usa",
+            showland=True,
+            landcolor="#f1f5f9",
+            subunitcolor="#cbd5e1",
+            center=dict(lat=clat, lon=clon),
+            projection_scale=12,
+        ),
+    )
+    fig.update_geos(fitbounds="locations")
+
+    return {
+        "type": "chart",
+        "ok": True,
+        "title": f"Drive route map — {radius} mi radius",
+        "chart_type": "coverage_drive_route",
+        "plotly_json": fig.to_json(),
+        "source_csv": result.get("source"),
+    }
 
 
 def build_coverage_map_artifacts(result: dict[str, Any]) -> list[dict]:
@@ -486,7 +705,7 @@ def build_coverage_map_artifacts(result: dict[str, Any]) -> list[dict]:
         "properties": {"kind": "center", "radius_miles": c["radius_miles"]},
     })
 
-    return [{
+    artifacts: list[dict] = [{
         "type": "map",
         "ok": True,
         "title": f"Coverage optimizer — {c['radius_miles']} mi radius",
@@ -494,3 +713,10 @@ def build_coverage_map_artifacts(result: dict[str, Any]) -> list[dict]:
         "point_count": len(features),
         "source_csv": result.get("source"),
     }]
+
+    drive_chart = build_coverage_drive_route_chart(result)
+    if drive_chart:
+        artifacts.append(drive_chart)
+        artifacts[0]["plotly_json"] = drive_chart["plotly_json"]
+
+    return artifacts

@@ -10,6 +10,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 from analytics.coverage_optimizer import (
     DEFAULT_CENTER_LAT,
     DEFAULT_CENTER_LON,
+    build_coverage_drive_route_chart,
+    build_coverage_map_artifacts,
     explain_coverage_optimizer,
     haversine_miles,
     looks_like_coverage_optimizer_query,
@@ -67,6 +69,27 @@ def test_report_markdown():
     assert "32.937" in md
 
 
+def test_drive_route_chart():
+    assert SAMPLE.exists()
+    result = optimize_coverage(
+        str(SAMPLE),
+        center_lat=DEFAULT_CENTER_LAT,
+        center_lon=DEFAULT_CENTER_LON,
+        radius_miles=3.0,
+    )
+    assert len(result.get("drive_route") or []) >= 10
+    chart = build_coverage_drive_route_chart(result)
+    assert chart is not None
+    assert chart.get("plotly_json")
+    assert "coverage_drive_route" in (chart.get("chart_type") or "")
+
+
+def test_map_artifacts_include_route():
+    result = optimize_coverage(str(SAMPLE), radius_miles=3.0)
+    arts = build_coverage_map_artifacts(result)
+    assert any(a.get("plotly_json") for a in arts)
+
+
 def test_instant_path():
     from telecom_ai.core import TelecomAI
 
@@ -86,6 +109,8 @@ if __name__ == "__main__":
         test_detector,
         test_optimize_sample_csv,
         test_report_markdown,
+        test_drive_route_chart,
+        test_map_artifacts_include_route,
         test_instant_path,
     ]
     for t in tests:

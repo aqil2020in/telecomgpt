@@ -25,6 +25,7 @@ type Artifact = {
   chart_type?: string;
   source_csv?: string;
   geojson?: object;
+  plotly_json?: string;
   point_count?: number;
   attach_report?: AttachReportData;
   ue_capability_report?: UeCapabilityReportData;
@@ -335,6 +336,15 @@ export default function Home() {
       );
     }
     if (a.type === "map" && a.ok) {
+      if (a.plotly_json) {
+        return (
+          <PlotlyChart
+            key={`map-${j}`}
+            plotlyJson={a.plotly_json}
+            title={a.title ?? "Drive route map"}
+          />
+        );
+      }
       return (
         <div key={`map-${j}`} style={{ marginTop: 10, fontSize: 13, color: "#475569" }}>
           RF map: {a.point_count ?? 0} GPS points
