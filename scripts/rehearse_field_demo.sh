@@ -35,7 +35,7 @@ if curl -sf "${API}/api/health" >/dev/null 2>&1; then
 else
   echo "==> Starting API on port ${PORT}..."
   cd "$BACKEND"
-  uvicorn app:app --host 127.0.0.1 --port "$PORT" >/tmp/telecomgpt_demo.log 2>&1 &
+  python3 -m uvicorn app:app --host 127.0.0.1 --port "$PORT" >/tmp/telecomgpt_demo.log 2>&1 &
   API_PID=$!
   echo "$API_PID" >/tmp/telecomgpt_demo.pid
   for i in $(seq 1 30); do
