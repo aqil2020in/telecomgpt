@@ -14,6 +14,7 @@ from .agents.test_engineer import (
 from .agents.extended import (
     run_comparison_agent,
     run_compliance_agent,
+    run_coverage_optimizer_agent,
     run_deploy_agent,
     run_drive_test_agent,
     run_eval_agent,
@@ -34,7 +35,7 @@ from .tools import ToolRegistry
 
 # Agents that run in parallel batch (not sequential loop)
 PARALLEL_AGENTS = frozenset({
-    "telecom_kb", "research", "analytics", "drive_test", "rf_metrics", "log", "log_debug",
+    "telecom_kb", "research", "analytics", "drive_test", "rf_metrics", "coverage_optimizer", "log", "log_debug",
     "fault_analysis", "feature_validation", "bts_config",
     "prediction", "compliance", "spec", "comparison", "react", "autogen", "crew",
     "deploy", "eval",
@@ -68,6 +69,8 @@ def run_agent(
         out = run_drive_test_agent(query, tools, session_id=session_id)
     elif name == "rf_metrics":
         out = run_rf_metrics_agent(query, tools, session_id=session_id)
+    elif name == "coverage_optimizer":
+        out = run_coverage_optimizer_agent(query, tools, session_id=session_id)
     elif name == "log":
         out = run_log_debug_agent(query, tools, session_id=session_id)
     elif name == "log_debug":

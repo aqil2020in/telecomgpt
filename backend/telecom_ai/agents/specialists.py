@@ -209,6 +209,19 @@ def run_synthesizer(
                 "sources": all_sources,
                 "artifacts": [a for a in artifacts if a],
             }
+        if o.get("agent") == "coverage_optimizer" and o.get("content"):
+            if "Coverage optimizer report" in o["content"] or "Top locations" in o["content"]:
+                artifacts = list(o.get("artifacts") or [])
+                for ao in agent_outputs:
+                    for a in ao.get("artifacts") or []:
+                        if a and a not in artifacts:
+                            artifacts.append(a)
+                return {
+                    "agent": "synthesizer",
+                    "content": o["content"],
+                    "sources": [],
+                    "artifacts": artifacts,
+                }
 
     combined = "\n\n---\n\n".join(
         f"[{o.get('agent', 'agent')}]\n{o.get('content', '')}"

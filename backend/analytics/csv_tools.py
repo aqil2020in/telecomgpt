@@ -50,6 +50,7 @@ _RF_ALIASES: dict[str, tuple[str, ...]] = {
     "jitter": ("jitter", "Jitter (ms)", "jitter_ms"),
     "band": ("band", "Band", "nr_band", "lte_band"),
     "pci": ("pci", "PCI", "cid", "cell_id"),
+    "ssb_index": ("ssb_index", "SSB_INDEX", "SSB Index", "ssb_idx", "ssb_beam", "beam_id", "beam_index"),
     "arfcn": ("arfcn", "nr_arfcn", "NR-ARFCN", "earfcn", "freq"),
 }
 

@@ -44,6 +44,42 @@ def run_drive_test_agent(query: str, tools: "ToolRegistry", session_id: str = "d
     }
 
 
+def run_coverage_optimizer_agent(query: str, tools: "ToolRegistry", session_id: str = "default") -> dict:
+    from analytics.coverage_optimizer import (
+        build_coverage_map_artifacts,
+        explain_coverage_optimizer,
+        parse_geo_from_query,
+    )
+    from pathlib import Path
+
+    lat, lon, radius = parse_geo_from_query(query)
+    uploads = Path(__file__).resolve().parent.parent.parent / "data" / "uploads" / session_id
+    paths = list(uploads.glob("*.csv")) if uploads.exists() else []
+    sample = Path(__file__).resolve().parent.parent.parent / "data" / "samples" / "coverage_dallas_3mi.csv"
+    path = str(paths[0]) if paths else (str(sample) if sample.exists() else "")
+
+    if not path:
+        return {
+            "agent": "coverage_optimizer",
+            "content": explain_coverage_optimizer(query, session_id=session_id),
+            "artifacts": [],
+            "ready": False,
+            "data_status": "needs_csv_upload",
+        }
+
+    result = optimize_coverage(path, center_lat=lat, center_lon=lon, radius_miles=radius)
+    report = explain_coverage_optimizer(query, csv_path=path, session_id=session_id)
+    artifacts = build_coverage_map_artifacts(result)
+    return {
+        "agent": "coverage_optimizer",
+        "content": report,
+        "artifacts": artifacts,
+        "tool_calls": [{"tool": "optimize_coverage", "ok": result.get("ok")}],
+        "ready": True,
+        "data_status": "csv_analyzed" if result.get("ok") else "csv_missing_gps",
+    }
+
+
 def run_log_agent(query: str, tools: "ToolRegistry", session_id: str = "default") -> dict:
     from pathlib import Path
 

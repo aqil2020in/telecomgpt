@@ -137,6 +137,14 @@ class TelecomAI:
         if looks_like_rrc_harq_fault_query(query):
             return explain_rrc_harq_fault(query)
 
+        from analytics.coverage_optimizer import (
+            explain_coverage_optimizer,
+            looks_like_coverage_optimizer_query,
+        )
+
+        if looks_like_coverage_optimizer_query(query):
+            return explain_coverage_optimizer(query)
+
         db = self.db
         checks = (
             db.glossary_lookup,

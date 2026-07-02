@@ -123,10 +123,15 @@ def root():
 
 
 def _is_deterministic_instant_query(query: str) -> bool:
+    from analytics.coverage_optimizer import looks_like_coverage_optimizer_query
     from analytics.harq_rrc_fault import looks_like_rrc_harq_fault_query
     from analytics.link_budget import looks_like_link_budget_query
 
-    return looks_like_link_budget_query(query) or looks_like_rrc_harq_fault_query(query)
+    return (
+        looks_like_link_budget_query(query)
+        or looks_like_rrc_harq_fault_query(query)
+        or looks_like_coverage_optimizer_query(query)
+    )
 
 
 def _is_slow_query(query: str) -> bool:
@@ -519,6 +524,28 @@ def rf_handbook_topics(q: str = "", limit: int = 8):
     from analytics.rf_handbook import lookup_rf_topics
 
     return {"query": q, "topics": lookup_rf_topics(q, limit=min(limit, 20))}
+
+
+@app.get("/api/rf/coverage-optimizer")
+def rf_coverage_optimizer(
+    q: str = "Coverage optimizer 3 mile radius",
+    lat: float = 32.93704401921274,
+    lon: float = -96.98407174060758,
+    radius_miles: float = 3.0,
+    csv_path: str = "",
+):
+    from analytics.coverage_optimizer import explain_coverage_optimizer, optimize_coverage
+    from pathlib import Path
+
+    path = csv_path
+    if not path:
+        sample = Path(__file__).resolve().parent / "data" / "samples" / "coverage_dallas_3mi.csv"
+        path = str(sample) if sample.exists() else ""
+    query = q if (str(lat) in q or str(lon) in q) else f"{q} {lat}, {lon} {radius_miles} mile radius"
+    if not path:
+        return {"ok": False, "error": "No CSV — upload drive-test or set csv_path"}
+    result = optimize_coverage(path, center_lat=lat, center_lon=lon, radius_miles=radius_miles)
+    return {"query": query, "markdown": explain_coverage_optimizer(query, csv_path=path), **result}
 
 
 @app.get("/api/rf/link-budget")
