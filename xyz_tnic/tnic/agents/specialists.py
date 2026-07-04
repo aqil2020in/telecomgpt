@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from tnic.agents.base import BaseAgent, kpi_to_dict
+from tnic.agents.ho_agent import HandoverFailureAgent
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
@@ -30,9 +31,48 @@ class _RuleAgent(BaseAgent):
         return self._findings_to_result(findings, summary)
 
 
-class HOAgent(_RuleAgent):
+class HOAgent(BaseAgent):
+    name = "ho_agent"
+
     def __init__(self):
-        super().__init__("ho_agent", HO_RULE_ENGINE)
+        self._failure_agent = HandoverFailureAgent()
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        data = kpi_to_dict(kpis)
+        diagnosis = self._failure_agent.analyze_kpis(data, query=query)
+        findings: list[dict[str, Any]] = []
+        if diagnosis.failure_type not in ("No Data", "No Failure"):
+            findings.append({
+                "rule_id": f"ho_{diagnosis.evidence.get('failure_code', 'unknown').lower() if diagnosis.evidence else 'detected'}",
+                "category": "handover",
+                "probable_cause": f"{diagnosis.failure_type}: {diagnosis.root_cause}",
+                "confidence": diagnosis.confidence,
+                "evidence": diagnosis.evidence or {},
+                "recommended_actions": _ho_actions(diagnosis.evidence.get("failure_code") if diagnosis.evidence else None),
+            })
+        # Also run legacy rule engine on KPI aggregates for additional findings
+        legacy = HO_RULE_ENGINE.evaluate(data)
+        seen = {f["probable_cause"][:60] for f in findings}
+        for f in legacy:
+            if f["probable_cause"][:60] not in seen:
+                findings.append(f)
+        findings.sort(key=lambda x: x["confidence"], reverse=True)
+        summary = f"{self.name}: {diagnosis.failure_type} (confidence {diagnosis.confidence:.2f})"
+        return self._findings_to_result(findings, summary)
+
+
+def _ho_actions(code: str | None) -> list[str]:
+    actions = {
+        "PREP_FAILURE": ["Verify Xn connectivity", "Check neighbor relation for target PCI", "Review HO prep timer"],
+        "EXEC_FAILURE": ["Compare source/target RSRP at HO", "Audit HO parameters A3/A5", "Drive-test HO corridor"],
+        "XN_FAILURE": ["Check Xn transport and IPsec/SCTP", "Verify Xn neighbor relation", "Review XnAP cause codes"],
+        "N2_FAILURE": ["Check AMF load and NGAP timers", "Verify N2 connectivity", "Inspect NGAP HandoverFailure cause"],
+        "TOO_EARLY_HO": ["Increase A3 offset or time-to-trigger", "Review cell individual offsets"],
+        "TOO_LATE_HO": ["Decrease A3 offset", "Add filler cell on HO corridor"],
+        "PING_PONG": ["Increase hysteresis", "Review CIO between neighbor pair"],
+        "WRONG_CELL": ["Verify neighbor list completeness", "Check SSB beam priority"],
+    }
+    return actions.get(code or "", ["Review handover_events.csv and mobility parameters"])
 
 
 class RLFAgent(_RuleAgent):
