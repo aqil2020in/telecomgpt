@@ -5,6 +5,10 @@ from __future__ import annotations
 from typing import Any
 
 from tnic.agents.base import BaseAgent, kpi_to_dict
+from tnic.agents.pm_validation_agent import (
+    PMValidationAgent as _PMValidationCore,
+    RECOMMENDED_ACTIONS,
+)
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
@@ -69,20 +73,33 @@ class PMAgent(BaseAgent):
     name = "pm_agent"
 
     def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
-        from tnic.services.pm_ingestion import validate_pm_kpis
+        data = kpi_to_dict(kpis)
+        cell_id = data.get("cell_id")
+        report = _PMValidationCore().analyze_kpis(data, query=query)
+        return self._report_to_result(report)
 
-        issues = validate_pm_kpis(kpi_to_dict(kpis))
+    def _report_to_result(self, report) -> AgentResult:
+        if report.ok and report.anomaly_count == 0:
+            return self._findings_to_result([], report.summary)
+
         findings = []
-        for i, issue in enumerate(issues[:5]):
+        for i, anomaly in enumerate(report.anomalies[:10]):
             findings.append({
-                "rule_id": f"pm_validation_{i}",
+                "rule_id": anomaly.rule_id.lower(),
                 "category": "pm_validation",
-                "probable_cause": issue,
-                "confidence": 0.65,
-                "evidence": {},
-                "recommended_actions": ["Reconcile PM counter definitions", "Verify KPI derivation formula"],
+                "probable_cause": anomaly.message,
+                "confidence": 0.90 if anomaly.severity == "error" else 0.70,
+                "evidence": {
+                    **anomaly.evidence,
+                    **({"cell_id": anomaly.cell_id} if anomaly.cell_id else {}),
+                    **({"row": anomaly.row} if anomaly.row is not None else {}),
+                },
+                "recommended_actions": RECOMMENDED_ACTIONS.get(
+                    anomaly.rule_id,
+                    ["Reconcile PM counter definitions", "Verify KPI derivation formula"],
+                ),
             })
-        return self._findings_to_result(findings, f"PM validation: {len(issues)} issue(s).")
+        return self._findings_to_result(findings, report.summary)
 
 
 class TransportAgent(BaseAgent):
