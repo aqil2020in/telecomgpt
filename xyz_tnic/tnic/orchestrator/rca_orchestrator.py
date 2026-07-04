@@ -28,6 +28,35 @@ ORCHESTRATION_MAP = {
     "complaint": ["complaint", "handover", "throughput", "call_drop"],
 }
 
+# Primary-domain boost so RLF/HO queries rank domain findings above cross-agent noise.
+_PRIMARY_DOMAIN_BOOST = 0.10
+_CLASSIFIER_BOOST = 0.15
+
+_ISSUE_CATEGORY = {
+    "handover": "handover",
+    "ho": "handover",
+    "rlf": "rlf",
+    "call_drop": "call_drop",
+    "throughput": "throughput",
+    "rach": "rach",
+    "beamforming": "beamforming",
+    "beam": "beamforming",
+    "latency": "latency",
+}
+
+
+def _rank_score(finding: RuleFinding, issue_type: str) -> float:
+    score = finding.confidence
+    if finding.category == _ISSUE_CATEGORY.get(issue_type, issue_type):
+        score += _PRIMARY_DOMAIN_BOOST
+    if finding.rule_id.endswith("_class"):
+        score += _CLASSIFIER_BOOST
+    return score
+
+
+def rank_findings(findings: list[RuleFinding], issue_type: str) -> list[RuleFinding]:
+    return sorted(findings, key=lambda f: _rank_score(f, issue_type), reverse=True)
+
 
 class MasterRCAOrchestrator:
     def run(self, request: AnalyzeRequest, rag_context: list[dict[str, str]] | None = None) -> RCAResponse:
@@ -36,20 +65,19 @@ class MasterRCAOrchestrator:
         if request.complaint_text:
             issue = detect_issue_type(request.complaint_text, request.issue_type)
 
-        # Enrich KPIs from bundled telecom datasets (/datasets)
-        if not kpis or len(kpis) <= 1:
-            try:
-                from tnic.datasets.kpi_service import kpis_for_rca
+        # Merge bundled telecom dataset KPIs for any missing keys (demo + production cells).
+        try:
+            from tnic.datasets.kpi_service import kpis_for_rca
 
-                ds_kpis = kpis_for_rca(
-                    query=request.query or request.complaint_text or "",
-                    cell_id=kpis.get("cell_id"),
-                )
-                for k, v in ds_kpis.items():
-                    if v is not None and kpis.get(k) is None:
-                        kpis[k] = v
-            except Exception as e:
-                log.warning("Dataset KPI enrichment skipped: %s", e)
+            ds_kpis = kpis_for_rca(
+                query=request.query or request.complaint_text or "",
+                cell_id=kpis.get("cell_id"),
+            )
+            for k, v in ds_kpis.items():
+                if v is not None and kpis.get(k) is None:
+                    kpis[k] = v
+        except Exception as e:
+            log.warning("Dataset KPI enrichment skipped: %s", e)
 
         agent_names = ORCHESTRATION_MAP.get(issue, [issue, "pm"])
         all_findings: list[RuleFinding] = []
@@ -70,14 +98,14 @@ class MasterRCAOrchestrator:
                 if not any(x.rule_id == f["rule_id"] for x in all_findings):
                     all_findings.append(RuleFinding(**f))
 
-        all_findings.sort(key=lambda x: x.confidence, reverse=True)
-
         if issue == "call_drop":
             from tnic.services.drop_classifier import drop_classification_finding
 
             clf = drop_classification_finding(kpis)
             if clf and not any(x.rule_id == clf["rule_id"] for x in all_findings):
-                all_findings.insert(0, RuleFinding(**clf))
+                all_findings.append(RuleFinding(**clf))
+
+        all_findings = rank_findings(all_findings, issue)
 
         probable = [
             {"cause": f.probable_cause, "confidence": f.confidence, "category": f.category, "evidence": f.evidence}
