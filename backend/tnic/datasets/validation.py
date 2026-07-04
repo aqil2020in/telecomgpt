@@ -99,7 +99,7 @@ def _validate_rach(df: pd.DataFrame) -> list[ValidationIssue]:
 
 
 def _validate_call_drop(df: pd.DataFrame) -> list[ValidationIssue]:
-    allowed = {"Core", "IMS", "Mobility", "Radio", "Transport"}
+    allowed = {"Core", "IMS", "Mobility", "Radio", "Transport", "None"}
     return _validate_events(df, "call_drop_events", "drop_type", allowed)
 
 
