@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from tnic.agents.base import BaseAgent, kpi_to_dict
+from tnic.agents.rach_agent import RACHFailureAgent
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
@@ -50,9 +51,52 @@ class ThroughputAgent(_RuleAgent):
         super().__init__("throughput_agent", THROUGHPUT_RULE_ENGINE)
 
 
-class RACHAgent(_RuleAgent):
+class RACHAgent(BaseAgent):
+    name = "rach_agent"
+
     def __init__(self):
-        super().__init__("rach_agent", RACH_RULE_ENGINE)
+        self._failure_agent = RACHFailureAgent()
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        data = kpi_to_dict(kpis)
+        diagnosis = self._failure_agent.analyze_kpis(data, query=query)
+        findings: list[dict[str, Any]] = []
+        if diagnosis.failure_type not in ("No Data", "No Failure"):
+            ev = diagnosis.evidence or {}
+            findings.append({
+                "rule_id": f"rach_{ev.get('msg_code', 'fail').lower()}",
+                "category": "rach",
+                "probable_cause": f"{diagnosis.failure_type} — {diagnosis.root_cause}",
+                "confidence": diagnosis.confidence,
+                "evidence": ev,
+                "recommended_actions": _rach_actions(ev.get("msg_code"), ev.get("root_cause_code")),
+            })
+        legacy = RACH_RULE_ENGINE.evaluate(data)
+        seen = {f["probable_cause"][:60] for f in findings}
+        for f in legacy:
+            if f["probable_cause"][:60] not in seen:
+                findings.append(f)
+        findings.sort(key=lambda x: x["confidence"], reverse=True)
+        summary = f"{self.name}: {diagnosis.failure_type} (confidence {diagnosis.confidence:.2f})"
+        return self._findings_to_result(findings, summary)
+
+
+def _rach_actions(msg_code: str | None, root_code: str | None) -> list[str]:
+    by_root = {
+        "COVERAGE": ["Audit cell-edge RSRP for PRACH", "Adjust tilt or add filler coverage"],
+        "INTERFERENCE": ["Identify co-channel interferer PCI", "Review PRACH frequency isolation"],
+        "PRACH_MISCONFIG": ["Audit prach-ConfigurationIndex in SIB1", "Verify root sequence and occasion"],
+        "BEAM_ISSUE": ["Verify SSB beam sweep", "Check beam correspondence for PRACH"],
+    }
+    by_msg = {
+        "MSG1": ["Check PRACH power ramping", "Verify preamble detection threshold"],
+        "MSG2": ["Review RAR window and RA-RNTI mapping", "Check DL assignment for RAR"],
+        "MSG3": ["Review timing advance values", "Check PRACH occasion collision"],
+        "MSG4": ["Verify contention resolution", "Check Msg4 HARQ and beam binding"],
+    }
+    actions = list(by_root.get(root_code or "", []))
+    actions.extend(by_msg.get(msg_code or "", []))
+    return actions or ["Review rach_events.csv and UE access logs"]
 
 
 class BeamformingAgent(_RuleAgent):
