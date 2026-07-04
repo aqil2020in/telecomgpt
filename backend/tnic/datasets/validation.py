@@ -38,6 +38,13 @@ def _validate_pm_counters(df: pd.DataFrame) -> list[ValidationIssue]:
         issues.append(ValidationIssue(
             dataset="pm_counters", severity="error", message="Missing cell_id values",
         ))
+    if "timestamp" in df.columns:
+        dup = df.duplicated(subset=["timestamp", "cell_id"]).sum()
+        if dup:
+            issues.append(ValidationIssue(
+                dataset="pm_counters", severity="warning",
+                message=f"{dup} duplicate (timestamp, cell_id) pairs",
+            ))
     return issues
 
 
@@ -51,11 +58,20 @@ def _validate_events(df: pd.DataFrame, dataset: str, category_col: str, allowed:
             dataset=dataset, severity="warning",
             message=f"Unknown {category_col} values: {sorted(unknown)[:8]}",
         ))
+    missing = df[category_col].isna().sum()
+    if missing:
+        issues.append(ValidationIssue(
+            dataset=dataset, severity="warning",
+            message=f"Missing {category_col} on {missing} rows",
+        ))
     return issues
 
 
 def _validate_handover(df: pd.DataFrame) -> list[ValidationIssue]:
-    allowed = {"SUCCESS", "TOO_LATE_HO", "PREP_FAILURE", "PING_PONG"}
+    allowed = {
+        "SUCCESS", "TOO_LATE_HO", "TOO_EARLY_HO", "PREP_FAILURE", "PING_PONG",
+        "EXEC_FAILURE", "WRONG_CELL", "XN_FAILURE", "N2_FAILURE",
+    }
     issues = _validate_events(df, "handover_events", "failure_type", allowed)
     for i, row in df.iterrows():
         if row.get("rsrp", -999) > 0:
@@ -73,11 +89,17 @@ def _validate_rlf(df: pd.DataFrame) -> list[ValidationIssue]:
 
 def _validate_rach(df: pd.DataFrame) -> list[ValidationIssue]:
     allowed = {"SUCCESS", "MSG1", "MSG2", "MSG3", "MSG4"}
-    return _validate_events(df, "rach_events", "msg_failure", allowed)
+    issues = _validate_events(df, "rach_events", "msg_failure", allowed)
+    dup = df.duplicated().sum()
+    if dup:
+        issues.append(ValidationIssue(
+            dataset="rach_events", severity="warning", message=f"{dup} duplicate rows",
+        ))
+    return issues
 
 
 def _validate_call_drop(df: pd.DataFrame) -> list[ValidationIssue]:
-    allowed = {"Core", "IMS", "Mobility", "Radio"}
+    allowed = {"Core", "IMS", "Mobility", "Radio", "Transport"}
     return _validate_events(df, "call_drop_events", "drop_type", allowed)
 
 

@@ -13,6 +13,9 @@ def _ho_rules() -> list[RuleDefinition]:
         return rate is not None and rate > 5.0
 
     def exec_fail(k):
+        rate = _get(k, "ho_exec_fail_rate")
+        if rate is not None and rate > 2.0:
+            return True
         success = _get(k, "ho_success_rate")
         return success is not None and success < 95.0
 
@@ -32,15 +35,29 @@ def _ho_rules() -> list[RuleDefinition]:
         rsrp = _get(k, "target_rsrp")
         return rsrp is not None and rsrp < -110
 
+    def xn_fail(k):
+        return _get(k, "ho_xn_fail_rate", 0) > 2.0
+
+    def n2_fail(k):
+        return _get(k, "ho_n2_fail_rate", 0) > 2.0
+
     return [
         RuleDefinition("ho_prep_failure", cat, "HO preparation failure",
                        prep_fail, "High HO preparation failure — target cell not ready or Xn/NG timeout",
                        0.82, ["Verify Xn connectivity", "Check neighbor relation for target PCI", "Review HO prep timer"],
                        ["ho_prep_fail_rate"]),
         RuleDefinition("ho_execution_failure", cat, "HO execution failure",
-                       exec_fail, "Low HO success rate — execution or RF failure during mobility",
+                       exec_fail, "HO execution failure — RF or procedure failure during mobility",
                        0.78, ["Compare source/target RSRP at HO", "Audit HO parameters A3/A5", "Drive-test HO corridor"],
-                       ["ho_success_rate"]),
+                       ["ho_exec_fail_rate", "ho_success_rate"]),
+        RuleDefinition("ho_xn_failure", cat, "Xn interface HO failure",
+                       xn_fail, "Xn interface HO failure — inter-gNB XnAP prep or setup timeout",
+                       0.8, ["Check Xn transport and IPsec/SCTP", "Verify Xn neighbor relation", "Review XnAP cause codes"],
+                       ["ho_xn_fail_rate"]),
+        RuleDefinition("ho_n2_failure", cat, "N2/NGAP HO failure",
+                       n2_fail, "N2 NGAP HO failure — AMF or gNB NG interface issue during HO",
+                       0.77, ["Check AMF load and NGAP timers", "Verify N2 connectivity", "Inspect NGAP HandoverFailure cause"],
+                       ["ho_n2_fail_rate"]),
         RuleDefinition("ho_too_early", cat, "Too early HO",
                        too_early, "Too-early handovers — mobility threshold too aggressive",
                        0.71, ["Increase A3 offset or time-to-trigger", "Review cell individual offsets"],

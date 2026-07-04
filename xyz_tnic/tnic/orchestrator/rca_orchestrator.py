@@ -16,9 +16,9 @@ log = get_logger(__name__)
 
 # Agents to run per primary issue (multi-domain RCA)
 ORCHESTRATION_MAP = {
-    "handover": ["handover", "rlf", "pm"],
+    "handover": ["handover", "rlf", "pm", "latency", "transport"],
     "rlf": ["rlf", "handover", "call_drop", "pm"],
-    "call_drop": ["call_drop", "rlf", "handover", "beamforming", "core"],
+    "call_drop": ["call_drop", "rlf", "handover", "beamforming", "core", "transport", "latency"],
     "throughput": ["throughput", "beamforming", "transport", "pm"],
     "rach": ["rach", "beamforming", "pm"],
     "beamforming": ["beamforming", "throughput", "call_drop"],
@@ -71,6 +71,13 @@ class MasterRCAOrchestrator:
                     all_findings.append(RuleFinding(**f))
 
         all_findings.sort(key=lambda x: x.confidence, reverse=True)
+
+        if issue == "call_drop":
+            from tnic.services.drop_classifier import drop_classification_finding
+
+            clf = drop_classification_finding(kpis)
+            if clf and not any(x.rule_id == clf["rule_id"] for x in all_findings):
+                all_findings.insert(0, RuleFinding(**clf))
 
         probable = [
             {"cause": f.probable_cause, "confidence": f.confidence, "category": f.category, "evidence": f.evidence}

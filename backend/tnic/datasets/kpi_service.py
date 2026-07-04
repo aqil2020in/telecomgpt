@@ -26,10 +26,24 @@ def _safe_rate(num: float, den: float) -> float | None:
     return round(100.0 * num / den, 2)
 
 
+def _labeled_count(series: pd.Series) -> pd.Series:
+    return series.notna() & (series.astype(str).str.strip() != "") & (series != "None")
+
+
 def _kpis_from_pm(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
     sub = df[df["cell_id"] == cell_id]
     if sub.empty:
         return {}
+    if "timestamp" in sub.columns:
+        sub = sub.groupby(["timestamp", "cell_id"], as_index=False).agg({
+            "ho_attempt": "sum",
+            "rach_attempt": "sum",
+            "ho_success": "sum",
+            "rach_success": "sum",
+            "dl_tp": "mean",
+            "ul_tp": "mean",
+            "cqi": "mean",
+        })
     ho_att = float(sub["ho_attempt"].sum())
     rach_att = float(sub["rach_attempt"].sum())
     return {
@@ -48,11 +62,19 @@ def _kpis_from_handover(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
         return {}
     total = len(sub)
     counts = sub["failure_type"].value_counts()
+    non_success = sub[sub["failure_type"] != "SUCCESS"]
+    target_rsrp = round(float(non_success["rsrp"].mean()), 2) if len(non_success) else None
     return {
         "ho_success_rate": _safe_rate(float(counts.get("SUCCESS", 0)), total),
         "ho_prep_fail_rate": _safe_rate(float(counts.get("PREP_FAILURE", 0)), total),
+        "ho_exec_fail_rate": _safe_rate(float(counts.get("EXEC_FAILURE", 0)), total),
         "ho_too_late_rate": _safe_rate(float(counts.get("TOO_LATE_HO", 0)), total),
+        "ho_too_early_rate": _safe_rate(float(counts.get("TOO_EARLY_HO", 0)), total),
         "ho_ping_pong_rate": _safe_rate(float(counts.get("PING_PONG", 0)), total),
+        "ho_wrong_cell_rate": _safe_rate(float(counts.get("WRONG_CELL", 0)), total),
+        "ho_xn_fail_rate": _safe_rate(float(counts.get("XN_FAILURE", 0)), total),
+        "ho_n2_fail_rate": _safe_rate(float(counts.get("N2_FAILURE", 0)), total),
+        "target_rsrp": target_rsrp,
         "ss_rsrp": round(float(sub["rsrp"].mean()), 2),
         "ss_sinr": round(float(sub["sinr"].mean()), 2),
         "ho_event_count": total,
@@ -64,13 +86,23 @@ def _kpis_from_rlf(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
     if sub.empty:
         return {}
     total = len(sub)
-    real = sub[sub["cause"] != "None"]
+    labeled = sub[_labeled_count(sub["cause"])]
+    labeled_count = len(labeled)
+    post_ho = _safe_rate(float((labeled["cause"] == "Post_HO").sum()), total)
+    coverage = _safe_rate(float((labeled["cause"] == "Coverage").sum()), total)
+    interference = _safe_rate(float((labeled["cause"] == "Interference").sum()), total)
+    oos = int((sub["sinr"] < 0).sum())
     return {
-        "rlf_rate": _safe_rate(float(len(real)), total),
+        "rlf_rate": _safe_rate(float(labeled_count), total),
         "rlf_event_count": total,
-        "rlf_coverage_pct": _safe_rate(float((sub["cause"] == "Coverage").sum()), total),
-        "rlf_post_ho_pct": _safe_rate(float((sub["cause"] == "Post_HO").sum()), total),
-        "rlf_interference_pct": _safe_rate(float((sub["cause"] == "Interference").sum()), total),
+        "rlf_coverage_pct": coverage,
+        "rlf_post_ho_pct": post_ho,
+        "rlf_after_ho_rate": post_ho,
+        "rlf_interference_pct": interference,
+        "rlf_rsrp_mean": round(float(sub["rsrp"].mean()), 2),
+        "rlf_sinr_mean": round(float(sub["sinr"].mean()), 2),
+        "out_of_sync_events": oos,
+        "rlf_after_sync_fail": 1 if oos > 5 else 0,
     }
 
 
@@ -91,20 +123,31 @@ def _kpis_from_rach(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
     }
 
 
-def _kpis_from_call_drop(df: pd.DataFrame, cell_id: str, ho_attempts: float | None) -> dict[str, Any]:
+def _kpis_from_call_drop(df: pd.DataFrame, cell_id: str, ho_event_count: float | None) -> dict[str, Any]:
     sub = df[df["cell_id"] == cell_id]
     if sub.empty:
         return {}
-    drops = len(sub)
-    counts = sub["drop_type"].value_counts().to_dict()
-    base = ho_attempts if ho_attempts and ho_attempts > 0 else float(drops)
+    labeled = sub[_labeled_count(sub["drop_type"])]
+    drops = len(labeled) if len(labeled) > 0 else len(sub)
+    counts = labeled["drop_type"].value_counts().to_dict() if len(labeled) > 0 else {}
+    base = max(ho_event_count or 0, float(drops), 1.0)
+    mobility = _safe_rate(float(counts.get("Mobility", 0)), drops)
+    radio = _safe_rate(float(counts.get("Radio", 0)), drops)
+    core = _safe_rate(float(counts.get("Core", 0)), drops)
+    ims = _safe_rate(float(counts.get("IMS", 0)), drops)
+    transport = _safe_rate(float(counts.get("Transport", 0)), drops)
+    dominant = max(counts, key=counts.get) if counts else None
     return {
         "call_drop_rate": _safe_rate(float(drops), base),
         "call_drop_count": drops,
-        "drop_mobility_pct": _safe_rate(float(counts.get("Mobility", 0)), drops),
-        "drop_radio_pct": _safe_rate(float(counts.get("Radio", 0)), drops),
-        "drop_core_pct": _safe_rate(float(counts.get("Core", 0)), drops),
-        "drop_ims_pct": _safe_rate(float(counts.get("IMS", 0)), drops),
+        "drop_mobility_pct": mobility,
+        "drop_radio_pct": radio,
+        "drop_core_pct": core,
+        "drop_ims_pct": ims,
+        "drop_transport_pct": transport,
+        "ims_drop_rate": ims,
+        "amf_release_rate": core,
+        "dominant_drop_type": dominant,
     }
 
 
@@ -112,14 +155,15 @@ def _kpis_from_throughput(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
     sub = df[df["cell_id"] == cell_id]
     if sub.empty:
         return {}
-    top_issue = sub["issue"].value_counts().idxmax() if len(sub) else "None"
+    labeled = sub[_labeled_count(sub["issue"])]
+    top_issue = labeled["issue"].value_counts().idxmax() if len(labeled) else "None"
     return {
         "throughput_mbps": round(float(sub["dl_tp"].mean()), 2),
         "cqi": round(float(sub["cqi"].mean()), 2),
         "prb_utilization": round(float(sub["prb_util"].mean()), 2),
         "throughput_top_issue": top_issue,
-        "throughput_rf_issue_pct": _safe_rate(float((sub["issue"] == "RF").sum()), len(sub)),
-        "throughput_congestion_pct": _safe_rate(float((sub["issue"] == "Congestion").sum()), len(sub)),
+        "throughput_rf_issue_pct": _safe_rate(float((labeled["issue"] == "RF").sum()), len(labeled) or len(sub)),
+        "throughput_congestion_pct": _safe_rate(float((labeled["issue"] == "Congestion").sum()), len(labeled) or len(sub)),
     }
 
 
@@ -160,6 +204,15 @@ def compute_cell_kpis(cell_id: str) -> CellKPIs:
     rlf_k = _kpis_from_rlf(rlf, cell_id)
     if rlf_k:
         merged.update(rlf_k)
+        if merged.get("ho_event_count"):
+            rlf_k["rlf_rate"] = _safe_rate(
+                float(rlf_k["rlf_event_count"]), float(merged["ho_event_count"])
+            )
+            merged["rlf_rate"] = rlf_k["rlf_rate"]
+        if rlf_k.get("rlf_rsrp_mean") is not None:
+            merged["ss_rsrp"] = rlf_k["rlf_rsrp_mean"]
+        if rlf_k.get("rlf_sinr_mean") is not None:
+            merged["ss_sinr"] = rlf_k["rlf_sinr_mean"]
         sources.append("rlf_events")
 
     rach = load_rach_events()
@@ -171,8 +224,8 @@ def compute_cell_kpis(cell_id: str) -> CellKPIs:
         sources.append("rach_events")
 
     cd = load_call_drop_events()
-    ho_base = merged.get("ho_attempt_total")
-    cd_k = _kpis_from_call_drop(cd, cell_id, float(ho_base) if ho_base else None)
+    ho_events = merged.get("ho_event_count")
+    cd_k = _kpis_from_call_drop(cd, cell_id, float(ho_events) if ho_events else None)
     if cd_k:
         merged.update(cd_k)
         sources.append("call_drop_events")
