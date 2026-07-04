@@ -36,6 +36,21 @@ class MasterRCAOrchestrator:
         if request.complaint_text:
             issue = detect_issue_type(request.complaint_text, request.issue_type)
 
+        # Enrich KPIs from bundled telecom datasets (/datasets)
+        if not kpis or len(kpis) <= 1:
+            try:
+                from tnic.datasets.kpi_service import kpis_for_rca
+
+                ds_kpis = kpis_for_rca(
+                    query=request.query or request.complaint_text or "",
+                    cell_id=kpis.get("cell_id"),
+                )
+                for k, v in ds_kpis.items():
+                    if v is not None and kpis.get(k) is None:
+                        kpis[k] = v
+            except Exception as e:
+                log.warning("Dataset KPI enrichment skipped: %s", e)
+
         agent_names = ORCHESTRATION_MAP.get(issue, [issue, "pm"])
         all_findings: list[RuleFinding] = []
         agents_run: list[str] = []

@@ -71,6 +71,13 @@ agent = TelecomAI(db_path=str(DB_PATH))
 if analytics_router is not None:
     app.include_router(analytics_router)
 
+try:
+    from tnic.api.routes.datasets import router as tnic_datasets_router
+
+    app.include_router(tnic_datasets_router, prefix="/api")
+except ImportError:
+    pass
+
 
 @app.on_event("startup")
 def _startup_reindex() -> None:
@@ -103,6 +110,9 @@ def root():
             "GET /api/nr-sa/attach-checklist": "NR SA attach checklist",
             "POST /api/nr-sa/attach-report": "One-click NR SA attach report",
             "POST /api/tnic/rca": "XYZ Network Intelligence RCA (TNIC)",
+            "GET /api/datasets/summary": "Telecom dataset summaries (PM, HO, RLF, RACH, drops, throughput)",
+            "GET /api/datasets/kpis/{cell_id}": "Merged cell KPIs from all datasets",
+            "GET /api/datasets/validate-all": "Validate all telecom datasets",
             "GET /api/nr/protocol-stack/reference": "NR radio protocol stack (C/U-plane, PHY→NAS)",
             "GET /api/nr/protocol-stack/lookup": "Lookup stack layers by keyword",
             "GET /api/nr-sa/attach-checklist": "Attach message checklist schema",

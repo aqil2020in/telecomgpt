@@ -41,6 +41,19 @@ def _kpis_from_session_csv(session_id: str) -> dict[str, Any]:
     return {}
 
 
+def _resolve_kpis(query: str, session_id: str) -> dict[str, Any]:
+    """Merge telecom /datasets KPIs with optional session CSV upload."""
+    from tnic.datasets.kpi_service import build_kpi_input
+
+    kpi_input = build_kpi_input(query=query)
+    merged = kpi_input.model_dump(exclude_none=True)
+    upload = _kpis_from_session_csv(session_id)
+    for k, v in upload.items():
+        if v is not None:
+            merged[k] = v
+    return merged
+
+
 def looks_like_tnic_rca_query(query: str) -> bool:
     from analytics.harq_rrc_fault import looks_like_rrc_harq_fault_query
 
@@ -66,8 +79,11 @@ def _execute_tnic_rca(
     from tnic.orchestrator.rca_orchestrator import MasterRCAOrchestrator
     from tnic.rag.retriever import get_rag_store
 
-    csv_kpis = _kpis_from_session_csv(session_id)
-    kpi_input = KPIInput(**{k: v for k, v in csv_kpis.items() if k in KPIInput.model_fields})
+    merged = _resolve_kpis(query, session_id)
+    extra = merged.pop("extra", {}) or {}
+    kpi_input = KPIInput(**{k: v for k, v in merged.items() if k in KPIInput.model_fields})
+    if extra:
+        kpi_input.extra.update(extra)
     rag = get_rag_store().search(query, k=3)
     orch = MasterRCAOrchestrator()
     return orch.run(

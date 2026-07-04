@@ -111,6 +111,47 @@ Return single incident (e.g. `INC-2026-001`).
 
 ---
 
+## Telecom datasets (`/datasets`)
+
+Bundled CSV datasets drive KPI calculation for all RCA agents.
+
+| File | Description |
+|------|-------------|
+| `pm_counters.csv` | Hourly PM counters per cell (HO, RACH, throughput, CQI) |
+| `handover_events.csv` | UE handover events with RSRP/SINR and failure type |
+| `rlf_events.csv` | Radio link failure events with cause |
+| `rach_events.csv` | RACH MSG1–MSG4 outcomes |
+| `call_drop_events.csv` | Call drops by type (Mobility, Radio, Core, IMS) |
+| `throughput_metrics.csv` | Throughput samples with CQI, PRB util, issue tag |
+
+Set `TNIC_DATASETS_DIR` to override the dataset directory (default: `data/datasets/`).
+
+### `GET /api/v1/datasets/summary`
+
+Summaries for all six datasets (row counts, cells, category breakdowns).
+
+### `GET /api/v1/datasets/{name}/summary`
+
+Summary for one dataset (`pm_counters`, `handover_events`, …).
+
+### `GET /api/v1/datasets/validate-all`
+
+Run validation rules on all datasets.
+
+### `GET /api/v1/datasets/kpis/{cell_id}`
+
+Merged KPIs for a cell from all datasets (feeds RCA agents).
+
+### `GET /api/v1/datasets/kpis`
+
+Cluster KPI overview with worst cells by health score.
+
+### `GET /api/v1/datasets/cells`
+
+List all cell IDs across datasets.
+
+---
+
 ## Orchestration map
 
 | Issue type | Agents invoked |

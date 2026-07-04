@@ -52,7 +52,9 @@ xyz_tnic/
 ├── data/
 │   ├── pm_counters.csv         # Sample PM counters
 │   ├── incidents.csv           # Sample telecom incidents
+│   ├── datasets/               # Telecom RCA datasets (6 CSVs)
 │   └── knowledge/              # RCA markdown playbooks
+├── datasets/                   # Canonical dataset copies (repo root symlink target)
 ├── tests/                      # pytest suite
 ├── Dockerfile
 ├── docker-compose.yml
