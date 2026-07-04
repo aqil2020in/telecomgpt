@@ -1,0 +1,27 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tnic
+      POSTGRES_PASSWORD: tnic
+      POSTGRES_DB: tnic
+    ports:
+      - "5432:5432"
+    volumes:
+      - tnic_pg:/var/lib/postgresql/data
+
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://tnic:tnic@postgres:5432/tnic
+      CHROMA_PERSIST_DIR: /app/data/chroma
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      - postgres
+    volumes:
+      - ./data:/app/data
+
+volumes:
+  tnic_pg:

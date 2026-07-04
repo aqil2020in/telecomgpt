@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: xyz-tnic-api
+    runtime: docker
+    dockerfilePath: ./xyz_tnic/Dockerfile
+    dockerContext: ./xyz_tnic
+    plan: starter
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: xyz-tnic-db
+          property: connectionString
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: CHROMA_PERSIST_DIR
+        value: /app/data/chroma
+      - key: ENABLE_OPENAI_REPORTS
+        value: "1"
+      - key: ENABLE_CHROMA
+        value: "1"
+    healthCheckPath: /api/v1/health
+
+databases:
+  - name: xyz-tnic-db
+    plan: starter
+    databaseName: tnic
+    user: tnic

@@ -1,0 +1,20 @@
+[
+  {
+    "ticket_id": "XYZ-2026-1042",
+    "text": "Customer reports dropped calls while driving on I-35 near cell 43211. Started after last week's config change.",
+    "cell_id": "43211",
+    "issue_hint": "call_drop"
+  },
+  {
+    "ticket_id": "XYZ-2026-1043",
+    "text": "Enterprise customer SLA breach — DL throughput below 50 Mbps on n78 cell 43211 during peak hours.",
+    "cell_id": "43211",
+    "issue_hint": "throughput"
+  },
+  {
+    "ticket_id": "XYZ-2026-1044",
+    "text": "High RACH failures reported on PCI 340 sector — new site integration issue.",
+    "cell_id": "43211",
+    "issue_hint": "rach"
+  }
+]
