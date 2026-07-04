@@ -1,1 +1,0 @@
-"""XYZ TNIC application package."""

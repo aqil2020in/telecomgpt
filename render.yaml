@@ -10,25 +10,25 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
-      # 2GB Render — full orchestrator + vector RAG + live fetch
+      # 2GB Render — lean demo: TNIC rules + BM25 RAG, no dual Chroma / heavy agents
       - key: TELECOMGPT_AUTO_REINDEX
-        value: "1"
-      - key: TELECOMGPT_LOW_MEMORY
         value: "0"
+      - key: TELECOMGPT_LOW_MEMORY
+        value: "1"
       - key: TELECOMGPT_VECTOR
-        value: "1"
+        value: "0"
       - key: TELECOMGPT_MAX_PARALLEL_AGENTS
-        value: "8"
+        value: "4"
       - key: TELECOMGPT_LLM_PLAN
-        value: "1"
+        value: "0"
       - key: ORT_LOG_SEVERITY_LEVEL
         value: "3"
       - key: TELECOMGPT_LIVE_FETCH
-        value: "1"
+        value: "0"
       - key: TELECOMGPT_WEB_SEARCH
-        value: "1"
+        value: "0"
       - key: TELECOMGPT_ENGINE
-        value: "hybrid"
+        value: "langgraph"
       - key: TELECOMGPT_FAST_ASK
         value: "1"
       - key: TELECOMGPT_LLM

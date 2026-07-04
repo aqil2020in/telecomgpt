@@ -228,12 +228,6 @@ def build_tool_registry(db: Any) -> ToolRegistry:
         parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
     )
     reg.register(
-        "evaluate_rf_kpis",
-        lambda path: _evaluate_rf_kpis(path),
-        description="Grade SS-RSRP/RSRQ/SINR/CQI/RSSI/BLER/RI vs 3GPP-referenced thresholds",
-        parameters={"type": "object", "properties": {"path": {"type": "string"}}, "required": ["path"]},
-    )
-    reg.register(
         "optimize_coverage",
         lambda query="", path="", session_id="default": _optimize_coverage(query, path, session_id),
         description="Rank best UE locations and weak zones within GPS radius from drive-test CSV",
@@ -244,16 +238,6 @@ def build_tool_registry(db: Any) -> ToolRegistry:
                 "path": {"type": "string"},
                 "session_id": {"type": "string"},
             },
-            "required": [],
-        },
-    )
-    reg.register(
-        "explain_link_budget",
-        lambda query="": _explain_link_budget(query),
-        description="Explain SINR vs RSRQ and compute DL link budget with worked example (TS 38.215 / Friis)",
-        parameters={
-            "type": "object",
-            "properties": {"query": {"type": "string"}},
             "required": [],
         },
     )

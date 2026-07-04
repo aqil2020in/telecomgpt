@@ -100,9 +100,9 @@ def root():
             "POST /api/upload": "Upload CSV/log for session-scoped analysis",
             "POST /api/nr-sa/attach-report": "One-click NR SA attach checklist on log",
             "POST /api/nr-sa/attach-report/export": "Export attach report as PDF or Excel",
-            "GET /api/nr/ue-capability/reference": "UE Capability reference (TS 38.306 categories)",
-            "POST /api/nr/ue-capability/report": "One-click UE Capability log report",
-            "POST /api/nr/ue-capability/report/export": "Export UE Capability report as PDF or Excel",
+            "GET /api/nr-sa/attach-checklist": "NR SA attach checklist",
+            "POST /api/nr-sa/attach-report": "One-click NR SA attach report",
+            "POST /api/tnic/rca": "XYZ Network Intelligence RCA (TNIC)",
             "GET /api/nr/protocol-stack/reference": "NR radio protocol stack (C/U-plane, PHY→NAS)",
             "GET /api/nr/protocol-stack/lookup": "Lookup stack layers by keyword",
             "GET /api/nr-sa/attach-checklist": "Attach message checklist schema",
@@ -125,11 +125,11 @@ def root():
 def _is_deterministic_instant_query(query: str) -> bool:
     from analytics.coverage_optimizer import looks_like_coverage_optimizer_query
     from analytics.harq_rrc_fault import looks_like_rrc_harq_fault_query
-    from analytics.link_budget import looks_like_link_budget_query
+    from tnic.bridge import looks_like_tnic_rca_query
 
     return (
-        looks_like_link_budget_query(query)
-        or looks_like_rrc_harq_fault_query(query)
+        looks_like_rrc_harq_fault_query(query)
+        or looks_like_tnic_rca_query(query)
         or looks_like_coverage_optimizer_query(query)
     )
 
@@ -580,13 +580,6 @@ def rf_coverage_optimizer(
     }
 
 
-@app.get("/api/rf/link-budget")
-def rf_link_budget(q: str = "Explain SINR vs RSRQ link budget"):
-    from analytics.link_budget import explain_link_budget_dict
-
-    return explain_link_budget_dict(q)
-
-
 @app.get("/api/fault/rrc-harq")
 def rrc_harq_fault(q: str = "Fault analysis RRC fail"):
     from analytics.harq_rrc_fault import explain_rrc_harq_fault_dict
@@ -594,18 +587,11 @@ def rrc_harq_fault(q: str = "Fault analysis RRC fail"):
     return explain_rrc_harq_fault_dict(q)
 
 
-@app.get("/api/nr/power-class/reference")
-def nr_power_class_reference():
-    from analytics.nr_power_class import load_power_class_reference
+@app.post("/api/tnic/rca")
+def tnic_rca(q: str = "Root cause analysis call drop", session_id: str = "default"):
+    from tnic.bridge import run_tnic_rca_markdown
 
-    return load_power_class_reference()
-
-
-@app.get("/api/nr/power-class/lookup")
-def nr_power_class_lookup(q: str = ""):
-    from analytics.nr_power_class import lookup_power_class
-
-    return {"query": q, **lookup_power_class(q)}
+    return {"markdown": run_tnic_rca_markdown(q, session_id=session_id), "query": q}
 
 
 @app.get("/api/nr/protocol-stack/reference")
@@ -709,78 +695,6 @@ async def nr_sa_attach_report_export(
         out["xlsx"] = export_attach_excel(report)
     if fmt in ("pdf", "both"):
         out["pdf"] = export_attach_pdf(report)
-    return out
-
-
-@app.get("/api/nr/ue-capability/reference")
-def nr_ue_capability_reference():
-    from analytics.log_ue_capability_check import load_ue_capability_reference
-
-    return load_ue_capability_reference()
-
-
-def _ue_cap_report_with_exports(report: dict, *, generate_exports: bool = True) -> dict:
-    if not generate_exports or not report.get("ok", True):
-        return report
-    from export.ue_capability_report_export import export_ue_capability_reports
-
-    report["exports"] = export_ue_capability_reports(report)
-    return report
-
-
-@app.post("/api/nr/ue-capability/report")
-async def nr_ue_capability_report(
-    file: UploadFile | None = File(None),
-    session_id: str = Form("default"),
-    generate_exports: str = Form("1"),
-):
-    """One-click NR UE Capability procedure report from uploaded file or session log."""
-    from analytics.log_ue_capability_check import analyze_ue_capability_file, build_ue_capability_report
-
-    do_export = generate_exports.strip().lower() not in ("0", "false", "no")
-
-    if file and file.filename:
-        raw = await file.read()
-        text = raw.decode("utf-8", errors="replace")
-        report = build_ue_capability_report(text, filename=Path(file.filename).name)
-        return _ue_cap_report_with_exports(report, generate_exports=do_export)
-
-    path, err = _get_latest_session_log(session_id)
-    if err:
-        return err
-    report = analyze_ue_capability_file(path)
-    return _ue_cap_report_with_exports(report, generate_exports=do_export)
-
-
-@app.post("/api/nr/ue-capability/report/export")
-async def nr_ue_capability_report_export(
-    file: UploadFile | None = File(None),
-    session_id: str = Form("default"),
-    format: str = Form("both"),
-):
-    """Export UE Capability report as PDF, Excel, or both."""
-    from analytics.log_ue_capability_check import analyze_ue_capability_file, build_ue_capability_report
-    from export.ue_capability_report_export import export_ue_capability_excel, export_ue_capability_pdf
-
-    if file and file.filename:
-        raw = await file.read()
-        text = raw.decode("utf-8", errors="replace")
-        report = build_ue_capability_report(text, filename=Path(file.filename).name)
-    else:
-        path, err = _get_latest_session_log(session_id)
-        if err:
-            return err
-        report = analyze_ue_capability_file(path)
-
-    if not report.get("ok", True):
-        return report
-
-    fmt = format.strip().lower()
-    out: dict = {"ok": True, "overall": report.get("overall"), "filename": report.get("filename")}
-    if fmt in ("xlsx", "excel", "both"):
-        out["xlsx"] = export_ue_capability_excel(report)
-    if fmt in ("pdf", "both"):
-        out["pdf"] = export_ue_capability_pdf(report)
     return out
 
 

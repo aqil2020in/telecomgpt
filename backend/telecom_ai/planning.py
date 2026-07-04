@@ -14,13 +14,10 @@ AgentName = str
 _PPT_KW = ("powerpoint", "ppt", "presentation", "slides", "slide deck", "report", "generate report", "excel")
 _ANALYTICS_KW = ("csv", "chart", "plot", "dashboard", "kaggle", "analyze", "summarize", "drive test", "kpi", "rsrp", "throughput", "dataset")
 _LOG_KW = ("log", "qxdm", "qcat", "rrc", "nas", "ue log", "log debug")
-_FAULT_KW = ("fault", "troubleshoot", "troubleshooting", "alarm", "root cause", "failure analysis", "debug analysis")
+_FAULT_KW = ("fault", "troubleshoot", "troubleshooting", "alarm", "root cause", "failure analysis", "debug analysis", "rca", "probable cause", "call drop", "handover fail", "rach fail")
 _VALID_KW = ("validate", "validation", "test case", "feature test", "pass criteria", "vonr", "registration test")
 _CONFIG_KW = ("bts", "gnb", "gnodeb", "config", "parameter", "configuration", "ssb pattern", "prach config")
-_RF_METRICS_KW = (
-    "rf kpi", "rf metrics", "kpi assessment", "rsrq", "sinr", "cqi", "bler", "network kpi",
-    "link budget", "linkbudget", "friis", "path loss", "pathloss",
-)
+_RF_METRICS_KW = ()  # disabled for 2GB demo — use fault_analysis / TNIC RCA
 _MAP_KW = ("map", "gps", "geo", "coverage map", "latitude", "longitude")
 _COVERAGE_OPT_KW = (
     "coverage optimizer", "better coverage", "best location", "best locations",
@@ -79,32 +76,15 @@ def create_plan(query: str, db: "TelecomDB | None" = None) -> dict:
     elif flags["deploy"]:
         agents = ["deploy", "synthesizer"]
     elif flags["coverage_opt"]:
-        agents = (
-            ["coverage_optimizer", "synthesizer"]
-            if low_memory_mode()
-            else ["coverage_optimizer", "drive_test", "rf_metrics", "synthesizer"]
-        )
+        agents = ["coverage_optimizer", "synthesizer"]
     elif flags["fault"]:
-        agents = (
-            ["fault_analysis", "log_debug", "spec", "synthesizer"]
-            if low_memory_mode()
-            else ["fault_analysis", "log_debug", "research", "spec", "synthesizer", "verifier"]
-        )
+        agents = ["fault_analysis", "log_debug", "synthesizer"]
     elif flags["validation"]:
         agents = ["feature_validation", "spec", "telecom_kb", "synthesizer"]
     elif flags["config"]:
         agents = ["bts_config", "spec", "compliance", "synthesizer"]
     elif flags["rf_metrics"]:
-        ql = q
-        link_budget_only = any(k in ql for k in ("link budget", "linkbudget", "friis")) or (
-            ("sinr" in ql or "rsrq" in ql) and any(k in ql for k in ("explain", " vs ", " versus ", "compare", "difference"))
-        )
-        if link_budget_only:
-            agents = ["rf_metrics", "synthesizer"] if low_memory_mode() else ["rf_metrics", "spec", "synthesizer"]
-        elif low_memory_mode():
-            agents = ["rf_metrics", "synthesizer"]
-        else:
-            agents = ["rf_metrics", "drive_test", "analytics", "synthesizer"]
+        agents = ["fault_analysis", "synthesizer"]
     elif flags["ppt"]:
         agents = (
             ["research", "telecom_kb", "presentation", "synthesizer"]

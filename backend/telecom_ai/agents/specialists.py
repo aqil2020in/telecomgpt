@@ -14,19 +14,6 @@ def run_telecom_kb_agent(query: str, db: "TelecomDB", tools: "ToolRegistry") -> 
     parts: list[str] = []
     tool_calls: list[dict] = []
 
-    from analytics.link_budget import looks_like_link_budget_query
-
-    if looks_like_link_budget_query(query):
-        result = tools.run("explain_link_budget", query=query)
-        if result.ok and result.output:
-            md = result.output.get("markdown") if isinstance(result.output, dict) else str(result.output)
-            if md:
-                return {
-                    "agent": "telecom_kb",
-                    "content": md,
-                    "tool_calls": [{"tool": "explain_link_budget", "ok": True}],
-                }
-
     for tool, arg_key in (
         ("lookup_device", "query"),
         ("lookup_ca_endc", "query"),
@@ -86,47 +73,25 @@ def run_research_agent(query: str, tools: "ToolRegistry", session_id: str = "def
 
 
 def run_analytics_agent(query: str, tools: "ToolRegistry") -> dict:
-    """Analytics agent — Kaggle CSVs, summaries, and Plotly charts."""
-    from analytics.kaggle_charts import build_kaggle_dashboard
-
+    """Analytics — session CSV summary only (Kaggle charts removed for 2GB demo)."""
     parts: list[str] = []
     tool_calls: list[dict] = []
-    artifacts: list[dict] = []
-
-    dashboard = build_kaggle_dashboard(query)
-    if dashboard.get("ok"):
-        s = dashboard["summary"]
-        parts.append(
-            f"**Kaggle analytics: {dashboard['dataset']}**\n"
-            f"Rows: {s.get('rows')}, Columns: {s.get('columns')}, GPS: {s.get('has_gps')}\n"
-            f"RF columns: {s.get('rf_columns')}\n"
-            f"Generated {len(dashboard.get('charts', []))} chart(s) — see below in chat."
-        )
-        for ch in dashboard.get("charts", []):
-            if ch.get("ok"):
-                artifacts.append(ch)
-        tool_calls.append({"tool": "kaggle_dashboard", "ok": True, "dataset": dashboard["dataset"]})
-    else:
-        csvs = tools.run("list_kaggle_csvs")
-        if csvs.ok and csvs.output:
-            tool_calls.append({"tool": "list_kaggle_csvs", "ok": True})
-            lines = ["Available Kaggle CSV files:"]
-            for f in csvs.output[:5]:
-                path = f.get("path", "")
-                lines.append(f"- {f.get('name', path)}")
-                summary = tools.run("csv_summary", path=path)
-                if summary.ok:
-                    sv = summary.output
-                    lines.append(f"  rows={sv.get('rows')}, cols={sv.get('columns')}")
-            parts.append("\n".join(lines))
-        else:
-            parts.append(dashboard.get("error", "No analytics data available."))
-
+    csvs = tools.run("list_kaggle_csvs")
+    if csvs.ok and csvs.output:
+        for f in csvs.output[:1]:
+            path = f.get("path", "")
+            summary = tools.run("csv_summary", path=path)
+            if summary.ok:
+                sv = summary.output
+                parts.append(f"**CSV summary:** {f.get('name')} — {sv.get('rows')} rows, {sv.get('columns')} columns")
+                tool_calls.append({"tool": "csv_summary", "ok": True})
+    if not parts:
+        parts.append("Upload a drive-test or KPI CSV, then ask for coverage optimizer or RCA analysis.")
     return {
         "agent": "analytics",
-        "content": "\n\n".join(parts),
+        "content": "\n".join(parts),
         "tool_calls": tool_calls,
-        "artifacts": artifacts,
+        "artifacts": [],
     }
 
 
@@ -176,38 +141,20 @@ def run_synthesizer(
     """Merge agent outputs into final answer via LLM or template."""
     from ..reasoning import llm_answer_with_sources
 
-    # Deterministic computed reports (link budget) — preserve tables, skip LLM rewrite.
+    # Deterministic TNIC / fault reports — preserve structure, skip LLM rewrite.
     for o in agent_outputs:
         tools_used = {t.get("tool") for t in (o.get("tool_calls") or []) if t.get("ok")}
-        if o.get("agent") == "rf_metrics" and "explain_link_budget" in tools_used and o.get("content"):
-            all_sources: list[dict] = []
-            for ao in agent_outputs:
-                all_sources.extend(ao.get("sources") or [])
-            artifacts = [o.get("artifact") for o in agent_outputs if o.get("artifact")]
-            for ao in agent_outputs:
-                for a in ao.get("artifacts") or []:
-                    if a and a not in artifacts:
-                        artifacts.append(a)
-            return {
-                "agent": "synthesizer",
-                "content": o["content"],
-                "sources": all_sources,
-                "artifacts": [a for a in artifacts if a],
-            }
-        if o.get("agent") == "fault_analysis" and "explain_rrc_harq_fault" in tools_used and o.get("content"):
+        if o.get("agent") == "fault_analysis" and o.get("content") and (
+            "tnic_rca" in tools_used or "explain_rrc_harq_fault" in tools_used
+        ):
             all_sources = []
             for ao in agent_outputs:
                 all_sources.extend(ao.get("sources") or [])
-            artifacts = [o.get("artifact") for o in agent_outputs if o.get("artifact")]
-            for ao in agent_outputs:
-                for a in ao.get("artifacts") or []:
-                    if a and a not in artifacts:
-                        artifacts.append(a)
             return {
                 "agent": "synthesizer",
                 "content": o["content"],
                 "sources": all_sources,
-                "artifacts": [a for a in artifacts if a],
+                "artifacts": [],
             }
         if o.get("agent") == "coverage_optimizer" and o.get("content"):
             if "Coverage optimizer report" in o["content"] or "Top locations" in o["content"]:
