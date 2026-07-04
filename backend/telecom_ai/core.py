@@ -174,6 +174,11 @@ class TelecomAI:
         if looks_like_rrc_harq_fault_query(query):
             return explain_rrc_harq_fault(query)
 
+        from analytics.rca_assistant import explain_rca_assistant, looks_like_rca_query
+
+        if looks_like_rca_query(query):
+            return explain_rca_assistant(query)
+
         from analytics.coverage_optimizer import (
             explain_coverage_optimizer,
             looks_like_coverage_optimizer_query,

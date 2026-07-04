@@ -201,25 +201,15 @@ def run_fault_analysis_agent(query: str, tools: "ToolRegistry", session_id: str 
         explain_rrc_harq_fault,
         looks_like_rrc_harq_fault_query,
     )
+    from analytics.rca_assistant import (
+        explain_rca_assistant,
+        looks_like_rca_query,
+        match_workflows,
+    )
 
     catalog_path = _DATA / "fault_catalog.json"
     catalog = json.loads(catalog_path.read_text(encoding="utf-8")) if catalog_path.exists() else {"symptoms": []}
     ql = query.lower()
-
-    matches = []
-    for item in catalog.get("symptoms", []):
-        if any(kw in ql for kw in item.get("keywords", [])):
-            matches.append(item)
-        elif any(kw in ql for kw in ["fail", "error", "drop", "fault", "troubleshoot", "debug"]):
-            continue
-
-    if not matches and any(k in ql for k in ("fail", "error", "drop", "fault", "troubleshoot", "rrc", "pdu", "handover", "throughput")):
-        for item in catalog.get("symptoms", []):
-            if any(kw.split()[0] in ql for kw in item.get("keywords", [])):
-                matches.append(item)
-
-    if not matches:
-        matches = catalog.get("symptoms", [])[:2]
 
     tool_calls: list[dict] = []
     parts: list[str] = []
@@ -248,7 +238,26 @@ def run_fault_analysis_agent(query: str, tools: "ToolRegistry", session_id: str 
         harq_md = explain_rrc_harq_fault(query, log_text=log_text)
         parts.append(("\n".join(header) + "\n\n" + harq_md) if header else harq_md)
         tool_calls.append({"tool": "explain_rrc_harq_fault", "ok": True})
+    elif looks_like_rca_query(query) or match_workflows(query):
+        rca_md = explain_rca_assistant(query, session_id=session_id, log_text=log_text)
+        parts.append(rca_md)
+        tool_calls.append({"tool": "run_rca_assistant", "ok": True})
     else:
+        matches = []
+        for item in catalog.get("symptoms", []):
+            if any(kw in ql for kw in item.get("keywords", [])):
+                matches.append(item)
+            elif any(kw in ql for kw in ["fail", "error", "drop", "fault", "troubleshoot", "debug"]):
+                continue
+
+        if not matches and any(k in ql for k in ("fail", "error", "drop", "fault", "troubleshoot", "rrc", "pdu", "handover", "throughput")):
+            for item in catalog.get("symptoms", []):
+                if any(kw.split()[0] in ql for kw in item.get("keywords", [])):
+                    matches.append(item)
+
+        if not matches:
+            matches = catalog.get("symptoms", [])[:2]
+
         lines = ["**Fault Analysis Agent** (catalog ready — improves with your logs/alarms)\n"]
         for m in matches[:3]:
             lines.append(f"### {m.get('id', 'symptom').replace('_', ' ').title()}")
@@ -268,12 +277,12 @@ def run_fault_analysis_agent(query: str, tools: "ToolRegistry", session_id: str 
             tool_calls.append({"tool": "explain_rrc_harq_fault", "ok": True})
 
     if logs and not looks_like_rrc_harq_fault_query(query):
-        parts.append(f"\n*Session logs available ({len(logs)}) — HARQ/RRC scan included when RRC fault is detected.*")
+        parts.append(f"\n*Session logs available ({len(logs)}) — RCA/log scan uses uploaded files when matched.*")
 
     from analytics.nr_protocol_stack import format_protocol_stack_brief
 
     stack = format_protocol_stack_brief(query)
-    if stack and not looks_like_rrc_harq_fault_query(query):
+    if stack and not looks_like_rrc_harq_fault_query(query) and not looks_like_rca_query(query):
         parts.append("\n" + stack)
 
     return {

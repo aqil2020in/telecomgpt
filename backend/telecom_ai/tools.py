@@ -268,6 +268,20 @@ def build_tool_registry(db: Any) -> ToolRegistry:
         },
     )
     reg.register(
+        "run_rca_assistant",
+        lambda query="", session_id="default", path="": _run_rca_assistant(query, session_id, path),
+        description="AI RCA assistant — call drop, throughput, latency, RACH, HO with KPI rules and confidence",
+        parameters={
+            "type": "object",
+            "properties": {
+                "query": {"type": "string"},
+                "session_id": {"type": "string"},
+                "path": {"type": "string"},
+            },
+            "required": [],
+        },
+    )
+    reg.register(
         "plot_rf_map",
         lambda path: _plot_rf_map(path),
         description="Build RF map GeoJSON + geo chart from CSV",
@@ -396,6 +410,20 @@ def _explain_rrc_harq_fault(query: str = "", session_id: str = "default"):
             log_text = p.read_text(encoding="utf-8", errors="replace")
             break
     return explain_rrc_harq_fault_dict(query or "", log_text=log_text)
+
+
+def _run_rca_assistant(query: str = "", session_id: str = "default", path: str = ""):
+    from analytics.rca_assistant import rca_assistant_dict
+    from pathlib import Path
+
+    csv_path = path or None
+    if not csv_path:
+        uploads = Path(__file__).resolve().parent.parent / "data" / "uploads" / (session_id or "default")
+        if uploads.exists():
+            csvs = sorted(uploads.glob("*.csv"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if csvs:
+                csv_path = str(csvs[0])
+    return rca_assistant_dict(query or "", session_id=session_id, csv_path=csv_path)
 
 
 def _plot_rf_map(path: str):

@@ -14,7 +14,7 @@ AGENT_TAXONOMY: dict[str, dict] = {
     "drive_test": {"category": "task", "description": "Drive-test SLA, RF maps, full KPI when columns present"},
     "log_debug": {"category": "task", "description": "QXDM/QCAT log parse, RRC/NAS scan, error clustering"},
     "log": {"category": "task", "description": "Alias — UE log analysis (see log_debug)"},
-    "fault_analysis": {"category": "task", "description": "Symptom → cause → checks; alarm/fault catalog"},
+    "fault_analysis": {"category": "task", "description": "RCA assistant — symptom→KPI rules→probable cause→actions; fault catalog"},
     "feature_validation": {"category": "task", "description": "3GPP feature test templates and pass criteria"},
     "bts_config": {"category": "task", "description": "gNB/BTS config inspect and 3GPP parameter check"},
     "prediction": {"category": "task", "description": "KPI trend and correlation analysis"},

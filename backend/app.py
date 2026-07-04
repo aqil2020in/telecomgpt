@@ -126,10 +126,12 @@ def _is_deterministic_instant_query(query: str) -> bool:
     from analytics.coverage_optimizer import looks_like_coverage_optimizer_query
     from analytics.harq_rrc_fault import looks_like_rrc_harq_fault_query
     from analytics.link_budget import looks_like_link_budget_query
+    from analytics.rca_assistant import looks_like_rca_query
 
     return (
         looks_like_link_budget_query(query)
         or looks_like_rrc_harq_fault_query(query)
+        or looks_like_rca_query(query)
         or looks_like_coverage_optimizer_query(query)
     )
 
@@ -592,6 +594,17 @@ def rrc_harq_fault(q: str = "Fault analysis RRC fail"):
     from analytics.harq_rrc_fault import explain_rrc_harq_fault_dict
 
     return explain_rrc_harq_fault_dict(q)
+
+
+@app.get("/api/fault/rca")
+def rca_assistant(
+    q: str = "Root cause analysis low throughput CQI=7 BLER=15%",
+    session_id: str = "default",
+    csv_path: str = "",
+):
+    from analytics.rca_assistant import rca_assistant_dict
+
+    return rca_assistant_dict(q, session_id=session_id, csv_path=csv_path or None)
 
 
 @app.get("/api/nr/power-class/reference")

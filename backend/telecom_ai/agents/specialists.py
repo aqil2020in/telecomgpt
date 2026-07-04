@@ -209,6 +209,16 @@ def run_synthesizer(
                 "sources": all_sources,
                 "artifacts": [a for a in artifacts if a],
             }
+        if o.get("agent") == "fault_analysis" and "run_rca_assistant" in tools_used and o.get("content"):
+            all_sources = []
+            for ao in agent_outputs:
+                all_sources.extend(ao.get("sources") or [])
+            return {
+                "agent": "synthesizer",
+                "content": o["content"],
+                "sources": all_sources,
+                "artifacts": [],
+            }
         if o.get("agent") == "coverage_optimizer" and o.get("content"):
             if "Coverage optimizer report" in o["content"] or "Top locations" in o["content"]:
                 artifacts = list(o.get("artifacts") or [])

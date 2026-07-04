@@ -81,18 +81,54 @@
     },
     {
       "id": "dropped_connection",
-      "keywords": ["dropped connection", "rlf", "radio link failure", "connection drop"],
+      "keywords": ["dropped connection", "rlf", "radio link failure", "connection drop", "call drop"],
       "likely_causes": [
         "RLF — out-of-sync / N310/N311",
         "Mobility failure leading to RLF",
-        "Persistent poor RF (RSRP below cell edge)"
+        "Persistent poor RF (RSRP below cell edge)",
+        "Beam failure or sudden SINR drop",
+        "Core-side AMF release"
       ],
       "checks": [
         "Correlate drops with RSRP/SINR and handover events",
         "Review RLF counters and reestablishment success",
-        "Check coverage holes on drive route"
+        "Check coverage holes on drive route",
+        "Use RCA Assistant: `root cause call drop` for structured workflow"
       ],
       "spec_refs": ["TS 38.331", "TS 38.133"]
+    },
+    {
+      "id": "rach_failure",
+      "keywords": ["rach failure", "rach fail", "prach failure", "prach fail", "msg3 fail", "msg3 failure"],
+      "likely_causes": [
+        "PRACH configuration mismatch",
+        "Timing advance misalignment",
+        "PRACH resource collision",
+        "Low PRACH SINR / RF too weak"
+      ],
+      "checks": [
+        "Verify prach-ConfigurationIndex in SIB1",
+        "Check Msg1/Msg3 in UE log",
+        "Compare PRACH SINR vs threshold",
+        "Use RCA Assistant: `root cause RACH failure`"
+      ],
+      "spec_refs": ["TS 38.211", "TS 38.213", "TS 38.321"]
+    },
+    {
+      "id": "high_latency",
+      "keywords": ["high latency", "latency spike", "rtt high", "pdu session setup time"],
+      "likely_causes": [
+        "Transport congestion N3/N6",
+        "UPF load imbalance",
+        "QoS / 5QI misclassification",
+        "Core path bottleneck"
+      ],
+      "checks": [
+        "Compare latency vs UPF load by time",
+        "Verify 5QI mapping for service",
+        "Rule out RAN if RF KPIs healthy"
+      ],
+      "spec_refs": ["TS 23.501", "TS 24.501"]
     }
   ]
 }

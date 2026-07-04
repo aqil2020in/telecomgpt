@@ -1,0 +1,311 @@
+{
+  "version": "1.0",
+  "source": "TelecomGPT RCA Assistant — inspired by 5G network troubleshooting workflows (call drop, throughput, latency, RACH, HO)",
+  "workflows": [
+    {
+      "id": "call_drop",
+      "title": "Call drop / connection release",
+      "keywords": [
+        "call drop",
+        "call drops",
+        "dropped call",
+        "connection drop",
+        "qdrop",
+        "rlf",
+        "radio link failure",
+        "ue context release",
+        "re-establishment fail"
+      ],
+      "symptoms": [
+        "High drop rate (QDROP)",
+        "Low RRC re-establishment success",
+        "Sudden UE context release"
+      ],
+      "likely_causes": [
+        "Low SINR / RSRP degradation at cell edge",
+        "Coverage hole or beam misalignment",
+        "Power imbalance between sectors",
+        "Mobility misconfiguration",
+        "Core-side release (AMF drop)",
+        "Beam failure ratio elevated"
+      ],
+      "checks": [
+        "Plot drop events vs SS-RSRP/SS-SINR on drive route",
+        "Review RRC re-establishment success rate and RLF counters",
+        "Check beam failure ratio and beam management KPIs",
+        "Verify neighbor relations and HO parameters",
+        "Inspect core AMF release cause if RAN RF looks healthy"
+      ],
+      "actions": [
+        "Adjust tilt/azimuth on overshooting sector",
+        "Add or tune neighbor relation for mobility path",
+        "Investigate interference source on affected PCI",
+        "Validate beam weights / AAU calibration"
+      ],
+      "validation_checklist": [
+        "Drop rate returns below operator threshold for 24h",
+        "Re-establishment success > target SLA",
+        "No RLF cluster on same geo segment after fix"
+      ],
+      "spec_refs": ["TS 38.331", "TS 38.133", "TS 38.300"],
+      "rules": [
+        {
+          "id": "good_rsrp_poor_sinr",
+          "when": { "ss_rsrp": { "min": -100 }, "ss_sinr": { "max": 5 } },
+          "probable_cause": "RSRP acceptable but SINR poor — likely interference or beam issue",
+          "confidence": 0.72,
+          "actions": ["Check dominant interferer PCI", "Review beam failure KPIs"]
+        },
+        {
+          "id": "poor_rsrp",
+          "when": { "ss_rsrp": { "max": -100 } },
+          "probable_cause": "Coverage-limited drops — RF below cell-edge threshold",
+          "confidence": 0.78,
+          "actions": ["Coverage audit on drop cluster", "Consider small cell or tilt optimization"]
+        },
+        {
+          "id": "poor_sinr",
+          "when": { "ss_sinr": { "max": 5 } },
+          "probable_cause": "Sudden SINR degradation driving RLF / context release",
+          "confidence": 0.7,
+          "actions": ["Correlate with beam failure events", "Check for new interferer"]
+        }
+      ],
+      "log_patterns": ["rlf", "radio link failure", "reestablishment fail", "context release", "out of sync"]
+    },
+    {
+      "id": "low_throughput",
+      "title": "Low DL/UL throughput",
+      "keywords": [
+        "low throughput",
+        "throughput degradation",
+        "tput",
+        "low tput",
+        "pdcp throughput",
+        "low mcs",
+        "mcs low",
+        "bler high",
+        "high bler"
+      ],
+      "symptoms": [
+        "Low PDCP throughput",
+        "Low MCS / stuck rank-1",
+        "High DL BLER",
+        "Low PRB allocation"
+      ],
+      "likely_causes": [
+        "Massive MIMO / rank not scaling",
+        "Low CQI — poor radio conditions",
+        "High interference (good RSRP, poor SINR)",
+        "Backhaul or transport bottleneck",
+        "Scheduler / PRB limits"
+      ],
+      "checks": [
+        "Plot throughput vs CQI, BLER, RI/MCS distribution",
+        "Compare SS-SINR and SS-RSRQ at low-tput samples",
+        "Verify CA, MIMO layers, and active BWP",
+        "Check transport/UPF if RF KPIs are healthy"
+      ],
+      "actions": [
+        "Recalibrate AAU / verify antenna alignment",
+        "Adjust tilt to reduce interference",
+        "Validate MIMO beam weights and rank indicator",
+        "Check overshooting neighbor causing high BLER"
+      ],
+      "validation_checklist": [
+        "Mean DL throughput meets cluster target",
+        "CQI and BLER within fair/good bands",
+        "RI distribution shows expected MIMO layers"
+      ],
+      "spec_refs": ["TS 38.214", "TS 38.215", "TS 38.306"],
+      "rules": [
+        {
+          "id": "low_cqi_high_bler",
+          "when": { "cqi": { "max": 8 }, "bler": { "min": 10 } },
+          "probable_cause": "Throughput limited by poor radio quality — low CQI with high DL BLER",
+          "confidence": 0.8,
+          "actions": ["Check antenna calibration", "Verify MIMO rank / RI distribution"]
+        },
+        {
+          "id": "low_cqi",
+          "when": { "cqi": { "max": 8 } },
+          "probable_cause": "Low CQI capping MCS — scheduler cannot assign high TB size",
+          "confidence": 0.68,
+          "actions": ["Improve SINR at serving cell", "Review power and tilt settings"]
+        },
+        {
+          "id": "high_bler",
+          "when": { "bler": { "min": 10 } },
+          "probable_cause": "High BLER causing HARQ retx and throughput collapse",
+          "confidence": 0.74,
+          "actions": ["Identify interference PCI", "Check SINR on affected route"]
+        },
+        {
+          "id": "stuck_rank1",
+          "when": { "ri": { "max": 1.5 } },
+          "probable_cause": "MIMO stuck at rank-1 — layer adaptation not scaling",
+          "confidence": 0.76,
+          "actions": ["Validate AAU calibration", "Check RI/CQI reporting in log"]
+        },
+        {
+          "id": "good_rsrp_poor_sinr_tput",
+          "when": { "ss_rsrp": { "min": -95 }, "ss_sinr": { "max": 8 } },
+          "probable_cause": "Good RSRP but poor SINR — interference limiting throughput",
+          "confidence": 0.73,
+          "actions": ["Find dominant interferer", "Adjust PCI/plan or tilt"]
+        }
+      ],
+      "log_patterns": ["low mcs", "bler", "throughput", "rank 1", "ri=1", "cqi"]
+    },
+    {
+      "id": "high_latency",
+      "title": "High latency / QoS delay",
+      "keywords": [
+        "high latency",
+        "latency spike",
+        "rtt",
+        "pdu session setup",
+        "5qi delay",
+        "sip delay",
+        "upf latency"
+      ],
+      "symptoms": [
+        "High RTT on user plane",
+        "SIP / 5QI delay violations",
+        "High PDU session setup time"
+      ],
+      "likely_causes": [
+        "Transport congestion on N3/N6",
+        "UPF load imbalance or bottleneck",
+        "QoS flow mapped to wrong 5QI (non-GBR)",
+        "Core N6/N9 path issue",
+        "RAN scheduling delay (secondary if core healthy)"
+      ],
+      "checks": [
+        "Compare latency vs time-of-day and UPF load",
+        "Verify 5QI / QoS flow mapping for affected service",
+        "Check transport utilization N3/N6",
+        "Rule out RAN if RF KPIs healthy — focus core path"
+      ],
+      "actions": [
+        "Rebalance UPF cluster load",
+        "Correct QoS / 5QI mapping for GBR service",
+        "Investigate transport QoS on congested link"
+      ],
+      "validation_checklist": [
+        "RTT p95 within SLA for 24h",
+        "PDU setup time within target",
+        "5QI mapping verified on test UE"
+      ],
+      "spec_refs": ["TS 23.501", "TS 24.501", "TS 38.300"],
+      "rules": [],
+      "log_patterns": ["pdu session", "setup time", "latency", "5qi", "sm cause"]
+    },
+    {
+      "id": "rach_failure",
+      "title": "RACH / PRACH failure",
+      "keywords": [
+        "rach fail",
+        "rach failure",
+        "prach fail",
+        "prach failure",
+        "msg3 fail",
+        "msg3 failure",
+        "preamble fail",
+        "random access fail"
+      ],
+      "symptoms": [
+        "High RACH failure rate",
+        "High Msg3 retransmissions",
+        "Low PRACH SINR"
+      ],
+      "likely_causes": [
+        "PRACH configuration mismatch (root sequence, occasion)",
+        "Timing advance misalignment",
+        "PRACH resource collision",
+        "Preamble not detected — RF too weak",
+        "Neighbor PCI causing PRACH interference"
+      ],
+      "checks": [
+        "Verify prach-ConfigurationIndex and root sequence in SIB1",
+        "Check Msg1/Msg3 success in UE log",
+        "Compare PRACH SINR vs access threshold",
+        "Review TA values and collision on PRACH occasions"
+      ],
+      "actions": [
+        "Align PRACH config with band / SCS plan",
+        "Resolve PCI conflict on co-channel neighbor",
+        "Adjust cell radius / TA parameters if edge UEs fail"
+      ],
+      "validation_checklist": [
+        "RACH success rate above operator threshold",
+        "Msg3 retransmission rate normalized",
+        "PRACH SINR fair or good on test route"
+      ],
+      "spec_refs": ["TS 38.211", "TS 38.213", "TS 38.321", "TS 38.331"],
+      "rules": [
+        {
+          "id": "poor_prach_sinr",
+          "when": { "ss_sinr": { "max": 0 }, "ss_rsrp": { "max": -105 } },
+          "probable_cause": "RACH failures likely RF-limited — weak PRACH detection",
+          "confidence": 0.71,
+          "actions": ["Improve coverage at failure geo", "Check PRACH power ramping"]
+        }
+      ],
+      "log_patterns": ["rach", "prach", "msg3", "preamble", "contention", "ra fail"]
+    },
+    {
+      "id": "handover_failure",
+      "title": "Handover / mobility failure",
+      "keywords": [
+        "handover fail",
+        "handover failure",
+        "ho fail",
+        "ho failure",
+        "mobility fail",
+        "ho preparation fail",
+        "xn fail",
+        "reestablishment during ho"
+      ],
+      "symptoms": [
+        "Low HO success rate",
+        "High HO preparation failure",
+        "RLF during mobility"
+      ],
+      "likely_causes": [
+        "Missing Xn/NG neighbor relation",
+        "Mobility threshold mismatch (A3/A5)",
+        "Target cell not prepared in time",
+        "Coverage gap between source and target",
+        "Beam switching delay on FR2/mmWave"
+      ],
+      "checks": [
+        "Compare source/target RSRP at HO decision",
+        "Verify neighbor list includes target PCI",
+        "Check HO preparation timer and Xn connectivity",
+        "Review RLF events correlated with HO attempts"
+      ],
+      "actions": [
+        "Add missing Xn neighbor for target PCI",
+        "Tune A3 offset / time-to-trigger",
+        "Close coverage gap on HO corridor"
+      ],
+      "validation_checklist": [
+        "HO success rate restored to SLA",
+        "No prep-fail spike on same neighbor pair",
+        "Drive-test HO corridor clean"
+      ],
+      "spec_refs": ["TS 38.331", "TS 38.423", "TS 38.300"],
+      "rules": [
+        {
+          "id": "poor_target_rsrp",
+          "when": { "ss_rsrp": { "max": -110 } },
+          "probable_cause": "HO failures may be RF-driven — target cell too weak at decision point",
+          "confidence": 0.69,
+          "actions": ["Audit HO corridor coverage", "Adjust thresholds or add filler cell"]
+        }
+      ],
+      "log_patterns": ["handover fail", "ho fail", "mobilityfromnr", "reconfiguration with sync fail", "rlf"]
+    }
+  ]
+}
