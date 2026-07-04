@@ -150,6 +150,17 @@ def analyze_beamforming(request: AnalyzeRequest):
     return _analyze_with_issue(request, "beamforming")
 
 
+@router.post("/analyze/rf-coverage")
+def analyze_rf_coverage(request: AnalyzeRequest):
+    """3-mile geospatial drive-test analysis with Google Maps artifact."""
+    from tnic.agents.rf_coverage_agent import analyze_rf_coverage
+
+    return analyze_rf_coverage(
+        query=request.query or "RF coverage drive test 3 mile radius",
+        radius_miles=3.0,
+    )
+
+
 @router.post("/health-score/cell", response_model=CellHealthResponse)
 def cell_health(request: CellHealthRequest):
     data = cell_health_response(request.cell_id, request.kpis.model_dump(exclude_none=True))

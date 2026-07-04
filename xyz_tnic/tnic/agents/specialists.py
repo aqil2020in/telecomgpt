@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from tnic.agents.base import BaseAgent, kpi_to_dict
+from tnic.agents.rf_coverage_agent import RFCoverageAgent as _RFCoverageCore
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
@@ -157,6 +158,28 @@ class ComplaintAgent(BaseAgent):
         return self._findings_to_result(findings, f"Complaint triaged to {issue}.")
 
 
+class RFCoverageAgent(BaseAgent):
+    name = "rf_coverage_agent"
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        diagnosis = _RFCoverageCore().analyze(kpis, query=query)
+        if diagnosis.issue_class == "No Data":
+            return self._findings_to_result([], diagnosis.summary)
+
+        findings = [{
+            "rule_id": "rf_coverage_drive_test",
+            "category": "rf_coverage",
+            "probable_cause": diagnosis.root_cause,
+            "confidence": diagnosis.confidence,
+            "evidence": {
+                **diagnosis.metrics,
+                "map_artifact": diagnosis.map_artifact,
+            },
+            "recommended_actions": diagnosis.recommendations,
+        }]
+        return self._findings_to_result(findings, diagnosis.summary)
+
+
 AGENT_REGISTRY: dict[str, BaseAgent] = {
     "handover": HOAgent(),
     "ho": HOAgent(),
@@ -171,4 +194,6 @@ AGENT_REGISTRY: dict[str, BaseAgent] = {
     "transport": TransportAgent(),
     "core": CoreAgent(),
     "complaint": ComplaintAgent(),
+    "rf_coverage": RFCoverageAgent(),
+    "coverage": RFCoverageAgent(),
 }
