@@ -1,6 +1,6 @@
 # TelecomGPT AI Orchestration Guide
 
-Next-generation multi-agent orchestration for telecom/RF engineering — built on **LangGraph**, **LangChain-compatible tools**, and layered memory.
+Next-generation multi-agent orchestration for telecom/RF engineering — built on **LangGraph**, **TNIC RCA engine**, **telecom datasets**, and layered memory.
 
 ## Why an AI Orchestrator?
 
@@ -27,6 +27,8 @@ The orchestrator decomposes each user goal into **task**, **retrieval**, and **a
 | **Workflow tasks** | `telecom_ai/workflow.py` | Task status, error handling |
 | **Monitoring** | `telecom_ai/monitoring.py` | Latency, steps, errors |
 | **Integrations** | `telecom_ai/integrations/` | Web APIs, serverless |
+| **TNIC RCA** | `backend/tnic/orchestrator/` | 12 rule agents + MasterRCAOrchestrator |
+| **Dataset KPIs** | `backend/tnic/datasets/kpi_service.py` | Merge 6 CSVs → cell KPIs for RCA |
 
 ## Pipeline (LangGraph)
 
@@ -43,7 +45,29 @@ flowchart TB
     ST --> GO[guardrails_post]
     GO --> SM
     SM --> END((END))
+
+    PB -.->|fault_analysis| TNIC[TNIC RCA\n+ dataset KPIs]
+    TNIC -.-> ST
 ```
+
+## TNIC RCA path (fault_analysis)
+
+When `fault_analysis` is in the agent plan, LangGraph delegates to the TNIC engine instead of a generic LLM prompt:
+
+```mermaid
+flowchart LR
+    FA[fault_analysis agent] --> BR[tnic/bridge.py]
+    BR --> KPI[datasets/kpi_service.py]
+    KPI --> CSV[("6 telecom CSVs")]
+    BR --> ORCH[MasterRCAOrchestrator]
+    CSV --> KPI
+    KPI --> ORCH
+    ORCH --> AG["ho · rlf · call_drop\nthroughput · rach · …"]
+    AG --> OUT[RCA markdown + agents_run]
+    OUT --> SYN[synthesizer]
+```
+
+Trace ON: UI shows LangGraph plan **and** `tnic_agents_run` in the agent trace panel.
 
 ## Agent Taxonomy
 
@@ -52,13 +76,12 @@ Execute bounded workflows with deterministic tools.
 
 | Agent | Tools |
 | --- | --- |
+| `fault_analysis` | TNIC RCA — 12 rule agents + dataset KPIs (`backend/tnic/`) |
+| `log_debug` | UE/QXDM parsing, attach hints |
+| `coverage_optimizer` | Drive-test CSV, geo map |
 | `analytics` | Kaggle CSV, charts |
 | `drive_test` | SLA rules, RF maps |
-| `log` | UE/QXDM parsing |
-| `prediction` | KPI trends |
 | `presentation` | PowerPoint |
-| `comparison` | Device/tech compare |
-| `compliance` | FCC/regulatory |
 | `deploy` / `eval` | Status, smoke tests |
 
 ### Retrieval agents

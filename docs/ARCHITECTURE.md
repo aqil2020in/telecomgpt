@@ -1,8 +1,10 @@
 # TelecomGPT Architecture
 
-Domain-specific multi-agent AI for **5G/LTE RF & Test Engineering**: Adaptive RAG + LangGraph + **TNIC RCA engine** + FastAPI + Next.js.
+Domain-specific multi-agent AI for **5G/LTE RF & Test Engineering**: Adaptive RAG + LangGraph + **TNIC RCA engine** + **telecom datasets** + FastAPI + Next.js.
 
-See also: **[ORCHESTRATION.md](./ORCHESTRATION.md)** · **[xyz_tnic/README.md](../xyz_tnic/README.md)** (standalone TNIC project) · **[LEARNING_SYLLABUS.md](./LEARNING_SYLLABUS.md)** · **[DEMO_MANAGER.md](./DEMO_MANAGER.md)** · **Agent deck:** `python backend/scripts/generate_agent_architecture_ppt.py`
+**Deployed:** Vercel UI · Render API · TNIC RCA · dataset-driven KPIs · agent trace (PR #5) · standalone `xyz_tnic/` (PR #6)
+
+See also: **[ORCHESTRATION.md](./ORCHESTRATION.md)** · **[xyz_tnic/README.md](../xyz_tnic/README.md)** · **[xyz_tnic/API.md](../xyz_tnic/API.md)** · **[DEMO_MANAGER.md](./DEMO_MANAGER.md)**
 
 ---
 
@@ -12,68 +14,68 @@ See also: **[ORCHESTRATION.md](./ORCHESTRATION.md)** · **[xyz_tnic/README.md](.
 flowchart TB
     subgraph Users["Users"]
         TE[Senior Test Engineer]
+        MGR[Manager / Demo]
     end
 
-    subgraph Client["Client layer"]
-        Next["Next.js Chat UI\n(Vercel)"]
-        ST["Streamlit Analytics\n(optional, local)"]
+    subgraph Client["Client layer — Vercel"]
+        Next["Next.js Chat UI\ntelecomgpt.vercel.app"]
+        Trace["Agent trace panel\nLangGraph + TNIC agents"]
     end
 
-    subgraph Render["Render — 2GB API"]
-        API["FastAPI\nbackend/app.py"]
-        LG["LangGraph Orchestrator"]
+    subgraph Render["Render — telecomgpt-api · 2GB"]
+        API["FastAPI backend/app.py"]
+        LG["LangGraph Orchestrator\n22 agents"]
         TNIC["TNIC RCA Engine\nbackend/tnic/"]
-        Tools["Tool Registry\nKB · RAG · CSV · PPT"]
-        Agents["22 LangGraph Agents"]
+        DS["Dataset layer\ntnic/datasets/"]
+        KPI["KPI Service\nmerge 6 CSVs → cell KPIs"]
     end
 
-    subgraph Knowledge["Knowledge & data"]
-        KB[("Structured KB\nbands · devices · calculators")]
-        Chunks[("BM25 RAG\nchunks.json ~2.2k")]
-        Chroma[("Chroma Vector\nsession + RAG refs")]
-        TNIC_KB[("TNIC playbooks\ntroubleshooting_guides.json")]
-        Refs[("Reference JSON\nattach · UE cap · stack")]
-        Session[("Session files\nCSV · logs · PM counters")]
+    subgraph Standalone["Standalone — xyz_tnic/"]
+        TNIC_API["FastAPI /api/v1/*"]
+        ST_DASH["Streamlit dashboard\nRCA · health · PM"]
     end
 
-    subgraph External["Live references"]
-        STweb["ShareTechnote"]
-        SQ["sqimway.com"]
-        GPP["3GPP.org"]
+    subgraph Data["Knowledge & telecom data"]
+        KB[("TelecomDB JSON")]
+        Chunks[("BM25 RAG chunks")]
+        DS6[("6 telecom CSVs\n/datasets/")]
+        TNIC_KB[("TNIC playbooks")]
+        Session[("Session uploads")]
+    end
+
+    subgraph External["External"]
         OAI["OpenAI GPT-4o-mini"]
     end
 
     TE --> Next
-    TE -.-> ST
-    Next -->|POST /ask · upload · reports| API
-    ST -.->|analytics APIs| API
+    MGR --> Next
+    Next --> Trace
+    Next -->|POST /ask · upload| API
     API --> LG
     API --> TNIC
-    LG --> Agents
-    Agents -->|fault_analysis| TNIC
-    Agents --> Tools
+    LG -->|fault_analysis| TNIC
+    TNIC --> DS
+    DS --> KPI
+    KPI --> DS6
     TNIC --> TNIC_KB
     TNIC --> Session
-    Tools --> KB
-    Tools --> Chunks
-    Tools --> Chroma
-    Tools --> Refs
-    Tools --> Session
-    Tools --> STweb
-    Tools --> SQ
-    Tools --> GPP
     LG --> OAI
     API --> Next
+
+    TNIC_API -.-> TNIC
+    ST_DASH -.-> TNIC
+    KPI -.-> DS6
 ```
 
 | Layer | Where | Role |
 | --- | --- | --- |
-| **UI (primary)** | Vercel | Chat, suggestion chips, agent trace, attach reports |
-| **UI (analytics)** | `streamlit run analytics/app.py` | CSV/log charts — not the main chat path |
-| **UI (TNIC standalone)** | `xyz_tnic/dashboard/app.py` | Streamlit RCA dashboard — local/Docker only |
-| **API + brain** | Render 2GB | FastAPI wraps LangGraph + TNIC |
-| **TNIC RCA** | `backend/tnic/` | 12 rule-based agents + Master RCA Orchestrator |
-| **LLM** | OpenAI (prod) / Ollama (local) | Synthesis in `synthesizer` agent; optional TNIC narrative reports |
+| **UI (primary)** | Vercel | Chat, demo chips, agent trace (LangGraph plan + TNIC agents) |
+| **UI (TNIC standalone)** | `xyz_tnic/dashboard/app.py` | Streamlit RCA dashboard — Docker/local |
+| **UI (analytics)** | `analytics/app.py` | CSV/log charts — optional |
+| **API + brain** | Render 2GB | FastAPI · LangGraph + TNIC + dataset APIs |
+| **TNIC RCA** | `backend/tnic/` | 12 rule agents + Master RCA Orchestrator |
+| **Dataset layer** | `backend/tnic/datasets/` | Loaders · validation · KPI merge from 6 CSVs |
+| **LLM** | OpenAI | Synthesizer agent; optional TNIC narrative reports |
 
 **Production URLs:** API `https://telecomgpt.onrender.com` · UI `https://telecomgpt.vercel.app`
 
@@ -128,7 +130,10 @@ flowchart TB
     FA --> TNIC_F
 
     TNIC_API --> TNIC_F
-    TNIC_F --> RCA["RCA report\nroot causes · health score"]
+    TNIC_F --> KPI["KPI Service\n6 datasets → cell KPIs"]
+    KPI --> DS6[("pm_counters · handover · rlf\nrach · call_drop · throughput")]
+    KPI --> TNIC_F
+    TNIC_F --> RCA["RCA report\nroot causes · health score · agents_run"]
 
     Attach --> AttachAPI
     AttachAPI --> Scan
@@ -152,17 +157,22 @@ TNIC is a **rule-based multi-agent RCA platform** embedded in TelecomGPT at `bac
 ### 3.1 TNIC execution flow
 
 ```mermaid
-flowchart LR
-    Q["Query + optional PM CSV\nfrom session upload"] --> BR["bridge.py\nfault_agent.py"]
-    BR --> ORCH["MasterRCAOrchestrator\nrca_orchestrator.py"]
+flowchart TB
+    Q["Query + optional cell_id\n(e.g. XYZ401)"] --> BR["bridge.py · fault_agent.py"]
+    BR --> KPI["kpi_service.py\nmerge 6 telecom datasets"]
+    KPI --> DS[("datasets/\npm_counters · handover_events\nrlf · rach · call_drop · throughput")]
+    KPI --> KPIS["Cell KPI bundle\nho_rate · rlf · drops · tput"]
+    BR --> ORCH["MasterRCAOrchestrator"]
+    KPIS --> ORCH
     ORCH --> DET["detect_issue_type()"]
     DET --> MAP["ORCHESTRATION_MAP"]
     MAP --> AG["2–5 specialist agents"]
     AG --> RULES["Rule engines\nbackend/tnic/rules/"]
     RULES --> OUT["RCA report"]
     OUT --> HS["health_scoring.py"]
-    OUT --> RAG["rag/retriever.py\nplaybooks"]
+    OUT --> RAG["rag/retriever.py"]
     OUT --> KG["knowledge_graph.py"]
+    OUT --> META["agents_run · issue_type\nhealth_score → UI trace"]
 ```
 
 ### 3.2 Specialist agents (12 + orchestrator)
@@ -219,6 +229,58 @@ flowchart LR
 | OpenAI report | `services/report_generator.py` | Narrative RCA (template fallback) |
 | RAG | `rag/retriever.py` | ChromaDB or BM25 fallback on JSON playbooks |
 | Knowledge graph | `orchestrator/knowledge_graph.py` | complaint → KPI → root cause → action |
+| **Dataset loaders** | `datasets/loaders.py` | Pandas loaders for 6 telecom CSVs |
+| **KPI calculation** | `datasets/kpi_service.py` | Merge datasets → cell KPIs for all agents |
+| **Dataset validation** | `datasets/validation.py` | CQI range, counter consistency checks |
+| **Dataset summary** | `datasets/summary.py` | Row counts, cells, category breakdowns |
+
+### 3.8 Telecom datasets pipeline
+
+Six bundled CSV datasets under `/datasets/` (also `backend/data/datasets/`):
+
+```mermaid
+flowchart LR
+    subgraph CSVs["Telecom CSV datasets"]
+        PM["pm_counters.csv\nHO · RACH · CQI · tput"]
+        HO["handover_events.csv\nRSRP · SINR · failure_type"]
+        RLF["rlf_events.csv\ncause · Post_HO"]
+        RACH["rach_events.csv\nMSG1–MSG4"]
+        CD["call_drop_events.csv\nMobility · Radio · Core"]
+        TP["throughput_metrics.csv\nCQI · PRB · issue tag"]
+    end
+
+    subgraph Services["tnic/datasets/"]
+        LOAD["loaders.py\nPandas + Pydantic models"]
+        VAL["validation.py"]
+        SUM["summary.py"]
+        KPI["kpi_service.py\ncompute_cell_kpis()"]
+    end
+
+    subgraph Consumers["RCA consumers"]
+        ORCH["MasterRCAOrchestrator"]
+        AGENTS["12 specialist agents"]
+        API["GET /api/datasets/kpis/{cell}"]
+    end
+
+    PM & HO & RLF & RACH & CD & TP --> LOAD
+    LOAD --> VAL
+    LOAD --> SUM
+    LOAD --> KPI
+    KPI --> ORCH
+    KPI --> AGENTS
+    KPI --> API
+```
+
+| Dataset | Key derived KPIs |
+| --- | --- |
+| `pm_counters.csv` | `ho_success_rate`, `rach_success_rate`, `throughput_mbps`, `cqi` |
+| `handover_events.csv` | `ho_prep_fail_rate`, `ho_too_late_rate`, `ss_rsrp`, `ss_sinr` |
+| `rlf_events.csv` | `rlf_rate`, cause breakdown (Coverage, Post_HO, Interference) |
+| `rach_events.csv` | `rach_success_rate`, MSG1–MSG4 fail rates |
+| `call_drop_events.csv` | `call_drop_rate`, drop type breakdown |
+| `throughput_metrics.csv` | `throughput_mbps`, `prb_utilization`, issue tags |
+
+**Override path:** set env `TNIC_DATASETS_DIR` or upload session CSV via `POST /api/upload`.
 
 ### 3.6 Two `specialists.py` files (do not confuse)
 
@@ -231,11 +293,25 @@ flowchart LR
 
 The blueprint standalone project at `xyz_tnic/` mirrors `backend/tnic/` with additional deliverables:
 
-- Full REST API (`/api/v1/analyze/rca`, `/health-score/cell`, `/pm/ingest`, `/incidents`)
+- Full REST API (`/api/v1/analyze/rca`, `/health-score/cell`, `/pm/ingest`, `/incidents`, `/datasets/*`)
 - Streamlit dashboard (`xyz_tnic/dashboard/app.py`)
 - Docker + docker-compose + Render config
-- Sample datasets (`pm_counters.csv`, `incidents.csv`)
-- 40 unit tests · Chroma ingestion script · API.md
+- Sample datasets (`pm_counters.csv`, `incidents.csv`, 6 telecom CSVs)
+- 52 unit tests · Chroma ingestion script · API.md
+
+```mermaid
+flowchart TB
+    subgraph Repo["telecomgpt repo"]
+        TG["TelecomGPT\nfrontend + backend/app.py"]
+        BT["backend/tnic/\nembedded engine"]
+        XT["xyz_tnic/\nstandalone project"]
+    end
+
+    TG -->|POST /ask · /api/tnic/rca| BT
+    XT -->|uvicorn tnic.main:app| BT
+    XT --> DASH["Streamlit dashboard"]
+    BT --> DS[("Shared logic\nagents · rules · datasets")]
+```
 
 See **[xyz_tnic/README.md](../xyz_tnic/README.md)** and **[xyz_tnic/API.md](../xyz_tnic/API.md)**.
 
@@ -319,32 +395,31 @@ flowchart TB
     subgraph Task["Task agents"]
         LD[log_debug]
         FA[fault_analysis]
-        RF[rf_metrics]
+        CO[coverage_optimizer]
         BC[bts_config]
-        FV[feature_validation]
-        AN[analytics]
-        DT[drive_test]
-        PR[presentation]
+    end
+
+    subgraph TNIC["TNIC layer — fault_analysis"]
+        BR[bridge.py]
+        ORCH[MasterRCAOrchestrator]
+        AG12["12 rule agents"]
+        KPI[kpi_service]
     end
 
     subgraph Retrieval["Retrieval agents"]
         RS[research]
         SP[spec]
-    end
-
-    subgraph Auto["Autonomous agents"]
         KB[telecom_kb]
-        RX[react]
-        CR[crew]
-        AG[autogen]
     end
 
     LG[LangGraph\nparallel_batch] --> Task
     LG --> Retrieval
-    LG --> Auto
-    Task --> SYN
+    FA --> BR
+    BR --> KPI
+    KPI --> ORCH
+    ORCH --> AG12
+    AG12 --> SYN
     Retrieval --> SYN
-    Auto --> SYN
     SYN --> VER
 ```
 
@@ -441,23 +516,23 @@ flowchart LR
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  PRESENTATION    Next.js (chat)  │  Streamlit (analytics)    │
-│                  xyz_tnic/dashboard (standalone RCA UI)      │
+│  PRESENTATION    Next.js (Vercel) │ Streamlit (xyz_tnic)     │
 ├─────────────────────────────────────────────────────────────┤
-│  API GATEWAY     FastAPI — /ask, /api/tnic/rca, uploads     │
+│  API GATEWAY     /ask · /api/tnic/rca · /api/datasets/*     │
 ├─────────────────────────────────────────────────────────────┤
-│  ORCHESTRATION   LangGraph — plan, guardrails, parallel run │
+│  ORCHESTRATION   LangGraph — plan · guardrails · parallel   │
 ├─────────────────────────────────────────────────────────────┤
-│  TNIC RCA        12 rule agents + MasterRCAOrchestrator     │
-│                  (embedded backend/tnic/ · standalone xyz)   │
+│  TNIC RCA        12 agents + MasterRCAOrchestrator          │
 ├─────────────────────────────────────────────────────────────┤
-│  AGENTS          Task │ Retrieval │ Autonomous │ Synth/Verify│
+│  DATASET LAYER   loaders · validation · KPI merge (6 CSVs)  │
 ├─────────────────────────────────────────────────────────────┤
-│  TOOLS           KB lookup · hybrid_search · CSV · log · PPT│
+│  AGENTS          Task │ Retrieval │ Synthesizer │ Verifier  │
 ├─────────────────────────────────────────────────────────────┤
-│  KNOWLEDGE       JSON KB │ BM25 │ Chroma │ TNIC playbooks   │
+│  TOOLS           KB · hybrid RAG · CSV · log · attach report│
 ├─────────────────────────────────────────────────────────────┤
-│  LLM             OpenAI (prod) │ Ollama (local dev)          │
+│  KNOWLEDGE       TelecomDB │ BM25 │ TNIC playbooks │ datasets│
+├─────────────────────────────────────────────────────────────┤
+│  LLM             OpenAI GPT-4o-mini                          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -480,19 +555,17 @@ flowchart LR
 
 | Endpoint | Purpose |
 | --- | --- |
-| `POST /ask` | Multi-agent chat (fast instant or LangGraph; async job for slow queries) |
+| `POST /ask` | Multi-agent chat (fast instant or LangGraph; returns `tnic_agents_run` when trace ON) |
 | `POST /api/tnic/rca` | Direct TNIC RCA — bypasses LangGraph |
-| `POST /api/upload` | Session CSV/log upload (feeds TNIC PM rules) |
+| `GET /api/datasets/summary` | Summaries for all 6 telecom CSV datasets |
+| `GET /api/datasets/kpis/{cell_id}` | Merged cell KPIs from all datasets |
+| `GET /api/datasets/validate-all` | Validate all dataset files |
+| `POST /api/upload` | Session CSV/log upload (overrides dataset KPIs) |
 | `GET /api/rf/coverage-optimizer` | Coverage optimizer with map artifacts |
 | `GET /api/fault/rrc-harq` | RRC/HARQ fault catalog (non-TNIC path) |
-| `GET /api/agents/taxonomy` | Full agent map |
-| `GET /api/rag/status` | Chunk count, live fetch flags |
-| `POST /api/rag/reindex` | Re-crawl ShareTechnote seed URLs |
-| `POST /api/memory/ingest-rag` | Background vector index |
-| `GET /api/health` | Liveness + `low_memory`, `vector_enabled` |
-| `GET /api/monitoring/runs` | Recent orchestrator metrics |
+| `GET /api/health` | Liveness + memory/vector flags |
 
-**Standalone TNIC API** (`xyz_tnic/`): `POST /api/v1/analyze/rca`, `/health-score/cell`, `/pm/ingest`, `/incidents` — see [xyz_tnic/API.md](../xyz_tnic/API.md).
+**Standalone TNIC API** (`xyz_tnic/`): `/api/v1/analyze/rca`, `/datasets/*`, `/incidents` — see [xyz_tnic/API.md](../xyz_tnic/API.md).
 
 ---
 
@@ -551,3 +624,47 @@ python scripts/generate_agent_architecture_ppt.py
 ```
 
 Optional Mem0: `pip install mem0ai` and `TELECOMGPT_MEMORY=mem0`.
+
+---
+
+## 13. Deployment topology (production)
+
+```mermaid
+flowchart LR
+    subgraph Vercel["Vercel"]
+        FE["Next.js\nTelecomGPT UI"]
+    end
+
+    subgraph Render["Render · starter 2GB"]
+        BE["FastAPI\nbackend/app.py"]
+        TNIC["backend/tnic/"]
+        DS["datasets/ CSVs"]
+    end
+
+    subgraph OpenAI["OpenAI"]
+        LLM["gpt-4o-mini"]
+    end
+
+    FE -->|HTTPS POST /ask| BE
+    BE --> TNIC
+    TNIC --> DS
+    BE --> LLM
+    BE -->|JSON answer + trace| FE
+```
+
+| PR | Feature | Status |
+| --- | --- | --- |
+| #4 | TNIC unified into TelecomGPT | Deployed |
+| #5 | TNIC agent trace + UI branding cleanup | Deployed |
+| #6 | Standalone `xyz_tnic/` + telecom datasets | Deployed |
+
+**Repo layout after merge:**
+
+```
+telecomgpt/
+├── frontend/          → Vercel
+├── backend/           → Render (app.py)
+│   └── tnic/          → RCA engine + datasets
+├── datasets/          → 6 telecom CSVs
+└── xyz_tnic/          → standalone TNIC project
+```
