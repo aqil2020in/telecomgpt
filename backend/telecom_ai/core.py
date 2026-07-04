@@ -55,6 +55,9 @@ class TelecomAI:
                 "workflow_tasks": result.get("workflow_tasks") or [],
                 "guardrail_issues": result.get("guardrail_issues") or [],
                 "memory_context": result.get("memory_context"),
+                "tnic_agents_run": result.get("tnic_agents_run") or [],
+                "tnic_issue_type": result.get("tnic_issue_type"),
+                "tnic_health_score": result.get("tnic_health_score"),
                 "mode": "orchestrator",
             }
         result = self.graph.invoke(legacy_initial_state(query, history))
@@ -133,11 +136,11 @@ class TelecomAI:
                 "guardrail_issues": list(pre.get("issues") or []) + list(post.get("issues") or []),
             }
 
-        instant = self._instant_answer(q)
+        instant = self._instant_answer(q, session_id=sid)
         if instant:
-            post = check_output(instant)
-            answer = post.get("filtered_answer") or instant
-            return {
+            post = check_output(instant.get("answer", "") if isinstance(instant, dict) else instant)
+            answer = post.get("filtered_answer") or (instant.get("answer") if isinstance(instant, dict) else instant)
+            payload: dict = {
                 "answer": answer,
                 "session_id": sid,
                 "sources": [],
@@ -145,6 +148,12 @@ class TelecomAI:
                 "mode": "fast-kb",
                 "guardrail_issues": list(pre.get("issues") or []) + list(post.get("issues") or []),
             }
+            if isinstance(instant, dict):
+                if instant.get("tnic_agents_run"):
+                    payload["tnic_agents_run"] = instant["tnic_agents_run"]
+                    payload["tnic_issue_type"] = instant.get("tnic_issue_type")
+                    payload["tnic_health_score"] = instant.get("tnic_health_score")
+            return payload
 
         answer, sources = llm_answer_with_sources(
             q, self.db, history=history, fast=True
@@ -161,17 +170,23 @@ class TelecomAI:
             "guardrail_issues": list(pre.get("issues") or []) + list(post.get("issues") or []),
         }
 
-    def _instant_answer(self, query: str) -> str:
+    def _instant_answer(self, query: str, session_id: str = "default") -> str | dict:
         """Cheap TelecomDB lookups — no LLM, no vector/Chroma."""
         from analytics.harq_rrc_fault import explain_rrc_harq_fault, looks_like_rrc_harq_fault_query
-        from tnic.bridge import looks_like_tnic_rca_query, run_tnic_rca_markdown
+        from tnic.bridge import looks_like_tnic_rca_query, run_tnic_rca
         from .loaders import looks_like_phy_math
 
         if looks_like_rrc_harq_fault_query(query):
             return explain_rrc_harq_fault(query)
 
         if looks_like_tnic_rca_query(query):
-            return run_tnic_rca_markdown(query)
+            rca = run_tnic_rca(query, session_id=session_id)
+            return {
+                "answer": rca["markdown"],
+                "tnic_agents_run": rca.get("agents_run") or [],
+                "tnic_issue_type": rca.get("issue_type"),
+                "tnic_health_score": rca.get("health_score"),
+            }
 
         from analytics.coverage_optimizer import (
             explain_coverage_optimizer,

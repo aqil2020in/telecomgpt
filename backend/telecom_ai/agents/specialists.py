@@ -150,12 +150,17 @@ def run_synthesizer(
             all_sources = []
             for ao in agent_outputs:
                 all_sources.extend(ao.get("sources") or [])
-            return {
+            out: dict = {
                 "agent": "synthesizer",
                 "content": o["content"],
                 "sources": all_sources,
                 "artifacts": [],
             }
+            if o.get("tnic_agents_run"):
+                out["tnic_agents_run"] = o["tnic_agents_run"]
+                out["tnic_issue_type"] = o.get("tnic_issue_type")
+                out["tnic_health_score"] = o.get("tnic_health_score")
+            return out
         if o.get("agent") == "coverage_optimizer" and o.get("content"):
             if "Coverage optimizer report" in o["content"] or "Top locations" in o["content"]:
                 artifacts = list(o.get("artifacts") or [])

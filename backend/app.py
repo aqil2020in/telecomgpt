@@ -159,6 +159,9 @@ def _format_ask_result(result: dict, *, trace: bool) -> dict:
         "plan": result.get("plan"),
         "workflow_tasks": result.get("workflow_tasks") or [],
         "guardrail_issues": result.get("guardrail_issues") or [],
+        "tnic_agents_run": result.get("tnic_agents_run") or [],
+        "tnic_issue_type": result.get("tnic_issue_type"),
+        "tnic_health_score": result.get("tnic_health_score"),
         "mode": result.get("mode"),
     }
 

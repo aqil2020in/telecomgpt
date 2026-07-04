@@ -25,7 +25,7 @@ def _upload_logs(session_id: str) -> list[Path]:
 
 def run_fault_analysis_agent(query: str, tools: "ToolRegistry", session_id: str = "default") -> dict:
     from analytics.harq_rrc_fault import explain_rrc_harq_fault, looks_like_rrc_harq_fault_query
-    from tnic.bridge import looks_like_tnic_rca_query, run_tnic_rca_markdown
+    from tnic.bridge import looks_like_tnic_rca_query, run_tnic_rca
 
     tool_calls: list[dict] = []
     logs = _upload_logs(session_id)
@@ -60,13 +60,16 @@ def run_fault_analysis_agent(query: str, tools: "ToolRegistry", session_id: str 
         }
 
     # TNIC multi-agent RCA (HO, RLF, call drop, throughput, RACH, beam, latency)
-    md = run_tnic_rca_markdown(query, session_id=session_id, log_text=log_text, generate_report=False)
+    rca = run_tnic_rca(query, session_id=session_id, log_text=log_text, generate_report=False)
     tool_calls.append({"tool": "tnic_rca", "ok": True})
     return {
         "agent": "fault_analysis",
-        "content": md,
+        "content": rca["markdown"],
         "artifacts": [],
         "tool_calls": tool_calls,
         "ready": True,
         "data_status": "tnic_rca" if log_text else "tnic_rules",
+        "tnic_agents_run": rca.get("agents_run") or [],
+        "tnic_issue_type": rca.get("issue_type"),
+        "tnic_health_score": rca.get("health_score"),
     }

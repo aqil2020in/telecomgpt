@@ -21,6 +21,17 @@ from .tools import build_tool_registry
 from .workflow import build_tasks_from_plan, handle_agent_error, mark_task_completed, mark_task_running
 
 
+def _extract_tnic_meta(outputs: list[dict]) -> dict:
+    for o in outputs:
+        if o.get("tnic_agents_run"):
+            return {
+                "tnic_agents_run": o["tnic_agents_run"],
+                "tnic_issue_type": o.get("tnic_issue_type"),
+                "tnic_health_score": o.get("tnic_health_score"),
+            }
+    return {}
+
+
 def build_orchestrator_graph(db: TelecomDB):
     graph = StateGraph(OrchestratorState)
     tools = build_tool_registry(db)
@@ -233,6 +244,7 @@ def build_orchestrator_graph(db: TelecomDB):
                 tasks = mark_task_completed(tasks, name)
 
         tools.current_agent = None
+        tnic_meta = _extract_tnic_meta(outputs)
         return {
             "answer": answer or "",
             "agent_outputs": outputs,
@@ -240,6 +252,7 @@ def build_orchestrator_graph(db: TelecomDB):
             "sources": sources,
             "workflow_tasks": tasks,
             "steps": steps,
+            **tnic_meta,
         }
 
     def guardrails_post(state: OrchestratorState) -> dict:

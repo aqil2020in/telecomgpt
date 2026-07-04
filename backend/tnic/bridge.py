@@ -56,23 +56,21 @@ def looks_like_tnic_rca_query(query: str) -> bool:
     return any(k in ql for k in keys)
 
 
-def run_tnic_rca_markdown(
+def _execute_tnic_rca(
     query: str,
     *,
     session_id: str = "default",
-    log_text: str | None = None,
     generate_report: bool = False,
-) -> str:
+):
     from tnic.models.schemas import AnalyzeRequest, KPIInput
     from tnic.orchestrator.rca_orchestrator import MasterRCAOrchestrator
     from tnic.rag.retriever import get_rag_store
 
     csv_kpis = _kpis_from_session_csv(session_id)
     kpi_input = KPIInput(**{k: v for k, v in csv_kpis.items() if k in KPIInput.model_fields})
-
     rag = get_rag_store().search(query, k=3)
     orch = MasterRCAOrchestrator()
-    result = orch.run(
+    return orch.run(
         AnalyzeRequest(
             query=query,
             kpis=kpi_input,
@@ -82,9 +80,8 @@ def run_tnic_rca_markdown(
         rag_context=rag,
     )
 
-    from tnic.orchestrator.rca_orchestrator import _validation_checklist
-    from tnic.services.health_scoring import compute_health_score
 
+def _format_rca_markdown(result, *, log_text: str | None = None) -> str:
     lines = [
         "## XYZ Network Intelligence — RCA Report",
         "",
@@ -109,7 +106,7 @@ def run_tnic_rca_markdown(
         for v in result.validation_checklist[:5]:
             lines.append(f"- [ ] {v}")
 
-    log = _resolve_log_text(session_id, log_text)
+    log = log_text
     if log and result.findings:
         lines.append(f"\n*Log attached ({len(log.splitlines())} lines) — agents: {', '.join(result.agents_run)}*")
 
@@ -119,21 +116,44 @@ def run_tnic_rca_markdown(
     return "\n".join(l for l in lines if l is not None)
 
 
+def run_tnic_rca(
+    query: str,
+    *,
+    session_id: str = "default",
+    log_text: str | None = None,
+    generate_report: bool = False,
+) -> dict[str, Any]:
+    """Run TNIC RCA and return markdown plus trace metadata for the chat UI."""
+    result = _execute_tnic_rca(query, session_id=session_id, generate_report=generate_report)
+    resolved_log = _resolve_log_text(session_id, log_text)
+    return {
+        "markdown": _format_rca_markdown(result, log_text=resolved_log),
+        "agents_run": list(result.agents_run or []),
+        "issue_type": result.issue_type,
+        "health_score": result.health_score,
+    }
+
+
+def run_tnic_rca_markdown(
+    query: str,
+    *,
+    session_id: str = "default",
+    log_text: str | None = None,
+    generate_report: bool = False,
+) -> str:
+    return run_tnic_rca(
+        query,
+        session_id=session_id,
+        log_text=log_text,
+        generate_report=generate_report,
+    )["markdown"]
+
+
 def run_tnic_rca_dict(
     query: str,
     *,
     session_id: str = "default",
     generate_report: bool = False,
 ) -> dict[str, Any]:
-    from tnic.models.schemas import AnalyzeRequest, KPIInput
-    from tnic.orchestrator.rca_orchestrator import MasterRCAOrchestrator
-    from tnic.rag.retriever import get_rag_store
-
-    csv_kpis = _kpis_from_session_csv(session_id)
-    kpi_input = KPIInput(**{k: v for k, v in csv_kpis.items() if k in KPIInput.model_fields})
-    rag = get_rag_store().search(query, k=3)
-    result = orch.run(
-        AnalyzeRequest(query=query, kpis=kpi_input, include_rag=True, generate_report=generate_report),
-        rag_context=rag,
-    ) if (orch := MasterRCAOrchestrator()) else None
-    return result.model_dump() if result else {"ok": False}
+    result = _execute_tnic_rca(query, session_id=session_id, generate_report=generate_report)
+    return result.model_dump()

@@ -50,6 +50,9 @@ type Message = {
     workflow_tasks?: { agent: string; status: string; category?: string }[];
     guardrail_issues?: string[];
     confidence?: number;
+    tnic_agents_run?: string[];
+    tnic_issue_type?: string;
+    tnic_health_score?: number;
   };
 };
 
@@ -63,6 +66,9 @@ type AskResponse = {
   confidence?: number;
   workflow_tasks?: { agent: string; status: string; category?: string }[];
   guardrail_issues?: string[];
+  tnic_agents_run?: string[];
+  tnic_issue_type?: string;
+  tnic_health_score?: number;
   async?: boolean;
   job_id?: string;
   status?: string;
@@ -205,6 +211,9 @@ export default function Home() {
                 workflow_tasks: data.workflow_tasks,
                 guardrail_issues: data.guardrail_issues,
                 confidence: data.confidence,
+                tnic_agents_run: data.tnic_agents_run,
+                tnic_issue_type: data.tnic_issue_type,
+                tnic_health_score: data.tnic_health_score,
               }
             : undefined,
         },
@@ -498,6 +507,15 @@ export default function Home() {
                   {m.trace.guardrail_issues && m.trace.guardrail_issues.length > 0 && (
                     <p style={{ margin: "4px 0", color: "#b45309" }}>
                       Guardrails: {m.trace.guardrail_issues.join(", ")}
+                    </p>
+                  )}
+                  {m.trace.tnic_agents_run && m.trace.tnic_agents_run.length > 0 && (
+                    <p style={{ margin: "4px 0" }}>
+                      TNIC agents: {m.trace.tnic_agents_run.join(" → ")}
+                      {m.trace.tnic_issue_type ? ` (${m.trace.tnic_issue_type})` : ""}
+                      {m.trace.tnic_health_score != null
+                        ? ` · health ${m.trace.tnic_health_score}/100`
+                        : ""}
                     </p>
                   )}
                   {m.trace.steps && (
