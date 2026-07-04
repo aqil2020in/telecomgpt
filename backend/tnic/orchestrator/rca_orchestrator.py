@@ -8,6 +8,7 @@ from tnic.agents.specialists import AGENT_REGISTRY, kpi_to_dict
 from tnic.logging_config import get_logger
 from tnic.models.schemas import AnalyzeRequest, KnowledgeGraph, KnowledgeGraphEdge, KnowledgeGraphNode, RCAResponse, RuleFinding
 from tnic.orchestrator.knowledge_graph import build_knowledge_graph
+from tnic.orchestrator.master_rca import enrich_rca_with_coverage, should_run_coverage_agent
 from tnic.rules import RULE_ENGINES, detect_issue_type
 from tnic.services.health_scoring import compute_health_score
 from tnic.services.report_generator import narrate_master_rca
@@ -25,7 +26,9 @@ ORCHESTRATION_MAP = {
     "latency": ["latency", "transport", "core"],
     "transport": ["transport", "latency", "throughput"],
     "core": ["core", "latency", "call_drop"],
-    "complaint": ["complaint", "handover", "throughput", "call_drop"],
+    "complaint": ["complaint", "handover", "throughput", "call_drop", "rf_coverage"],
+    "rf_coverage": ["rf_coverage", "rlf", "handover", "call_drop", "rach", "throughput", "beamforming", "complaint"],
+    "coverage": ["rf_coverage", "rlf", "handover", "call_drop", "rach", "throughput", "beamforming"],
 }
 
 # Primary-domain boost so RLF/HO queries rank domain findings above cross-agent noise.
@@ -42,6 +45,8 @@ _ISSUE_CATEGORY = {
     "beamforming": "beamforming",
     "beam": "beamforming",
     "latency": "latency",
+    "rf_coverage": "rf_coverage",
+    "coverage": "rf_coverage",
 }
 
 
@@ -104,6 +109,13 @@ class MasterRCAOrchestrator:
             clf = drop_classification_finding(kpis)
             if clf and not any(x.rule_id == clf["rule_id"] for x in all_findings):
                 all_findings.append(RuleFinding(**clf))
+
+        if should_run_coverage_agent(request.query or "", request.issue_type) or kpis.get("cell_id"):
+            all_findings = enrich_rca_with_coverage(
+                all_findings,
+                str(kpis.get("cell_id")) if kpis.get("cell_id") else None,
+                query=request.query or request.complaint_text or "",
+            )
 
         all_findings = rank_findings(all_findings, issue)
 

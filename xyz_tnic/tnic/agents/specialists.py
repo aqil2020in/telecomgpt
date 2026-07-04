@@ -162,22 +162,43 @@ class RFCoverageAgent(BaseAgent):
     name = "rf_coverage_agent"
 
     def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
-        diagnosis = _RFCoverageCore().analyze(kpis, query=query)
-        if diagnosis.issue_class == "No Data":
-            return self._findings_to_result([], diagnosis.summary)
+        data = kpi_to_dict(kpis)
+        summary = _RFCoverageCore().analyze(data, query=query)
+        if summary.get("primary_issue") == "No Data":
+            return self._findings_to_result([], f"No geospatial data for {data.get('cell_id') or 'requested cell'}.")
 
         findings = [{
-            "rule_id": "rf_coverage_drive_test",
+            "rule_id": "rf_coverage_primary",
             "category": "rf_coverage",
-            "probable_cause": diagnosis.root_cause,
-            "confidence": diagnosis.confidence,
+            "probable_cause": (
+                f"{summary['primary_issue']} on {summary['cell_id']} "
+                f"(score {summary['coverage_score']}, confidence {int(float(summary['confidence']) * 100)}%)"
+            ),
+            "confidence": float(summary["confidence"]),
             "evidence": {
-                **diagnosis.metrics,
-                "map_artifact": diagnosis.map_artifact,
+                "cell_id": summary["cell_id"],
+                "coverage_score": summary["coverage_score"],
+                "secondary_issue": summary.get("secondary_issue"),
+                "metrics": summary.get("metrics", {}),
+                "issue_counts": summary.get("issue_counts", {}),
+                "impacts": summary.get("impacts", []),
             },
-            "recommended_actions": diagnosis.recommendations,
+            "recommended_actions": [summary.get("recommendation", "Re-drive 3 mi cluster")],
         }]
-        return self._findings_to_result(findings, diagnosis.summary)
+        if summary.get("secondary_issue"):
+            findings.append({
+                "rule_id": "rf_coverage_secondary",
+                "category": "rf_coverage",
+                "probable_cause": f"Secondary: {summary['secondary_issue']}",
+                "confidence": float(summary["confidence"]) - 0.05,
+                "evidence": {"cell_id": summary["cell_id"]},
+                "recommended_actions": ["Address secondary beam/RF issue after primary coverage fix"],
+            })
+        return self._findings_to_result(
+            findings,
+            f"RF coverage on {summary['cell_id']}: {summary['primary_issue']} "
+            f"(score {summary['coverage_score']}).",
+        )
 
 
 AGENT_REGISTRY: dict[str, BaseAgent] = {

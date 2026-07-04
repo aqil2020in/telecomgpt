@@ -157,6 +157,52 @@ class ComplaintAgent(BaseAgent):
         return self._findings_to_result(findings, f"Complaint triaged to {issue}.")
 
 
+class RFCoverageAgent(BaseAgent):
+    name = "rf_coverage_agent"
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        from tnic.agents.rf_coverage_agent import RFCoverageAgent as _CoreAgent
+
+        data = kpi_to_dict(kpis)
+        cell_id = data.get("cell_id")
+        summary = _CoreAgent().analyze(data, query=query)
+        if summary.get("primary_issue") == "No Data":
+            return self._findings_to_result([], f"No geospatial data for {cell_id or 'requested cell'}.")
+
+        findings = [{
+            "rule_id": "rf_coverage_primary",
+            "category": "rf_coverage",
+            "probable_cause": (
+                f"{summary['primary_issue']} on {summary['cell_id']} "
+                f"(score {summary['coverage_score']}, confidence {int(float(summary['confidence']) * 100)}%)"
+            ),
+            "confidence": float(summary["confidence"]),
+            "evidence": {
+                "cell_id": summary["cell_id"],
+                "coverage_score": summary["coverage_score"],
+                "secondary_issue": summary.get("secondary_issue"),
+                "metrics": summary.get("metrics", {}),
+                "issue_counts": summary.get("issue_counts", {}),
+                "impacts": summary.get("impacts", []),
+            },
+            "recommended_actions": [summary.get("recommendation", "Re-drive 3 mi cluster")],
+        }]
+        if summary.get("secondary_issue"):
+            findings.append({
+                "rule_id": "rf_coverage_secondary",
+                "category": "rf_coverage",
+                "probable_cause": f"Secondary: {summary['secondary_issue']}",
+                "confidence": float(summary["confidence"]) - 0.05,
+                "evidence": {"cell_id": summary["cell_id"]},
+                "recommended_actions": ["Address secondary beam/RF issue after primary coverage fix"],
+            })
+        return self._findings_to_result(
+            findings,
+            f"RF coverage on {summary['cell_id']}: {summary['primary_issue']} "
+            f"(score {summary['coverage_score']}).",
+        )
+
+
 AGENT_REGISTRY: dict[str, BaseAgent] = {
     "handover": HOAgent(),
     "ho": HOAgent(),
@@ -171,4 +217,6 @@ AGENT_REGISTRY: dict[str, BaseAgent] = {
     "transport": TransportAgent(),
     "core": CoreAgent(),
     "complaint": ComplaintAgent(),
+    "rf_coverage": RFCoverageAgent(),
+    "coverage": RFCoverageAgent(),
 }

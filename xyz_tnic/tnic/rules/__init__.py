@@ -31,12 +31,23 @@ ISSUE_KEYWORDS = {
     "transport": ("transport", "backhaul", "n3", "n6", "congestion"),
     "core": ("core", "amf", "smf", "upf", "5gmm", "pdu session"),
     "complaint": ("complaint", "customer", "subscriber", "ticket"),
+    "rf_coverage": (
+        "coverage", "rsrp", "sinr", "coverage hole", "weak coverage",
+        "interference", "beam gap", "geospatial", "drive test", "hotspot",
+    ),
 }
 
 
+_EXTRA_ISSUE_TYPES = frozenset({"rf_coverage", "coverage", "transport", "core", "complaint"})
+
+
 def detect_issue_type(query: str, explicit: str | None = None) -> str:
-    if explicit and explicit.lower() in RULE_ENGINES:
-        return explicit.lower()
+    if explicit:
+        exp = explicit.lower()
+        if exp in RULE_ENGINES:
+            return exp
+        if exp in _EXTRA_ISSUE_TYPES:
+            return "rf_coverage" if exp == "coverage" else exp
     ql = query.lower()
     scores: dict[str, int] = {}
     for issue, keywords in ISSUE_KEYWORDS.items():
@@ -44,6 +55,6 @@ def detect_issue_type(query: str, explicit: str | None = None) -> str:
     best = max(scores, key=lambda k: scores[k])
     if scores[best] == 0:
         return "handover"
-    if best in ("transport", "core", "complaint"):
+    if best in ("transport", "core", "complaint", "rf_coverage"):
         return best
     return best if best in RULE_ENGINES else "handover"

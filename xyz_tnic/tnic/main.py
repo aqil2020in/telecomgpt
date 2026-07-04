@@ -6,6 +6,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from tnic.api.routes.analyze import router as analyze_router
+from tnic.api.routes.coverage import router as coverage_router
 from tnic.api.routes.datasets import router as datasets_router
 from tnic.api.routes.health import router as health_router
 from tnic.api.routes.incidents import router as incidents_router
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     prefix = settings.api_prefix
     app.include_router(health_router, prefix=prefix)
     app.include_router(analyze_router, prefix=prefix)
+    app.include_router(coverage_router, prefix=prefix)
     app.include_router(incidents_router, prefix=prefix)
     app.include_router(datasets_router, prefix=prefix)
     return app
