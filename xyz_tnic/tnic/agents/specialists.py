@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from tnic.agents.base import BaseAgent, kpi_to_dict
+from tnic.agents.call_drop_agent import CallDropAgent as CallDropFailureAgent
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
@@ -40,9 +41,45 @@ class RLFAgent(_RuleAgent):
         super().__init__("rlf_agent", RLF_RULE_ENGINE)
 
 
-class CallDropAgent(_RuleAgent):
+class CallDropAgent(BaseAgent):
+    name = "call_drop_agent"
+
     def __init__(self):
-        super().__init__("call_drop_agent", CALL_DROP_RULE_ENGINE)
+        self._failure_agent = CallDropFailureAgent()
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        data = kpi_to_dict(kpis)
+        diagnosis = self._failure_agent.analyze_kpis(data, query=query)
+        findings: list[dict[str, Any]] = []
+        if diagnosis.drop_class not in ("No Data", "No Drop"):
+            code = diagnosis.evidence.get("drop_code") if diagnosis.evidence else None
+            findings.append({
+                "rule_id": f"drop_{code.lower() if code else 'detected'}",
+                "category": "call_drop",
+                "probable_cause": diagnosis.root_cause,
+                "confidence": diagnosis.confidence,
+                "evidence": diagnosis.evidence or {},
+                "recommended_actions": _call_drop_actions(code),
+            })
+        legacy = CALL_DROP_RULE_ENGINE.evaluate(data)
+        seen = {f["probable_cause"][:60] for f in findings}
+        for f in legacy:
+            if f["probable_cause"][:60] not in seen:
+                findings.append(f)
+        findings.sort(key=lambda x: x["confidence"], reverse=True)
+        summary = f"{self.name}: {diagnosis.drop_class} (confidence {diagnosis.confidence:.2f})"
+        return self._findings_to_result(findings, summary)
+
+
+def _call_drop_actions(code: str | None) -> list[str]:
+    actions = {
+        "RADIO": ["Correlate drops with RSRP/SINR", "Run RLF RCA on drop cluster", "Review re-establishment success"],
+        "MOBILITY": ["Audit HO success on drop route", "Add missing neighbor", "Review too-late HO margin"],
+        "IMS": ["Verify VoNR EPS fallback", "Check IMS P-CSCF and SIP path"],
+        "CORE": ["Check AMF release cause", "Verify subscription and PDU session state"],
+        "TRANSPORT": ["Check N3/N6 utilization", "Verify backhaul QoS", "Inspect transport loss counters"],
+    }
+    return actions.get(code or "", ["Review call_drop_events.csv and session traces"])
 
 
 class ThroughputAgent(_RuleAgent):
