@@ -43,6 +43,7 @@ xyz_tnic/
 │   │   ├── pm_ingestion.py     # PM CSV ingest
 │   │   ├── report_generator.py # OpenAI + template RCA
 │   │   └── incidents.py        # Incident CSV loader
+│   ├── datasets/               # Loaders, validation, KPI merge service
 │   ├── rag/retriever.py        # ChromaDB + fallback search
 │   ├── models/schemas.py       # Pydantic models
 │   ├── api/routes/             # FastAPI routers
