@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from tnic.agents.base import BaseAgent, kpi_to_dict
+from tnic.agents.throughput_agent import ThroughputAnalysisAgent
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
@@ -45,9 +46,44 @@ class CallDropAgent(_RuleAgent):
         super().__init__("call_drop_agent", CALL_DROP_RULE_ENGINE)
 
 
-class ThroughputAgent(_RuleAgent):
+class ThroughputAgent(BaseAgent):
+    name = "throughput_agent"
+
     def __init__(self):
-        super().__init__("throughput_agent", THROUGHPUT_RULE_ENGINE)
+        self._analysis_agent = ThroughputAnalysisAgent()
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        data = kpi_to_dict(kpis)
+        diagnosis = self._analysis_agent.analyze_kpis(data, query=query)
+        findings: list[dict[str, Any]] = []
+        if diagnosis.issue_class not in ("No Data", "No Issue"):
+            code = diagnosis.evidence.get("issue_code") if diagnosis.evidence else None
+            findings.append({
+                "rule_id": f"tput_{code.lower() if code else 'detected'}",
+                "category": "throughput",
+                "probable_cause": diagnosis.root_cause,
+                "confidence": diagnosis.confidence,
+                "evidence": {**(diagnosis.evidence or {}), "metrics": diagnosis.metrics or {}},
+                "recommended_actions": _throughput_actions(code),
+            })
+        legacy = THROUGHPUT_RULE_ENGINE.evaluate(data)
+        seen = {f["probable_cause"][:60] for f in findings}
+        for f in legacy:
+            if f["probable_cause"][:60] not in seen:
+                findings.append(f)
+        findings.sort(key=lambda x: x["confidence"], reverse=True)
+        summary = f"{self.name}: {diagnosis.issue_class} (confidence {diagnosis.confidence:.2f})"
+        return self._findings_to_result(findings, summary)
+
+
+def _throughput_actions(code: str | None) -> list[str]:
+    actions = {
+        "CONGESTION": ["Offload traffic via HO/CA", "Add capacity carrier", "Review PRB load balancing"],
+        "RF_ISSUE": ["Recalibrate AAU", "Check interference PCI", "Verify MIMO rank and CQI"],
+        "SCHEDULER": ["Review scheduler weights and 5QI priorities", "Audit PRB allocation fairness"],
+        "BACKHAUL": ["Upgrade N3/F1 link", "Check UPF/cluster throughput", "Inspect transport utilization"],
+    }
+    return actions.get(code or "", ["Review throughput_metrics.csv and drive-test"])
 
 
 class RACHAgent(_RuleAgent):
