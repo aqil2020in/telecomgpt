@@ -36,8 +36,6 @@ def _template_report(
     rag_context: list[dict[str, str]],
 ) -> str:
     lines = [
-        f"# XYZ TNIC RCA Report — {issue_type.replace('_', ' ').title()}",
-        "",
         f"**Query:** {query or 'N/A'}",
         "",
         "## Executive Summary",

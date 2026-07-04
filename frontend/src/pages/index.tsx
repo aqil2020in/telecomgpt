@@ -78,6 +78,14 @@ type AskResponse = {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
+/** Strip internal XYZ/TNIC branding from assistant text shown in chat. */
+function displayContent(text: string): string {
+  return text
+    .replace(/^#{1,2}\s*XYZ (?:Network Intelligence|TNIC)[^\n]*\n+/gm, "")
+    .replace(/^XYZ Network Intelligence Copilot[^\n]*\n+/gm, "")
+    .trimStart();
+}
+
 function isCoverageOptimizerQuery(text: string): boolean {
   const t = text.toLowerCase();
   return (
@@ -452,7 +460,7 @@ export default function Home() {
                 fontSize: 15,
               }}
             >
-              {m.content}
+              {displayContent(m.content)}
               {m.role === "assistant" && m.artifacts?.map(renderArtifact)}
               {m.role === "assistant" && m.sources && m.sources.length > 0 && (
                 <details style={{ marginTop: 10, fontSize: 13 }}>
@@ -508,7 +516,7 @@ export default function Home() {
                   )}
                   {m.trace.tnic_agents_run && m.trace.tnic_agents_run.length > 0 && (
                     <p style={{ margin: "4px 0" }}>
-                      TNIC agents: {m.trace.tnic_agents_run.join(" → ")}
+                      Agents: {m.trace.tnic_agents_run.join(" → ")}
                       {m.trace.tnic_issue_type ? ` (${m.trace.tnic_issue_type})` : ""}
                       {m.trace.tnic_health_score != null
                         ? ` · health ${m.trace.tnic_health_score}/100`

@@ -83,11 +83,8 @@ def _execute_tnic_rca(
 
 def _format_rca_markdown(result, *, log_text: str | None = None) -> str:
     lines = [
-        "## XYZ Network Intelligence — RCA Report",
-        "",
         f"**Issue domain:** `{result.issue_type}`",
         f"**Health score:** {result.health_score}/100" if result.health_score else "",
-        "",
     ]
 
     if result.probable_root_causes:
