@@ -30,6 +30,8 @@ services:
     dockerContext: .
     dockerCommand: streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0
     envVars:
+      - key: TNIC_DATASETS_DIR
+        value: /app/data/datasets
       - key: TNIC_API_URL
         fromService:
           type: web

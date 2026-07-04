@@ -116,3 +116,34 @@ class PMIngestResponse(BaseModel):
     cells: list[str]
     kpi_summary: dict[str, Any]
     validation_issues: list[str] = Field(default_factory=list)
+
+
+class GenerateRCARequest(BaseModel):
+    query: str = Field(..., min_length=1)
+    cell_id: str | None = None
+    issue_type: str | None = None
+    complaint_text: str | None = None
+    include_rag: bool = True
+    generate_report: bool = True
+    kpis: KPIInput = Field(default_factory=KPIInput)
+
+
+class AnalyzeCellRequest(BaseModel):
+    cell_id: str = Field(..., min_length=3)
+    issue_type: str | None = None
+    query: str | None = None
+    include_rag: bool = True
+    generate_report: bool = False
+
+
+class CellProfileResponse(BaseModel):
+    ok: bool = True
+    cell_id: str
+    kpis: dict[str, Any]
+    sources: list[str] = Field(default_factory=list)
+    health_score: float
+    grade: str
+    dimensions: dict[str, float]
+    alerts: list[str] = Field(default_factory=list)
+    incident_count: int = 0
+    related_incidents: list[dict[str, Any]] = Field(default_factory=list)
