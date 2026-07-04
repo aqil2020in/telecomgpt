@@ -11,7 +11,9 @@ services:
       - key: APP_ENV
         value: production
       - key: TNIC_ENABLE_CHROMA
-        value: "1"
+        value: "0"
+      - key: TNIC_DATASETS_DIR
+        value: /app/data/datasets
       - key: LOG_LEVEL
         value: INFO
       - key: OPENAI_API_KEY
@@ -33,4 +35,4 @@ services:
           type: web
           name: xyz-tnic-api
           property: host
-        # Render injects full URL via manual TNIC_API_URL in dashboard service settings
+      # Dashboard resolves host-only values to https://<host>/api/v1

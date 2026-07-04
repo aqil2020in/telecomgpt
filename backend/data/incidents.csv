@@ -1,0 +1,11 @@
+incident_id,opened_at,cell_id,issue_type,complaint_summary,root_cause,resolution,status,severity
+INC-2026-001,2026-06-15T09:12:00,43211,call_drop,Voice drops during highway mobility,Missed Xn neighbor relation for n78 inter-gNB HO,Added NBR gNB43212 PCI 412 n78,Closed,High
+INC-2026-002,2026-06-16T14:30:00,43211,throughput,DL speed below 30 Mbps in sector 3,High DL BLER and rank-1 stuck — interferer on n77,Retuned electrical tilt -2° and enabled IRC,Closed,Medium
+INC-2026-003,2026-06-17T08:05:00,43211,handover,HO prep fail spike on neighbor 43212,Target cell barred due to transport alarm on F1,Restored F1 link and cleared cell barring,Closed,Critical
+INC-2026-004,2026-06-18T19:45:00,43212,rach,Registration failures at cell edge,PRACH occasion collision with co-channel DAS,Adjusted prach-ConfigurationIndex and root sequence,Closed,High
+INC-2026-005,2026-06-19T11:20:00,43211,rlf,RLF cluster after successful HO,Too-late HO — A3 offset insufficient for fast UE,Reduced A3 offset from -6 to -4 dB,Closed,Medium
+INC-2026-006,2026-06-20T07:55:00,43211,latency,Video buffering on 5QI-9 during peak,UPF cluster CPU saturation on node upf-02,Rebalanced sessions and scaled UPF pod count,Closed,High
+INC-2026-007,2026-06-21T16:10:00,43212,beamforming,Beam failure ratio above 35%,SSB beam weight drift after AAU firmware upgrade,Re-ran beam calibration procedure,Closed,Medium
+INC-2026-008,2026-06-22T10:00:00,43211,core,PDU session release without RF anomaly,AMF subscription profile missing DNN for enterprise APN,Updated UDM subscription template,Closed,High
+INC-2026-009,2026-06-23T13:40:00,43211,transport,N3 throughput cap during evening peak,Backhaul link at 82% utilization on switch sw-core-07,Enabled QoS shaping and scheduled 10G upgrade,Open,Medium
+INC-2026-010,2026-06-24T09:30:00,43212,complaint,Customer ticket: no data in building lobby,Indoor DAS not broadcasting n78 SSB on sector 2,Activated secondary SSB and verified RSRP > -95 dBm,Closed,Low

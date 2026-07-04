@@ -21,7 +21,15 @@ from tnic.services.health_scoring import compute_health_score  # noqa: E402
 from tnic.services.incidents import load_incidents  # noqa: E402
 from tnic.services.pm_ingestion import aggregate_cell_kpis, ingest_pm_csv  # noqa: E402
 
-API_URL = os.environ.get("TNIC_API_URL", "http://localhost:8000/api/v1")
+def _resolve_api_url(raw: str | None) -> str:
+    """Build API base URL from full URL or Render host-only service reference."""
+    value = (raw or "http://localhost:8000/api/v1").strip().rstrip("/")
+    if value.startswith("http://") or value.startswith("https://"):
+        return value if value.endswith("/api/v1") else f"{value}/api/v1"
+    return f"https://{value}/api/v1"
+
+
+API_URL = _resolve_api_url(os.environ.get("TNIC_API_URL"))
 DATA = ROOT / "data"
 PM_FILE = DATA / "pm_counters.csv"
 ORCH = MasterRCAOrchestrator()

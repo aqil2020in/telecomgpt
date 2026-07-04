@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     app_name: str = "XYZ Network Intelligence Copilot"
     app_env: str = "development"
     log_level: str = "INFO"
+    api_prefix: str = "/api/v1"
 
     openai_api_key: str = ""
     openai_model: str = "gpt-4o-mini"
