@@ -58,6 +58,38 @@ Run the Master RCA Orchestrator across specialist agents.
 
 ---
 
+## RF Coverage (`/coverage`)
+
+Geospatial drive-test analysis using `enhanced_geospatial_rf_dataset.csv`.
+
+### `POST /api/v1/analyze-coverage`
+
+Run RF Coverage Agent for a cell. Writes `coverage_summary.json` and `coverage_hotspots.csv` when `write_outputs=true`.
+
+**Request**
+```json
+{
+  "cell_id": "XYZ401",
+  "query": "",
+  "radius_miles": 3.0,
+  "write_outputs": true
+}
+```
+
+**Response fields:** `cell_id`, `coverage_score`, `primary_issue`, `secondary_issue`, `confidence`, `recommendation`, `issue_counts`, `metrics`, `impacts`.
+
+### `GET /api/v1/coverage-summary`
+
+Return per-cell summary (`?cell_id=XYZ401`) or full multi-cell JSON artifact.
+
+### `GET /api/v1/coverage-hotspots`
+
+Return geospatial hotspot records. Query params: `cell_id`, `limit` (default 100).
+
+**Hotspot types:** `coverage_hole`, `weak_coverage`, `interference`, `low_sinr`, `high_bler`, `low_throughput`, `latency_hotspot`, `beam_coverage_gap`, `cell_edge`.
+
+---
+
 ## Health scoring
 
 ### `POST /api/v1/health-score/cell`
@@ -123,6 +155,7 @@ Bundled CSV datasets drive KPI calculation for all RCA agents.
 | `rach_events.csv` | RACH MSG1–MSG4 outcomes |
 | `call_drop_events.csv` | Call drops by type (Mobility, Radio, Core, IMS) |
 | `throughput_metrics.csv` | Throughput samples with CQI, PRB util, issue tag |
+| `enhanced_geospatial_rf_dataset.csv` | Geospatial drive test — RSRP, SINR, beam, lat/lon (RF Coverage Agent) |
 
 Set `TNIC_DATASETS_DIR` to override the dataset directory (default: `data/datasets/`).
 
@@ -162,6 +195,10 @@ List all cell IDs across datasets.
 | rach | rach, beamforming, pm |
 | latency | latency, transport, core |
 | rlf | rlf, handover, call_drop, pm |
+| rf_coverage | rf_coverage, rlf, handover, call_drop, rach, throughput, beamforming, complaint |
+| complaint | complaint, handover, throughput, call_drop, rf_coverage |
+
+**Coverage correlation:** When coverage issues are detected, `master_rca.py` adds cross-domain findings (Coverage Hole → HO Failure, RLF, Call Drops, RACH Failure, Throughput Degradation, Customer Complaints).
 
 ---
 

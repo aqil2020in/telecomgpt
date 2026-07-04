@@ -73,7 +73,7 @@ flowchart TB
 | **UI (TNIC standalone)** | `xyz_tnic/dashboard/app.py` | Streamlit RCA dashboard — Docker/local |
 | **UI (analytics)** | `analytics/app.py` | CSV/log charts — optional |
 | **API + brain** | Render 2GB | FastAPI · LangGraph + TNIC + dataset APIs |
-| **TNIC RCA** | `backend/tnic/` | 12 rule agents + Master RCA Orchestrator |
+| **TNIC RCA** | `backend/tnic/` | 13 rule agents + Master RCA Orchestrator |
 | **Dataset layer** | `backend/tnic/datasets/` | Loaders · validation · KPI merge from 6 CSVs |
 | **LLM** | OpenAI | Synthesizer agent; optional TNIC narrative reports |
 
@@ -175,9 +175,9 @@ flowchart TB
     OUT --> META["agents_run · issue_type\nhealth_score → UI trace"]
 ```
 
-### 3.2 Specialist agents (12 + orchestrator)
+### 3.2 Specialist agents (13 + orchestrator)
 
-| Registry key | Agent | Rule module |
+| Registry key | Agent | Rule module / data source |
 | --- | --- | --- |
 | `handover` | `ho_agent` | `rules/ho_rules.py` |
 | `rlf` | `rlf_agent` | `rules/rlf_rules.py` |
@@ -186,11 +186,13 @@ flowchart TB
 | `rach` | `rach_agent` | `rules/rach_rules.py` |
 | `beamforming` | `beamforming_agent` | `rules/beamforming_rules.py` |
 | `latency` | `latency_agent` | `rules/latency_rules.py` |
+| `rf_coverage` | `rf_coverage_agent` | `backend/agents/rf_coverage_agent.py` + geospatial CSV |
 | `pm` | `pm_agent` | `services/pm_ingestion.py` |
 | `transport` | `transport_agent` | inline KPI rules |
 | `core` | `core_agent` | inline KPI rules |
 | `complaint` | `complaint_agent` | query triage |
 | — | **MasterRCAOrchestrator** | `orchestrator/rca_orchestrator.py` |
+| — | **Coverage correlation** | `orchestrator/master_rca.py` |
 
 **Module:** `backend/tnic/agents/specialists.py` → `AGENT_REGISTRY`
 
@@ -207,7 +209,20 @@ flowchart TB
 | `beamforming` | beamforming, throughput, call_drop |
 | `transport` | transport, latency, throughput |
 | `core` | core, latency, call_drop |
-| `complaint` | complaint, handover, throughput, call_drop |
+| `complaint` | complaint, handover, throughput, call_drop, rf_coverage |
+| `rf_coverage` | rf_coverage, rlf, handover, call_drop, rach, throughput, beamforming, complaint |
+| `coverage` | rf_coverage, rlf, handover, call_drop, rach, throughput, beamforming |
+
+### 3.3.1 Coverage correlation (Master RCA)
+
+When RF coverage is detected, `orchestrator/master_rca.py` injects cross-domain findings:
+
+| Primary coverage issue | Correlated impacts |
+| --- | --- |
+| Coverage Hole / Weak Coverage | HO Failure, RLF, Call Drops, RACH Failure, Throughput Degradation, Customer Complaints |
+| Beam Coverage Gap | Beam Congestion, Throughput Degradation, HO Failure |
+
+**Module:** `enrich_rca_with_coverage()` — called from `MasterRCAOrchestrator` when query mentions coverage or `cell_id` is present.
 
 ### 3.4 TNIC integration points
 
@@ -281,6 +296,46 @@ flowchart LR
 | `throughput_metrics.csv` | `throughput_mbps`, `prb_utilization`, issue tags |
 
 **Override path:** set env `TNIC_DATASETS_DIR` or upload session CSV via `POST /api/upload`.
+
+### 3.9 RF Coverage Agent — geospatial drive-test layer
+
+Seventh domain dataset: **`enhanced_geospatial_rf_dataset.csv`** (~2000 rows, 3-mile Dallas SITE01 drive test).
+
+```mermaid
+flowchart TB
+    CSV["enhanced_geospatial_rf_dataset.csv\nRSRP · SINR · beam · lat/lon"] --> AGENT["RFCoverageAgent\nbackend/agents/rf_coverage_agent.py"]
+    AGENT --> RULES["Telecom rules\nhole · weak · interference · BLER · TP · latency · beam"]
+    AGENT --> SCORE["CoverageScoreCalculator\n35% RSRP + 25% SINR + 15% TP + 15% BLER + 10% latency"]
+    AGENT --> HOT["Hotspot detectors\ncoverage_holes · interference · cell_edge · latency"]
+    SCORE --> SUM["coverage_summary.json\nper-cell score · primary/secondary issue"]
+    HOT --> HSVC["coverage_hotspots.csv"]
+    AGENT --> MRCA["master_rca.py\nenrich_rca_with_coverage()"]
+    MRCA --> ORCH["MasterRCAOrchestrator\nHO · RLF · drops · RACH · TP · complaints"]
+    AGENT --> API["POST /analyze-coverage\nGET /coverage-summary\nGET /coverage-hotspots"]
+    AGENT --> DASH["Streamlit RF_Coverage.py\nPlotly RSRP/SINR/hole/beam maps"]
+```
+
+| Telecom rule | Threshold | Issue code |
+| --- | --- | --- |
+| Coverage hole | RSRP ≤ -115 dBm | `COVERAGE_HOLE` |
+| Weak coverage | RSRP ≤ -105 dBm | `WEAK_COVERAGE` |
+| Interference | SINR ≤ -5 dB | `INTERFERENCE` |
+| High BLER | BLER DL > 10% | `HIGH_BLER` |
+| Low throughput | DL TP < 100 Mbps | `LOW_THROUGHPUT` |
+| Latency hotspot | latency > 80 ms | `LATENCY_HOTSPOT` |
+| Beam gap | beam_health < 35 or PRB > 75% | `BEAM_COVERAGE_GAP` |
+
+**Demo cell XYZ401:** Primary = Coverage Deficiency · Secondary = Beam Congestion · Score = 52 · Confidence = 94%.
+
+**Key modules:**
+
+| Module | Role |
+| --- | --- |
+| `backend/agents/rf_coverage_agent.py` | Core agent — rules, scoring, hotspots, JSON/CSV artifacts |
+| `backend/tnic/orchestrator/master_rca.py` | Coverage → cross-domain RCA correlation |
+| `backend/tnic/api/routes/coverage.py` | REST endpoints |
+| `xyz_tnic/dashboard/pages/RF_Coverage.py` | Plotly geospatial dashboard |
+| `backend/tnic/services/coverage_optimizer.py` | 3-mile drive-route optimizer (Google Maps page) |
 
 ### 3.6 Two `specialists.py` files (do not confuse)
 
@@ -402,8 +457,9 @@ flowchart TB
     subgraph TNIC["TNIC layer — fault_analysis"]
         BR[bridge.py]
         ORCH[MasterRCAOrchestrator]
-        AG12["12 rule agents"]
+        AG13["13 rule agents\n+ rf_coverage"]
         KPI[kpi_service]
+        COV[rf_coverage_agent]
     end
 
     subgraph Retrieval["Retrieval agents"]
@@ -417,7 +473,8 @@ flowchart TB
     FA --> BR
     BR --> KPI
     KPI --> ORCH
-    ORCH --> AG12
+    ORCH --> AG13
+    COV --> ORCH
     AG12 --> SYN
     Retrieval --> SYN
     SYN --> VER
@@ -522,7 +579,7 @@ flowchart LR
 ├─────────────────────────────────────────────────────────────┤
 │  ORCHESTRATION   LangGraph — plan · guardrails · parallel   │
 ├─────────────────────────────────────────────────────────────┤
-│  TNIC RCA        12 agents + MasterRCAOrchestrator          │
+│  TNIC RCA        13 agents + MasterRCAOrchestrator + master_rca │
 ├─────────────────────────────────────────────────────────────┤
 │  DATASET LAYER   loaders · validation · KPI merge (6 CSVs)  │
 ├─────────────────────────────────────────────────────────────┤
@@ -562,6 +619,9 @@ flowchart LR
 | `GET /api/datasets/validate-all` | Validate all dataset files |
 | `POST /api/upload` | Session CSV/log upload (overrides dataset KPIs) |
 | `GET /api/rf/coverage-optimizer` | Coverage optimizer with map artifacts |
+| `POST /api/v1/analyze-coverage` | RF Coverage Agent — per-cell geospatial analysis (TNIC) |
+| `GET /api/v1/coverage-summary` | Per-cell or full `coverage_summary.json` (TNIC) |
+| `GET /api/v1/coverage-hotspots` | Geospatial hotspot records (TNIC) |
 | `GET /api/fault/rrc-harq` | RRC/HARQ fault catalog (non-TNIC path) |
 | `GET /api/health` | Liveness + memory/vector flags |
 
@@ -657,6 +717,7 @@ flowchart LR
 | #4 | TNIC unified into TelecomGPT | Deployed |
 | #5 | TNIC agent trace + UI branding cleanup | Deployed |
 | #6 | Standalone `xyz_tnic/` + telecom datasets | Deployed |
+| #20 | RF Coverage Agent — geospatial rules, APIs, Plotly dashboard, Master RCA correlation | Deployed |
 
 **Repo layout after merge:**
 
@@ -664,7 +725,8 @@ flowchart LR
 telecomgpt/
 ├── frontend/          → Vercel
 ├── backend/           → Render (app.py)
-│   └── tnic/          → RCA engine + datasets
-├── datasets/          → 6 telecom CSVs
+│   ├── agents/        → RF Coverage Agent (geospatial rules)
+│   └── tnic/          → RCA engine + datasets + master_rca
+├── datasets/          → 6 telecom CSVs + enhanced_geospatial_rf_dataset.csv
 └── xyz_tnic/          → standalone TNIC project
 ```

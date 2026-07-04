@@ -10,14 +10,14 @@ Python 3.12 · FastAPI · OpenAI · ChromaDB · PostgreSQL · Streamlit · Docke
 
 | Component | Description |
 |-----------|-------------|
-| **12 specialist agents** | Handover, RLF, Call Drop, Throughput, RACH, Beamforming, Latency, PM Validation, Transport, Core, Complaint + Master Orchestrator |
+| **13 specialist agents** | Handover, RLF, Call Drop, Throughput, RACH, Beamforming, Latency, **RF Coverage**, PM Validation, Transport, Core, Complaint + Master Orchestrator |
 | **Rule engines** | KPI threshold rules per domain (3GPP-aligned counters) |
 | **Health score engine** | 8-dimension weighted cell health (A–D grade) |
 | **RAG knowledge base** | Markdown playbooks + JSON guides, ChromaDB with BM25 fallback |
 | **OpenAI reports** | Narrative RCA when `OPENAI_API_KEY` is set |
 | **PM ingestion** | CSV counter ingest + KPI validation |
 | **Incident library** | Sample telecom incident dataset |
-| **Streamlit dashboard** | RCA, health, PM, incidents UI |
+| **Streamlit dashboard** | RCA, health, PM, incidents, **RF Coverage Plotly maps** |
 | **REST API** | Full `/api/v1` surface with OpenAPI docs |
 
 ---
@@ -26,6 +26,8 @@ Python 3.12 · FastAPI · OpenAI · ChromaDB · PostgreSQL · Streamlit · Docke
 
 ```
 xyz_tnic/
+├── agents/                     # RF Coverage Agent (geospatial rules)
+│   └── rf_coverage_agent.py
 ├── tnic/                       # Python package
 │   ├── main.py                 # FastAPI app entrypoint
 │   ├── config.py               # Settings (.env)
@@ -33,9 +35,11 @@ xyz_tnic/
 │   ├── logging_config.py       # Structured logging
 │   ├── agents/
 │   │   ├── base.py             # BaseAgent + kpi_to_dict
-│   │   └── specialists.py      # 12 agents + AGENT_REGISTRY
+│   │   ├── rf_coverage_agent.py # Re-export from agents/
+│   │   └── specialists.py      # 13 agents + AGENT_REGISTRY
 │   ├── orchestrator/
 │   │   ├── rca_orchestrator.py # MasterRCAOrchestrator
+│   │   ├── master_rca.py       # Coverage correlation (HO/RLF/drops/RACH/TP)
 │   │   └── knowledge_graph.py  # RCA knowledge graph
 │   ├── rules/                  # Per-domain rule engines
 │   ├── services/
@@ -46,14 +50,16 @@ xyz_tnic/
 │   ├── datasets/               # Loaders, validation, KPI merge service
 │   ├── rag/retriever.py        # ChromaDB + fallback search
 │   ├── models/schemas.py       # Pydantic models
-│   ├── api/routes/             # FastAPI routers
+│   ├── api/routes/             # FastAPI routers (analyze, coverage, datasets, …)
 │   └── db/                     # SQLAlchemy + schema.sql
-├── dashboard/app.py            # Streamlit UI
+├── dashboard/
+│   ├── app.py                  # Executive summary home
+│   └── pages/                  # Handover, RLF, Call Drops, RACH, Throughput, Beamforming, RCA, RF Coverage
 ├── scripts/ingest_chroma.py    # ChromaDB ingestion CLI
 ├── data/
 │   ├── pm_counters.csv         # Sample PM counters
 │   ├── incidents.csv           # Sample telecom incidents
-│   ├── datasets/               # Telecom RCA datasets (6 CSVs)
+│   ├── datasets/               # Telecom RCA datasets (6 CSVs + geospatial RF)
 │   └── knowledge/              # RCA markdown playbooks
 ├── datasets/                   # Canonical dataset copies (repo root symlink target)
 ├── tests/                      # pytest suite
