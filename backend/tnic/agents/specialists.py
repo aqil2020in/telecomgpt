@@ -10,6 +10,7 @@ from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
 from tnic.rules.call_drop_rules import CALL_DROP_RULE_ENGINE
 from tnic.rules.ho_rules import HO_RULE_ENGINE
+from tnic.agents.latency_agent import LatencyAgent as _LatencyCore
 from tnic.rules.latency_rules import LATENCY_RULE_ENGINE
 from tnic.rules.rach_rules import RACH_RULE_ENGINE
 from tnic.rules.rlf_rules import RLF_RULE_ENGINE
@@ -60,9 +61,75 @@ class BeamformingAgent(_RuleAgent):
         super().__init__("beamforming_agent", BEAMFORMING_RULE_ENGINE)
 
 
-class LatencyAgent(_RuleAgent):
-    def __init__(self):
-        super().__init__("latency_agent", LATENCY_RULE_ENGINE)
+_LATENCY_ACTIONS: dict[str, list[str]] = {
+    "BACKHAUL_CONGESTION": [
+        "Upgrade N3/F1 backhaul capacity",
+        "Enable transport QoS and traffic shaping",
+    ],
+    "UPF_OVERLOAD": [
+        "Rebalance UPF cluster sessions",
+        "Scale UPF pods or add compute",
+    ],
+    "TRANSPORT_ISSUE": [
+        "Check Xn/N3 packet loss and jitter",
+        "Verify MTU, routing, and peering on N6",
+    ],
+    "RF_RETRANSMISSION": [
+        "Reduce BLER — tune power and MCS",
+        "Review HARQ max retx and scheduling priority",
+    ],
+}
+
+
+class LatencyAgent(BaseAgent):
+    name = "latency_agent"
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        data = kpi_to_dict(kpis)
+        cell_id = data.get("cell_id")
+        core = _LatencyCore()
+        if cell_id or _has_latency_kpis(data):
+            diagnosis = core.analyze_kpis(data, query=query)
+            return self._diagnosis_to_result(diagnosis)
+
+        findings = LATENCY_RULE_ENGINE.evaluate(data)
+        summary = f"{self.name}: {len(findings)} rule(s) fired."
+        if findings:
+            summary += f" Top: {findings[0]['probable_cause'][:80]}"
+        return self._findings_to_result(findings, summary)
+
+    def _diagnosis_to_result(self, diagnosis) -> AgentResult:
+        if diagnosis.issue_class in {"No Data", "No Issue"}:
+            return self._findings_to_result(
+                [],
+                f"{self.name}: {diagnosis.root_cause}",
+            )
+
+        code = (diagnosis.evidence or {}).get("issue_code", "TRANSPORT_ISSUE")
+        findings = [{
+            "rule_id": f"latency_{code.lower()}",
+            "category": "latency",
+            "probable_cause": diagnosis.root_cause,
+            "confidence": diagnosis.confidence,
+            "evidence": {
+                **(diagnosis.metrics or {}),
+                **(diagnosis.evidence or {}),
+            },
+            "recommended_actions": _LATENCY_ACTIONS.get(code, []),
+        }]
+        summary = (
+            f"{self.name}: {diagnosis.issue_class} "
+            f"(confidence {diagnosis.confidence:.0%})."
+        )
+        return self._findings_to_result(findings, summary)
+
+
+def _has_latency_kpis(data: dict[str, Any]) -> bool:
+    keys = (
+        "air_latency_ms", "transport_latency_ms", "upf_latency_ms",
+        "internet_latency_ms", "latency_ms", "n6_latency_ms",
+    )
+    return any(data.get(k) is not None for k in keys)
 
 
 class PMAgent(BaseAgent):
