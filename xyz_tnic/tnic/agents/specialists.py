@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from tnic.agents.base import BaseAgent, kpi_to_dict
+from tnic.agents.rlf_agent import RLFAgent as RLFFailureAgent
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
@@ -35,9 +36,43 @@ class HOAgent(_RuleAgent):
         super().__init__("ho_agent", HO_RULE_ENGINE)
 
 
-class RLFAgent(_RuleAgent):
+class RLFAgent(BaseAgent):
+    name = "rlf_agent"
+
     def __init__(self):
-        super().__init__("rlf_agent", RLF_RULE_ENGINE)
+        self._failure_agent = RLFFailureAgent()
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        data = kpi_to_dict(kpis)
+        diagnosis = self._failure_agent.analyze_kpis(data, query=query)
+        findings: list[dict[str, Any]] = []
+        if diagnosis.rlf_type not in ("No Data", "No RLF"):
+            findings.append({
+                "rule_id": f"rlf_{diagnosis.evidence.get('rlf_code', 'detected').lower() if diagnosis.evidence else 'detected'}",
+                "category": "rlf",
+                "probable_cause": f"{diagnosis.rlf_type}: {diagnosis.root_cause}",
+                "confidence": diagnosis.confidence,
+                "evidence": diagnosis.evidence or {},
+                "recommended_actions": _rlf_actions(diagnosis.evidence.get("rlf_code") if diagnosis.evidence else None),
+            })
+        legacy = RLF_RULE_ENGINE.evaluate(data)
+        seen = {f["probable_cause"][:60] for f in findings}
+        for f in legacy:
+            if f["probable_cause"][:60] not in seen:
+                findings.append(f)
+        findings.sort(key=lambda x: x["confidence"], reverse=True)
+        summary = f"{self.name}: {diagnosis.rlf_type} (confidence {diagnosis.confidence:.2f})"
+        return self._findings_to_result(findings, summary)
+
+
+def _rlf_actions(code: str | None) -> list[str]:
+    actions = {
+        "COVERAGE_HOLE": ["Coverage audit on RLF cluster", "Consider small cell or tilt optimization"],
+        "INTERFERENCE": ["Identify dominant interferer PCI", "Run PCI/RF interference scan"],
+        "POST_HO_RLF": ["Audit target cell RF post-HO", "Tune HO margins and A3 offset"],
+        "RADIO_FAILURE": ["Review N310/N311 counters in UE log", "Check DL quality at RLF geography"],
+    }
+    return actions.get(code or "", ["Review rlf_events.csv and UE sync timers"])
 
 
 class CallDropAgent(_RuleAgent):
