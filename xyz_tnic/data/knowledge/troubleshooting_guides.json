@@ -1,0 +1,47 @@
+{
+  "version": "1.0",
+  "documents": [
+    {
+      "id": "ho_playbook_1",
+      "title": "Handover Preparation Failure Playbook",
+      "category": "handover",
+      "text": "When HO preparation failure rate exceeds 5%, verify Xn interface connectivity between source and target gNB. Check neighbor relation exists for target PCI. Review hoPrepTimer and ensure target cell is not barred. Compare source RSRP vs target RSRP at HO decision — target should be at least 3 dB stronger for A3 events."
+    },
+    {
+      "id": "rlf_playbook_1",
+      "title": "RLF After Handover",
+      "category": "rlf",
+      "text": "RLF clusters after handover indicate target cell cannot sustain the connection. Audit post-HO SINR for 5 seconds. Check if too-late HO caused RLF before reestablishment. Review N310/N311 counters and out-of-sync events in UE log."
+    },
+    {
+      "id": "tput_playbook_1",
+      "title": "Low Throughput — CQI and BLER",
+      "category": "throughput",
+      "text": "When CQI average below 8 and DL BLER above 10%, throughput is radio-limited. Check RI distribution — rank-1 stuck indicates MIMO calibration issue. Verify no dominant interferer on same band. Recalibrate AAU and adjust electrical tilt by 1 degree increments."
+    },
+    {
+      "id": "rach_playbook_1",
+      "title": "RACH MSG3 Failures",
+      "category": "rach",
+      "text": "MSG3 failures often indicate timing advance misalignment or PRACH occasion collision. Verify prach-ConfigurationIndex matches band and SCS. Check for co-channel neighbor causing PRACH interference on same PCI group."
+    },
+    {
+      "id": "beam_playbook_1",
+      "title": "Beam Failure Ratio High",
+      "category": "beamforming",
+      "text": "Beam failure ratio above 30% correlates with call drops and RACH failures. Review beam management timers, SSB-RSRP hysteresis, and beam weight configuration. Run beam health audit on massive MIMO array."
+    },
+    {
+      "id": "latency_playbook_1",
+      "title": "UPF Latency Spike",
+      "category": "latency",
+      "text": "UPF latency spikes during peak hours often indicate cluster load imbalance. Check UPF CPU and session count on cluster nodes. Verify 5QI mapping — GBR flows incorrectly mapped to non-GBR 5QI will violate latency SLA."
+    },
+    {
+      "id": "core_playbook_1",
+      "title": "AMF Release Investigation",
+      "category": "core",
+      "text": "When RAN RF is healthy but drops persist, investigate AMF-initiated release. Check 5GMM cause codes in NAS log. Verify PDU session state and subscription profile for affected DNN and S-NSSAI."
+    }
+  ]
+}

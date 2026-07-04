@@ -1,0 +1,51 @@
+services:
+  api:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      TNIC_ENABLE_CHROMA: "1"
+      DATABASE_URL: postgresql+psycopg2://tnic:tnic@postgres:5432/tnic
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "python scripts/ingest_chroma.py --query 'handover' &&
+             uvicorn tnic.main:app --host 0.0.0.0 --port 8000"
+
+  dashboard:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    environment:
+      TNIC_API_URL: http://api:8000/api/v1
+    volumes:
+      - ./data:/app/data
+    depends_on:
+      - api
+    command: streamlit run dashboard/app.py --server.port 8501 --server.address 0.0.0.0
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: tnic
+      POSTGRES_PASSWORD: tnic
+      POSTGRES_DB: tnic
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tnic"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:

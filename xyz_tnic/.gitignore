@@ -1,0 +1,9 @@
+data/chroma/
+data/*.db
+data/_upload_pm.csv
+.env
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/

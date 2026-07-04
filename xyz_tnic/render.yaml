@@ -1,0 +1,36 @@
+services:
+  - type: web
+    name: xyz-tnic-api
+    runtime: docker
+    plan: starter
+    rootDir: xyz_tnic
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /api/v1/health
+    envVars:
+      - key: APP_ENV
+        value: production
+      - key: TNIC_ENABLE_CHROMA
+        value: "1"
+      - key: LOG_LEVEL
+        value: INFO
+      - key: OPENAI_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+
+  - type: web
+    name: xyz-tnic-dashboard
+    runtime: docker
+    plan: starter
+    rootDir: xyz_tnic
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    dockerCommand: streamlit run dashboard/app.py --server.port $PORT --server.address 0.0.0.0
+    envVars:
+      - key: TNIC_API_URL
+        fromService:
+          type: web
+          name: xyz-tnic-api
+          property: host
+        # Render injects full URL via manual TNIC_API_URL in dashboard service settings
