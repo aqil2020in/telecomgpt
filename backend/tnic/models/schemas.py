@@ -81,6 +81,39 @@ class KnowledgeGraph(BaseModel):
     edges: list[KnowledgeGraphEdge] = Field(default_factory=list)
 
 
+class RCANarrativeReport(BaseModel):
+    """Structured OpenAI RCA narrator output."""
+
+    executive_summary: str
+    root_cause: str
+    evidence: list[str] = Field(default_factory=list)
+    recommendations: list[str] = Field(default_factory=list)
+    confidence: float = Field(ge=0.0, le=1.0)
+    source: str = "template"
+
+    def to_markdown(self) -> str:
+        lines = [
+            "## Executive Summary",
+            self.executive_summary,
+            "",
+            "## Root Cause",
+            self.root_cause,
+            "",
+            "## Evidence",
+        ]
+        for item in self.evidence:
+            lines.append(f"- {item}")
+        lines.extend(["", "## Recommendations"])
+        for i, rec in enumerate(self.recommendations, 1):
+            lines.append(f"{i}. {rec}")
+        lines.extend([
+            "",
+            "## Confidence",
+            f"**{int(round(self.confidence * 100))}%** overall RCA confidence",
+        ])
+        return "\n".join(lines)
+
+
 class RCAResponse(BaseModel):
     ok: bool = True
     issue_type: str
@@ -94,6 +127,7 @@ class RCAResponse(BaseModel):
     knowledge_graph: KnowledgeGraph | None = None
     rag_context: list[dict[str, str]] = Field(default_factory=list)
     narrative_report: str | None = None
+    narrative_structured: RCANarrativeReport | None = None
     timestamp: datetime = Field(default_factory=datetime.utcnow)
 
 

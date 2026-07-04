@@ -10,7 +10,7 @@ from tnic.models.schemas import AnalyzeRequest, KnowledgeGraph, KnowledgeGraphEd
 from tnic.orchestrator.knowledge_graph import build_knowledge_graph
 from tnic.rules import RULE_ENGINES, detect_issue_type
 from tnic.services.health_scoring import compute_health_score
-from tnic.services.report_generator import generate_narrative_report
+from tnic.services.report_generator import narrate_master_rca
 
 log = get_logger(__name__)
 
@@ -130,14 +130,22 @@ class MasterRCAOrchestrator:
         )
 
         narrative = None
+        narrative_structured = None
         if request.generate_report:
-            narrative = generate_narrative_report(
+            partial = RCAResponse(
                 issue_type=issue,
-                query=request.query,
+                query=request.query or request.complaint_text or "",
+                agents_run=agents_run,
                 findings=all_findings,
-                kpis=kpis,
+                probable_root_causes=probable,
+                recommended_actions=actions[:10],
+                validation_checklist=checklist,
+                health_score=health["overall_score"],
+                knowledge_graph=kg,
                 rag_context=rag_context or [],
             )
+            narrative_structured = narrate_master_rca(partial, kpis=kpis)
+            narrative = narrative_structured.to_markdown()
 
         return RCAResponse(
             issue_type=issue,
@@ -151,6 +159,7 @@ class MasterRCAOrchestrator:
             knowledge_graph=kg,
             rag_context=rag_context or [],
             narrative_report=narrative,
+            narrative_structured=narrative_structured,
         )
 
 
