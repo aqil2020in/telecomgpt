@@ -74,9 +74,11 @@ if analytics_router is not None:
 try:
     from tnic.api.routes.datasets import router as tnic_datasets_router
     from tnic.api.routes.analyze import router as tnic_analyze_router
+    from tnic.api.routes.upload import router as tnic_upload_router
 
     app.include_router(tnic_datasets_router, prefix="/api")
     app.include_router(tnic_analyze_router, prefix="/api/v1")
+    app.include_router(tnic_upload_router, prefix="/api/v1")
 except ImportError:
     pass
 

@@ -37,7 +37,7 @@ with st.sidebar:
     st.header("Navigation")
     st.info(
         "Pages: Handover · RLF · Call Drops · RACH · Throughput · Beamforming · "
-        "VoNR · ANR · Config Audit · gNB Syslog · Alarm · Assurance Hub · RCA Report"
+        "VoNR · ANR · Config Audit · gNB Syslog · Alarm · Assurance Hub · Upload · RCA Report"
     )
     st.session_state.selected_cell = st.selectbox(
         "Focus cell",

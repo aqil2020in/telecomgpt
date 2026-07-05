@@ -331,3 +331,77 @@ def worst_cells(n: int = 5) -> list[str]:
         if df.empty:
             return dataset_cells()[:n]
         return df.nsmallest(n, "health_score")["cell_id"].tolist()
+
+
+def ingest_upload_bytes(
+    filename: str,
+    content: bytes,
+    *,
+    api_base: str = "http://127.0.0.1:8000/api/v1",
+    cell_id: str | None = None,
+    ue_id: str | None = None,
+    query: str = "",
+    run_rca: bool = True,
+) -> dict[str, Any]:
+    """Upload file via API or local pipeline fallback."""
+    try:
+        if run_rca:
+            files = {"file": (filename, content)}
+            data = {"query": query, "generate_report": "false"}
+            if cell_id:
+                data["cell_id"] = cell_id
+            if ue_id:
+                data["ue_id"] = ue_id
+            r = requests.post(f"{api_base.rstrip('/')}/upload/rca", files=files, data=data, timeout=120)
+            r.raise_for_status()
+            return r.json()
+        files = {"file": (filename, content)}
+        r = requests.post(f"{api_base.rstrip('/')}/upload", files=files, timeout=120)
+        r.raise_for_status()
+        return {"ingest": r.json()}
+    except Exception:
+        from tnic.services.dynamic_rca import ingest_and_run_rca
+        from tnic.services.ingest_pipeline import ingest_uploaded_bytes
+
+        if run_rca:
+            result = ingest_and_run_rca(
+                filename, content, cell_id=cell_id, ue_id=ue_id, query=query,
+            )
+            return result.model_dump()
+        ingest = ingest_uploaded_bytes(filename, content)
+        return {"ingest": ingest.model_dump()}
+
+
+def list_upload_history(*, api_base: str = "http://127.0.0.1:8000/api/v1", limit: int = 20) -> list[dict[str, Any]]:
+    try:
+        r = requests.get(f"{api_base.rstrip('/')}/uploads", params={"limit": limit}, timeout=30)
+        r.raise_for_status()
+        return r.json().get("uploads", [])
+    except Exception:
+        from tnic.services.event_repository import list_uploads
+        return [u.model_dump() for u in list_uploads(limit=limit)]
+
+
+def run_upload_rca(
+    upload_id: str,
+    *,
+    api_base: str = "http://127.0.0.1:8000/api/v1",
+    cell_id: str | None = None,
+    ue_id: str | None = None,
+    query: str = "",
+    workflow: str = "historical",
+) -> dict[str, Any]:
+    try:
+        params: dict[str, str] = {"query": query, "workflow": workflow}
+        if cell_id:
+            params["cell_id"] = cell_id
+        if ue_id:
+            params["ue_id"] = ue_id
+        r = requests.post(f"{api_base.rstrip('/')}/upload/{upload_id}/rca", params=params, timeout=120)
+        r.raise_for_status()
+        return r.json()
+    except Exception:
+        from tnic.services.dynamic_rca import run_dynamic_rca
+        return run_dynamic_rca(
+            upload_id, cell_id=cell_id, ue_id=ue_id, query=query, workflow=workflow,
+        ).model_dump()
