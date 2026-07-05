@@ -47,6 +47,17 @@ def test_ho_agent_fires_on_low_ho_success(degraded_kpis):
     assert isinstance(result.findings, list)
 
 
+def test_ho_agent_fires_on_enriched_dataset_kpis():
+    """HO agent on real enriched handover KPIs (XYZ401 demo cell)."""
+    from tnic.datasets.kpi_service import compute_cell_kpis
+
+    kpis = compute_cell_kpis("XYZ401").kpis
+    result = HOAgent().analyze(kpis, query="handover failure cell XYZ401")
+    assert result.agent == "ho_agent"
+    rule_ids = {f.rule_id for f in result.findings}
+    assert rule_ids, "expected at least one HO rule on enriched XYZ401 KPIs"
+
+
 def test_rlf_agent_runs(degraded_kpis):
     result = RLFAgent().analyze(degraded_kpis, query="radio link failure")
     assert result.agent == "rlf_agent"

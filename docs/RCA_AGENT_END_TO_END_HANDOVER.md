@@ -191,17 +191,20 @@ handover → rlf → pm → latency → transport → anr → gnb_syslog → ala
 |---------|----------|
 | API | `POST /api/v1/analyze/handover` · `POST /api/v1/analyze-ho` |
 | Dashboard | `xyz_tnic/dashboard/pages/2_Handover.py` |
-| Tests | `xyz_tnic/tests/test_agents.py` · `test_orchestrator.py` |
+| Enrichment | `tnic/datasets/handover_enrichment.py` → `handover_events_enriched.csv` |
+| Tests | `tests/test_handover_enrichment.py` (transformation + RCA agent) · `test_agents.py` |
 
 **Run tests:**
 
 ```bash
-cd xyz_tnic && pytest tests/test_agents.py tests/test_orchestrator.py -q
+cd xyz_tnic && pytest tests/test_handover_enrichment.py tests/test_agents.py tests/test_agent_fixes.py -q
 ```
 
 ---
 
 ## Part 3 — Handover Rules Reference
+
+**18 HO rules** (11 classic + 7 enriched-scenario rules):
 
 | Rule ID | Fires when | Confidence | First actions |
 |---------|-----------|------------|---------------|
@@ -216,6 +219,13 @@ cd xyz_tnic && pytest tests/test_agents.py tests/test_orchestrator.py -q
 | `ho_weak_target_rf` | target RSRP < -110 dBm | 0.80 | Close coverage gap; adjust mobility thresholds |
 | `ho_missing_neighbor` | neighbors < 3 AND prep fail > 3% | 0.81 | Add NCR via ANR; validate allow-list |
 | `ho_pci_collision` | PCI conflicts > 0 | 0.79 | PCI replan; ANR PCI correction |
+| `ho_post_ho_rlf` | post-HO RLF rate > 3% | 0.81 | Review HO corridor RF; audit T310 |
+| `ho_coverage_induced` | coverage-induced rate > 5% or target RSRP < -110 | 0.80 | Close coverage gap; adjust A3/A5 |
+| `ho_interference_induced` | interference rate > 4% or SINR < 0 | 0.77 | PCI/ICIC review; interference hunt |
+| `ho_beam_instability` | beam instability rate > 3% | 0.74 | Review SSB beam set |
+| `ho_mobility_config` | mobility config rate > 8% | 0.75 | Audit A3/hysteresis/TTT |
+| `ho_xn_transport` | Xn transport rate > 2% or mean latency > 80 ms | 0.79 | Check Xn/SCTP; packet loss |
+| `ho_missing_neighbor_enriched` | missing-neighbor rate > 2% | 0.82 | Add NCR; NCL audit |
 
 **Scoring:** Fixed per-rule confidence. Orchestrator adds +0.10 when finding category matches primary issue (mobility).
 
@@ -391,7 +401,9 @@ flowchart LR
 
 | File | Purpose |
 |------|---------|
-| `datasets/handover_events.csv` | Primary HO event data |
+| `datasets/handover_events.csv` | Primary HO event data (legacy 5 columns) |
+| `datasets/handover_events_enriched.csv` | RCA-ready enriched events (33 columns) |
+| `tnic/datasets/handover_enrichment.py` | Transformation layer + KPI aggregation |
 | `datasets/registry.py` | Dataset registration |
 | `datasets/loaders.py` | `load_handover_events()` |
 | `datasets/kpi_service.py` | `_kpis_from_handover()` |
@@ -406,7 +418,8 @@ flowchart LR
 | `orchestrator/workflow_registry.py` | Industry workflows |
 | `api/routes/analyze.py` | REST endpoints |
 | `dashboard/pages/2_Handover.py` | Streamlit HO page |
-| `tests/test_agents.py` | Unit tests |
+| `tests/test_handover_enrichment.py` | Enrichment + HO agent + Master RCA tests |
+| `tests/test_agents.py` | Unit tests including enriched HO agent |
 
 ---
 

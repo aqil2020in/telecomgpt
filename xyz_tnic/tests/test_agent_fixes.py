@@ -26,6 +26,10 @@ def test_handover_kpis_include_new_failure_rates():
     assert "ho_too_early_rate" in kpis
     assert "ho_xn_fail_rate" in kpis
     assert "ho_n2_fail_rate" in kpis
+    # Enriched handover layer KPIs
+    assert "ho_coverage_induced_rate" in kpis
+    assert "ho_post_ho_rlf_rate" in kpis
+    assert "ho_mobility_config_rate" in kpis
 
 
 def test_rlf_kpis_fixed():
