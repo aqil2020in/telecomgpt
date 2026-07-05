@@ -22,7 +22,7 @@ from tnic.datasets.models import (
     UEProtocolTraceRow,
     VonrSessionRow,
 )
-from tnic.datasets.registry import DatasetName, dataset_path
+from tnic.datasets.registry import DatasetName, dataset_path, datasets_dir, DATASET_FILES
 
 
 def _read_csv(name: DatasetName, path: Path | None = None) -> pd.DataFrame:
@@ -43,6 +43,25 @@ def load_pm_counters(path: str | None = None) -> pd.DataFrame:
 @lru_cache(maxsize=1)
 def load_handover_events(path: str | None = None) -> pd.DataFrame:
     return _read_csv(DatasetName.HANDOVER_EVENTS, Path(path) if path else None)
+
+
+@lru_cache(maxsize=1)
+def load_handover_events_enriched(path: str | None = None) -> pd.DataFrame:
+    """RCA-ready handover events with derived mobility/RF/transport columns."""
+    if path:
+        df = pd.read_csv(path)
+        df.columns = [c.strip().lower() for c in df.columns]
+        return df
+    enriched_path = datasets_dir() / DATASET_FILES[DatasetName.HANDOVER_EVENTS_ENRICHED]
+    if enriched_path.exists():
+        df = pd.read_csv(enriched_path)
+        df.columns = [c.strip().lower() for c in df.columns]
+        if "timestamp" in df.columns:
+            df["timestamp"] = pd.to_datetime(df["timestamp"])
+        return df
+    from tnic.datasets.handover_enrichment import enrich_handover_events
+
+    return enrich_handover_events(load_handover_events())
 
 
 @lru_cache(maxsize=1)
@@ -178,6 +197,7 @@ def rows_as_models(name: DatasetName, limit: int = 100) -> list:
 def clear_loader_cache() -> None:
     load_pm_counters.cache_clear()
     load_handover_events.cache_clear()
+    load_handover_events_enriched.cache_clear()
     load_rlf_events.cache_clear()
     load_rach_events.cache_clear()
     load_call_drop_events.cache_clear()

@@ -14,6 +14,7 @@ from tnic.datasets.loaders import (
     load_cell_configuration,
     load_gnb_syslog,
     load_handover_events,
+    load_handover_events_enriched,
     load_neighbor_relations,
     load_pm_counters,
     load_rach_events,
@@ -64,17 +65,25 @@ def _kpis_from_pm(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
 
 
 def _kpis_from_handover(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
-    sub = df[df["cell_id"] == cell_id]
+    id_col = "source_cell" if "source_cell" in df.columns else "cell_id"
+    sub = df[df[id_col].astype(str) == str(cell_id)]
     if sub.empty:
         return {}
+    if "rca_scenarios" in sub.columns:
+        from tnic.datasets.handover_enrichment import aggregate_enriched_kpis
+
+        return aggregate_enriched_kpis(sub, cell_id)
     total = len(sub)
     counts = sub["failure_type"].value_counts()
     non_success = sub[sub["failure_type"] != "SUCCESS"]
-    target_rsrp = round(float(non_success["rsrp"].mean()), 2) if len(non_success) else None
+    rsrp_col = "serving_rsrp" if "serving_rsrp" in sub.columns else "rsrp"
+    target_rsrp = round(float(non_success["target_rsrp"].mean()), 2) if "target_rsrp" in sub.columns and len(non_success) else (
+        round(float(non_success[rsrp_col].mean()), 2) if len(non_success) else None
+    )
     return {
         "ho_success_rate": _safe_rate(float(counts.get("SUCCESS", 0)), total),
         "ho_prep_fail_rate": _safe_rate(float(counts.get("PREP_FAILURE", 0)), total),
-        "ho_exec_fail_rate": _safe_rate(float(counts.get("EXEC_FAILURE", 0)), total),
+        "ho_exec_fail_rate": _safe_rate(float(counts.get("EXEC_FAILURE", 0) + counts.get("WRONG_CELL", 0)), total),
         "ho_too_late_rate": _safe_rate(float(counts.get("TOO_LATE_HO", 0)), total),
         "ho_too_early_rate": _safe_rate(float(counts.get("TOO_EARLY_HO", 0)), total),
         "ho_ping_pong_rate": _safe_rate(float(counts.get("PING_PONG", 0)), total),
@@ -82,8 +91,8 @@ def _kpis_from_handover(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
         "ho_xn_fail_rate": _safe_rate(float(counts.get("XN_FAILURE", 0)), total),
         "ho_n2_fail_rate": _safe_rate(float(counts.get("N2_FAILURE", 0)), total),
         "target_rsrp": target_rsrp,
-        "ss_rsrp": round(float(sub["rsrp"].mean()), 2),
-        "ss_sinr": round(float(sub["sinr"].mean()), 2),
+        "ss_rsrp": round(float(sub[rsrp_col].mean()), 2),
+        "ss_sinr": round(float(sub["serving_sinr" if "serving_sinr" in sub.columns else "sinr"].mean()), 2),
         "ho_event_count": total,
     }
 
@@ -201,13 +210,13 @@ def compute_cell_kpis(cell_id: str) -> CellKPIs:
         merged.update(pm_k)
         sources.append("pm_counters")
 
-    ho = load_handover_events()
+    ho = load_handover_events_enriched()
     ho_k = _kpis_from_handover(ho, cell_id)
     if ho_k:
         for k, v in ho_k.items():
             if k not in merged or merged[k] is None:
                 merged[k] = v
-        sources.append("handover_events")
+        sources.append("handover_events_enriched")
 
     rlf = load_rlf_events()
     rlf_k = _kpis_from_rlf(rlf, cell_id)

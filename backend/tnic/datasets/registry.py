@@ -12,6 +12,7 @@ from tnic.config import get_settings
 class DatasetName(str, Enum):
     PM_COUNTERS = "pm_counters"
     HANDOVER_EVENTS = "handover_events"
+    HANDOVER_EVENTS_ENRICHED = "handover_events_enriched"
     RLF_EVENTS = "rlf_events"
     RACH_EVENTS = "rach_events"
     CALL_DROP_EVENTS = "call_drop_events"
@@ -29,6 +30,7 @@ class DatasetName(str, Enum):
 DATASET_FILES: dict[DatasetName, str] = {
     DatasetName.PM_COUNTERS: "pm_counters.csv",
     DatasetName.HANDOVER_EVENTS: "handover_events.csv",
+    DatasetName.HANDOVER_EVENTS_ENRICHED: "handover_events_enriched.csv",
     DatasetName.RLF_EVENTS: "rlf_events.csv",
     DatasetName.RACH_EVENTS: "rach_events.csv",
     DatasetName.CALL_DROP_EVENTS: "call_drop_events.csv",

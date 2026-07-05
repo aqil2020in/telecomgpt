@@ -154,9 +154,12 @@ def executive_summary_df() -> pd.DataFrame:
 
 
 def handover_df(cell_id: str | None = None) -> pd.DataFrame:
-    df = load_handover_events()
+    from tnic.datasets.loaders import load_handover_events_enriched
+
+    df = load_handover_events_enriched()
     if cell_id:
-        df = df[df["cell_id"] == cell_id]
+        col = "source_cell" if "source_cell" in df.columns else "cell_id"
+        df = df[df[col] == cell_id]
     return df
 
 
