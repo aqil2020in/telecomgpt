@@ -86,7 +86,7 @@ center_lon = float(cell_df["longitude"].mean())
 
 with tab1:
     st.subheader("RSRP Heatmap (dBm)")
-    fig_rsrp = px.density_mapbox(
+    fig_rsrp = px.density_map(
         cell_df,
         lat="latitude",
         lon="longitude",
@@ -94,7 +94,7 @@ with tab1:
         radius=18,
         center={"lat": center_lat, "lon": center_lon},
         zoom=12,
-        mapbox_style=map_style,
+        map_style=map_style,
         color_continuous_scale="RdYlGn_r",
         range_color=(-120, -70),
         title=f"RSRP — {cell_id if not show_all_cells else 'all cells'}",
@@ -104,7 +104,7 @@ with tab1:
 
 with tab2:
     st.subheader("SINR Heatmap (dB)")
-    fig_sinr = px.density_mapbox(
+    fig_sinr = px.density_map(
         cell_df,
         lat="latitude",
         lon="longitude",
@@ -112,7 +112,7 @@ with tab2:
         radius=18,
         center={"lat": center_lat, "lon": center_lon},
         zoom=12,
-        mapbox_style=map_style,
+        map_style=map_style,
         color_continuous_scale="Viridis",
         range_color=(-10, 25),
         title=f"SINR — {cell_id if not show_all_cells else 'all cells'}",
@@ -123,7 +123,7 @@ with tab2:
 with tab3:
     st.subheader("Coverage Hole Map")
     holes = detect_coverage_holes(cell_df)
-    fig_holes = px.scatter_mapbox(
+    fig_holes = px.scatter_map(
         cell_df,
         lat="latitude",
         lon="longitude",
@@ -131,13 +131,13 @@ with tab3:
         color_continuous_scale="RdYlGn_r",
         size_max=8,
         zoom=12,
-        mapbox_style=map_style,
+        map_style=map_style,
         title="All samples (colored by RSRP)",
         opacity=0.45,
     )
     if not holes.empty:
         fig_holes.add_trace(
-            go.Scattermapbox(
+            go.Scattermap(
                 lat=holes["latitude"],
                 lon=holes["longitude"],
                 mode="markers",
@@ -147,7 +147,7 @@ with tab3:
             )
         )
     fig_holes.update_layout(
-        mapbox={"center": {"lat": center_lat, "lon": center_lon}},
+        map={"center": {"lat": center_lat, "lon": center_lon}},
         margin={"l": 0, "r": 0, "t": 40, "b": 0},
         height=520,
         legend={"orientation": "h", "y": 1.02},
@@ -158,7 +158,7 @@ with tab3:
 with tab4:
     st.subheader("Beam Coverage Map")
     if "beam_id" in cell_df.columns:
-        fig_beam = px.scatter_mapbox(
+        fig_beam = px.scatter_map(
             cell_df,
             lat="latitude",
             lon="longitude",
@@ -166,12 +166,12 @@ with tab4:
             size="beam_health_score",
             size_max=14,
             zoom=12,
-            mapbox_style=map_style,
+            map_style=map_style,
             title="Beam ID · marker size = beam health score",
             hover_data=["beam_azimuth_deg", "beam_health_score", "prb_dl_pct", "beam_switch_count"],
         )
         fig_beam.update_layout(
-            mapbox={"center": {"lat": center_lat, "lon": center_lon}},
+            map={"center": {"lat": center_lat, "lon": center_lon}},
             margin={"l": 0, "r": 0, "t": 40, "b": 0},
             height=520,
         )
