@@ -1,6 +1,7 @@
 data/chroma/
 data/*.db
 data/_upload_pm.csv
+data/output/
 .env
 __pycache__/
 *.pyc
