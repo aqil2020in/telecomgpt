@@ -23,6 +23,66 @@ from agents.rf_coverage_agent import (  # noqa: E402
 )
 from tnic.agents.specialists import RFCoverageAgent as SpecialistRFCoverageAgent  # noqa: E402
 
+
+def _build_kpi_heatmap(
+    df: pd.DataFrame,
+    *,
+    z_col: str,
+    color_scale: str,
+    z_range: tuple[float, float],
+    title: str,
+    center_lat: float,
+    center_lon: float,
+    map_style: str = "open-street-map",
+) -> go.Figure:
+    """Geospatial KPI heatmap — bypasses px.density_map express path (Plotly 6 bug)."""
+    zmin, zmax = z_range
+    try:
+        fig = go.Figure(
+            go.Densitymap(
+                lat=df["latitude"],
+                lon=df["longitude"],
+                z=df[z_col],
+                radius=18,
+                colorscale=color_scale,
+                zmin=zmin,
+                zmax=zmax,
+                colorbar={"title": z_col},
+            )
+        )
+        fig.update_layout(
+            title=title,
+            map={
+                "style": map_style,
+                "center": {"lat": center_lat, "lon": center_lon},
+                "zoom": 12,
+            },
+            margin={"l": 0, "r": 0, "t": 40, "b": 0},
+            height=520,
+        )
+        return fig
+    except (AttributeError, TypeError, ValueError):
+        fig = px.scatter_map(
+            df,
+            lat="latitude",
+            lon="longitude",
+            color=z_col,
+            color_continuous_scale=color_scale,
+            range_color=z_range,
+            zoom=12,
+            map_style=map_style,
+            opacity=0.75,
+            size_max=10,
+            title=title,
+        )
+        fig.update_layout(
+            map={"center": {"lat": center_lat, "lon": center_lon}},
+            margin={"l": 0, "r": 0, "t": 40, "b": 0},
+            height=520,
+        )
+        return fig
+
+
 st.set_page_config(page_title="RF Coverage", layout="wide", page_icon="📶")
 st.title("📶 RF Coverage Agent — Geospatial Analysis")
 st.caption("Plotly heatmaps · coverage holes · beam gaps · per-cell coverage score")
@@ -86,38 +146,30 @@ center_lon = float(cell_df["longitude"].mean())
 
 with tab1:
     st.subheader("RSRP Heatmap (dBm)")
-    fig_rsrp = px.density_map(
+    fig_rsrp = _build_kpi_heatmap(
         cell_df,
-        lat="latitude",
-        lon="longitude",
-        z="rsrp_dbm",
-        radius=18,
-        center={"lat": center_lat, "lon": center_lon},
-        zoom=12,
-        map_style=map_style,
-        color_continuous_scale="RdYlGn_r",
-        range_color=(-120, -70),
+        z_col="rsrp_dbm",
+        color_scale="RdYlGn_r",
+        z_range=(-120, -70),
         title=f"RSRP — {cell_id if not show_all_cells else 'all cells'}",
+        center_lat=center_lat,
+        center_lon=center_lon,
+        map_style=map_style,
     )
-    fig_rsrp.update_layout(margin={"l": 0, "r": 0, "t": 40, "b": 0}, height=520)
     st.plotly_chart(fig_rsrp, use_container_width=True)
 
 with tab2:
     st.subheader("SINR Heatmap (dB)")
-    fig_sinr = px.density_map(
+    fig_sinr = _build_kpi_heatmap(
         cell_df,
-        lat="latitude",
-        lon="longitude",
-        z="sinr_db",
-        radius=18,
-        center={"lat": center_lat, "lon": center_lon},
-        zoom=12,
-        map_style=map_style,
-        color_continuous_scale="Viridis",
-        range_color=(-10, 25),
+        z_col="sinr_db",
+        color_scale="Viridis",
+        z_range=(-10, 25),
         title=f"SINR — {cell_id if not show_all_cells else 'all cells'}",
+        center_lat=center_lat,
+        center_lon=center_lon,
+        map_style=map_style,
     )
-    fig_sinr.update_layout(margin={"l": 0, "r": 0, "t": 40, "b": 0}, height=520)
     st.plotly_chart(fig_sinr, use_container_width=True)
 
 with tab3:
