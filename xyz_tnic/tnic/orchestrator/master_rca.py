@@ -9,6 +9,7 @@ from tnic.orchestrator.rca_catalog import RCA_CATALOG, detect_rca_type
 from tnic.orchestrator.workflow_registry import WORKFLOW_REGISTRY, detect_workflow
 from tnic.services.assurance_evidence import assurance_recommendation_summary, build_assurance_evidence
 from tnic.services.gnb_syslog_parser import parse_syslog_text
+from tnic.services.ue_correlation_service import correlate_cell_ue_failures
 
 # Coverage hole drives cross-domain failures (telecom causal chain)
 COVERAGE_CORRELATION_MAP: dict[str, list[dict[str, str]]] = {
@@ -323,6 +324,49 @@ def enrich_rca_with_assurance(
     return findings
 
 
+def enrich_rca_with_ue_protocol(
+    findings: list[RuleFinding],
+    cell_id: str | None,
+    kpis: dict[str, Any] | None = None,
+) -> list[RuleFinding]:
+    """Inject UE protocol trace RCA findings into Master RCA output."""
+    if not cell_id:
+        return findings
+    try:
+        ue_results = correlate_cell_ue_failures(cell_id, cell_kpis=kpis)
+        existing_ids = {f.rule_id for f in findings}
+        for r in ue_results:
+            fd = r.to_finding_dict()
+            if fd["rule_id"] not in existing_ids:
+                findings.append(RuleFinding(**fd))
+                existing_ids.add(fd["rule_id"])
+
+        if ue_results:
+            top = max(ue_results, key=lambda x: x.confidence)
+            findings.append(RuleFinding(
+                rule_id="ue_protocol_rca_summary",
+                category="master_rca",
+                probable_cause=(
+                    f"UE protocol trace: {len(ue_results)} failure(s) on {cell_id}. "
+                    f"Top: {top.issue} @ {top.failure_stage} "
+                    f"(confidence {int(top.confidence * 100)}%)"
+                ),
+                confidence=float(top.confidence),
+                evidence={
+                    "ue_failure_count": len(ue_results),
+                    "top_issue": top.issue,
+                    "failure_stage": top.failure_stage,
+                    "protocol_layer": top.protocol_layer,
+                    "confidence_factors": top.confidence_factors,
+                    "cell_id": cell_id,
+                },
+                recommended_actions=top.recommendations[:3],
+            ))
+    except Exception:
+        pass
+    return findings
+
+
 def enrich_master_rca(
     findings: list[RuleFinding],
     cell_id: str | None,
@@ -334,6 +378,7 @@ def enrich_master_rca(
     findings = enrich_rca_with_workflow(findings, cell_id, query)
     if cell_id:
         findings = enrich_rca_with_assurance(findings, cell_id, kpis)
+        findings = enrich_rca_with_ue_protocol(findings, cell_id, kpis)
     if should_run_coverage_agent(query) or cell_id:
         findings = enrich_rca_with_coverage(findings, cell_id, query)
     findings = enrich_rca_with_syslog(findings, query, kpis)

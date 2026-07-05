@@ -6,6 +6,7 @@ from typing import Any
 
 from tnic.agents.base import BaseAgent, kpi_to_dict
 from tnic.agents.rf_coverage_agent import RFCoverageAgent as _RFCoverageCore
+from tnic.agents.ue_agent import UEProtocolAgent
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
@@ -214,4 +215,6 @@ AGENT_REGISTRY: dict[str, BaseAgent] = {
     "config_audit": ConfigAuditAgent(),
     "gnb_syslog": GNBSyslogAgent(),
     "alarm": AlarmAgent(),
+    "ue_protocol": UEProtocolAgent(),
+    "ue_trace": UEProtocolAgent(),
 }

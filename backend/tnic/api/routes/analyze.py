@@ -193,6 +193,12 @@ def analyze_gnb_syslog(request: AnalyzeRequest):
     return _analyze_with_issue(request, "gnb_syslog")
 
 
+@router.post("/analyze/ue-protocol", response_model=RCAResponse)
+@router.post("/analyze-ue-protocol", response_model=RCAResponse)
+def analyze_ue_protocol(request: AnalyzeRequest):
+    return _analyze_with_issue(request, "ue_protocol")
+
+
 @router.post("/analyze/cell-outage", response_model=RCAResponse)
 def analyze_cell_outage(request: AnalyzeRequest):
     return _analyze_with_issue(request, "cell_outage")

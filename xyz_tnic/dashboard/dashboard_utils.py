@@ -31,6 +31,7 @@ from tnic.agents.specialists import (  # noqa: E402
     RACHAgent,
     RLFAgent,
     ThroughputAgent,
+    UEProtocolAgent,
     VoNRAgent,
 )
 from tnic.datasets.kpi_service import build_kpi_input, compute_cell_kpis, compute_cluster_kpis, list_cell_ids
@@ -47,6 +48,7 @@ from tnic.datasets.loaders import (
     load_rach_events,
     load_rlf_events,
     load_throughput_metrics,
+    load_ue_protocol_trace,
     load_vonr_sessions,
 )
 from tnic.models.schemas import AnalyzeRequest
@@ -66,6 +68,7 @@ DOMAIN_QUERIES = {
     "config_audit": "configuration drift CM audit cell {cell}",
     "gnb_syslog": "gNB syslog NGAP XnAP failure cell {cell}",
     "alarm": "FM alarm correlation transport cell {cell}",
+    "ue_protocol": "UE protocol trace RACH RRC NAS failure cell {cell}",
 }
 
 # All specialist agents (legacy + upgraded RCA agents)
@@ -81,6 +84,7 @@ ALL_AGENTS: list[tuple[str, str]] = [
     ("config_audit", "Config Audit"),
     ("gnb_syslog", "gNB Syslog"),
     ("alarm", "Alarm Correlation"),
+    ("ue_protocol", "UE Protocol"),
 ]
 
 _AGENT_CLASSES = {
@@ -95,6 +99,7 @@ _AGENT_CLASSES = {
     "config_audit": ConfigAuditAgent,
     "gnb_syslog": GNBSyslogAgent,
     "alarm": AlarmAgent,
+    "ue_protocol": UEProtocolAgent,
 }
 
 
@@ -266,6 +271,13 @@ def neighbor_relations_df(cell_id: str | None = None) -> pd.DataFrame:
     df = load_neighbor_relations()
     if cell_id:
         df = df[df["source_cell"] == cell_id]
+    return df
+
+
+def ue_trace_df(cell_id: str | None = None) -> pd.DataFrame:
+    df = load_ue_protocol_trace()
+    if cell_id:
+        df = df[df["cell_id"] == cell_id]
     return df
 
 

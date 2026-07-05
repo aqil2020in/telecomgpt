@@ -143,6 +143,7 @@ def summarize_dataset(name: str) -> DatasetSummary:
         "anr_events": lambda d: _summarize_generic("anr_events", d, "event_type"),
         "vonr_sessions": lambda d: _summarize_generic("vonr_sessions", d, "result"),
         "alarm_events": lambda d: _summarize_generic("alarm_events", d, "alarm_name"),
+        "ue_protocol_trace": lambda d: _summarize_generic("ue_protocol_trace", d, "layer"),
     }
     return builders[name](df)
 

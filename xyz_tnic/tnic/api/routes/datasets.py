@@ -48,6 +48,25 @@ def assurance_cell_evidence(cell_id: str):
     }
 
 
+@router.get("/datasets/ue-trace/{cell_id}")
+def ue_trace_cell_summary(cell_id: str, ue_id: str | None = None):
+    """UE protocol trace summary and RCA results for a cell."""
+    from tnic.parsers.ue_trace_parser import UETraceParser
+    from tnic.services.ue_correlation_service import correlate_cell_ue_failures
+
+    cid = cell_id.upper()
+    parser = UETraceParser()
+    summary = parser.cell_summary(cid)
+    results = correlate_cell_ue_failures(cid, ue_id=ue_id.upper() if ue_id else None)
+    return {
+        "ok": True,
+        "cell_id": cid,
+        "ue_id": ue_id.upper() if ue_id else None,
+        "summary": summary,
+        "results": [r.model_dump() for r in results],
+    }
+
+
 @router.get("/datasets/summary")
 def datasets_summary():
     return summarize_all()

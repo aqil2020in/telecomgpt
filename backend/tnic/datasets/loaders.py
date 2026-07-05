@@ -19,6 +19,7 @@ from tnic.datasets.models import (
     RachEventRow,
     RLFEventRow,
     ThroughputMetricRow,
+    UEProtocolTraceRow,
     VonrSessionRow,
 )
 from tnic.datasets.registry import DatasetName, dataset_path
@@ -106,6 +107,12 @@ def load_alarm_events(path: str | None = None) -> pd.DataFrame:
     return df
 
 
+@lru_cache(maxsize=1)
+def load_ue_protocol_trace(path: str | None = None) -> pd.DataFrame:
+    df = _read_csv(DatasetName.UE_PROTOCOL_TRACE, Path(path) if path else None)
+    return df
+
+
 def load_all_dataframes() -> dict[str, pd.DataFrame]:
     return {
         "pm_counters": load_pm_counters(),
@@ -120,6 +127,7 @@ def load_all_dataframes() -> dict[str, pd.DataFrame]:
         "anr_events": load_anr_events(),
         "vonr_sessions": load_vonr_sessions(),
         "alarm_events": load_alarm_events(),
+        "ue_protocol_trace": load_ue_protocol_trace(),
     }
 
 
@@ -133,6 +141,7 @@ def load_assurance_dataframes() -> dict[str, pd.DataFrame]:
         "anr_events": load_anr_events,
         "vonr_sessions": load_vonr_sessions,
         "alarm_events": load_alarm_events,
+        "ue_protocol_trace": load_ue_protocol_trace,
     }
     for name, fn in loaders.items():
         try:
@@ -156,6 +165,7 @@ def rows_as_models(name: DatasetName, limit: int = 100) -> list:
         DatasetName.ANR_EVENTS: (load_anr_events, AnrEventRow),
         DatasetName.VONR_SESSIONS: (load_vonr_sessions, VonrSessionRow),
         DatasetName.ALARM_EVENTS: (load_alarm_events, AlarmEventRow),
+        DatasetName.UE_PROTOCOL_TRACE: (load_ue_protocol_trace, UEProtocolTraceRow),
     }
     loader, model_cls = loaders[name]
     df = loader()
@@ -178,3 +188,4 @@ def clear_loader_cache() -> None:
     load_anr_events.cache_clear()
     load_vonr_sessions.cache_clear()
     load_alarm_events.cache_clear()
+    load_ue_protocol_trace.cache_clear()

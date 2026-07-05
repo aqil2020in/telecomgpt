@@ -13,7 +13,7 @@ def test_load_all_dataframes():
     from tnic.datasets.loaders import load_all_dataframes
 
     frames = load_all_dataframes()
-    assert len(frames) == 12
+    assert len(frames) == 13
     assert len(frames["pm_counters"]) >= 1000
     assert "cell_id" in frames["handover_events"].columns
 
@@ -22,7 +22,7 @@ def test_validate_all_datasets():
     from tnic.datasets.validation import validate_all
 
     results = validate_all()
-    assert len(results) == 12
+    assert len(results) == 13
     assert all(r.ok for r in results)
 
 
@@ -74,4 +74,4 @@ def test_datasets_api_summary():
     client = TestClient(create_app())
     r = client.get("/api/v1/datasets/summary")
     assert r.status_code == 200
-    assert r.json()["dataset_count"] == 12
+    assert r.json()["dataset_count"] == 13

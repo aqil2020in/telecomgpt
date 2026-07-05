@@ -19,6 +19,7 @@ from tnic.datasets.loaders import (
     load_rach_events,
     load_rlf_events,
     load_throughput_metrics,
+    load_ue_protocol_trace,
     load_vonr_sessions,
 )
 from tnic.datasets.models import CellKPIs, ClusterKPISummary
@@ -179,7 +180,7 @@ def list_cell_ids() -> list[str]:
         load_pm_counters, load_handover_events, load_rlf_events,
         load_rach_events, load_call_drop_events, load_throughput_metrics,
         load_gnb_syslog, load_cell_configuration, load_neighbor_relations,
-        load_anr_events, load_vonr_sessions, load_alarm_events,
+        load_anr_events, load_vonr_sessions, load_alarm_events, load_ue_protocol_trace,
     ):
         try:
             df = loader()

@@ -20,7 +20,7 @@ st.caption("VoNR · ANR · Config Audit · gNB Syslog · Alarm · cross-domain e
 cells = dataset_cells()
 cell_id = st.selectbox("Cell", cells, index=cells.index(default_cell()) if default_cell() in cells else 0)
 
-if st.button("Run all 11 specialist agents", type="primary"):
+if st.button("Run all 12 specialist agents", type="primary"):
     with st.spinner("Running agents..."):
         results = run_all_agents(cell_id)
     rows = []
@@ -42,5 +42,6 @@ st.table({name: label for name, label in ALL_AGENTS})
 
 st.info(
     "Assurance datasets: gnb_syslog.csv · cell_configuration.csv · "
-    "neighbor_relations.csv · anr_events.csv · vonr_sessions.csv · alarm_events.csv"
+    "neighbor_relations.csv · anr_events.csv · vonr_sessions.csv · alarm_events.csv · "
+    "ue_protocol_trace.csv"
 )

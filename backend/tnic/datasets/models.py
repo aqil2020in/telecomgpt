@@ -105,6 +105,17 @@ class GnbSyslogRow(BaseModel):
     message: str = ""
 
 
+class UEProtocolTraceRow(BaseModel):
+    timestamp: str
+    ue_id: str
+    cell_id: str
+    layer: str
+    procedure: str
+    message: str
+    result: str
+    cause: str = ""
+
+
 class AssuranceIngestResult(BaseModel):
     dataset: str
     ok: bool

@@ -16,6 +16,7 @@ from tnic.datasets.loaders import (
     load_rach_events,
     load_rlf_events,
     load_throughput_metrics,
+    load_ue_protocol_trace,
     load_vonr_sessions,
 )
 from tnic.datasets.models import DatasetValidationResult, ValidationIssue
@@ -186,6 +187,28 @@ def _validate_cell_configuration(df: pd.DataFrame) -> list[ValidationIssue]:
     return issues
 
 
+def _validate_ue_protocol_trace(df: pd.DataFrame) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    required = ("timestamp", "ue_id", "cell_id", "layer", "procedure", "message", "result")
+    for col in required:
+        if col not in df.columns:
+            issues.append(ValidationIssue(
+                dataset="ue_protocol_trace", severity="error", message=f"Missing column: {col}",
+            ))
+    if "cell_id" in df.columns and df["cell_id"].isna().any():
+        issues.append(ValidationIssue(
+            dataset="ue_protocol_trace", severity="error", message="Missing cell_id",
+        ))
+    if "result" in df.columns:
+        fails = df[df["result"].astype(str).str.upper().isin(("FAIL", "FAILURE", "DROP", "REJECT", "TIMEOUT"))]
+        if len(fails) == 0:
+            issues.append(ValidationIssue(
+                dataset="ue_protocol_trace", severity="warning",
+                message="No failure rows in trace (expected for RCA demo)",
+            ))
+    return issues
+
+
 def _validate_gnb_syslog(df: pd.DataFrame) -> list[ValidationIssue]:
     issues: list[ValidationIssue] = []
     if df["cell_id"].isna().any():
@@ -212,6 +235,7 @@ def validate_dataset(name: str) -> DatasetValidationResult:
         "anr_events": (load_anr_events, _validate_anr_events),
         "vonr_sessions": (load_vonr_sessions, _validate_vonr_sessions),
         "alarm_events": (load_alarm_events, _validate_alarm_events),
+        "ue_protocol_trace": (load_ue_protocol_trace, _validate_ue_protocol_trace),
     }
     if name not in validators:
         return DatasetValidationResult(dataset=name, ok=False, row_count=0, issues=[
@@ -234,7 +258,7 @@ def validate_all() -> list[DatasetValidationResult]:
         "pm_counters", "handover_events", "rlf_events",
         "rach_events", "call_drop_events", "throughput_metrics",
         "gnb_syslog", "cell_configuration", "neighbor_relations",
-        "anr_events", "vonr_sessions", "alarm_events",
+        "anr_events", "vonr_sessions", "alarm_events", "ue_protocol_trace",
     ]
     results = []
     for n in names:

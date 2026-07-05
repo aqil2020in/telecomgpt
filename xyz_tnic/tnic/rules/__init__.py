@@ -61,11 +61,18 @@ ISSUE_KEYWORDS = {
     "gnb_syslog": ("syslog", "gnb log", "du crash", "cu crash", "ngap", "xnap", "cell outage", "log correlation"),
     "pm": ("pm validation", "counter integrity", "kpi mismatch", "counter definition"),
     "alarm": ("alarm", "fm alarm", "critical alarm", "alarm correlation"),
+    "ue_protocol": (
+        "ue trace", "ue protocol", "protocol trace", "mib decode", "sib1",
+        "msg1", "msg2", "msg3", "msg4", "rrc setup", "security mode",
+        "registration reject", "authentication", "paging failure", "t310",
+        "re-establishment", "pdu session", "qos flow", "vonr drop", "sip timeout",
+    ),
 }
 
 _EXTRA_ISSUE_TYPES = frozenset({
     "rf_coverage", "coverage", "transport", "core", "complaint",
     "vonr", "anr", "config_audit", "gnb_syslog", "pm", "alarm",
+    "ue_protocol", "ue_trace",
 })
 
 

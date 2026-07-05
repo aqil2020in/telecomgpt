@@ -35,11 +35,13 @@ ORCHESTRATION_MAP = {
     "config_audit": ["config_audit", "handover", "rach", "beamforming", "vonr"],
     "gnb_syslog": ["gnb_syslog", "handover", "rlf", "rach", "core", "transport"],
     "cell_outage": ["gnb_syslog", "pm", "transport", "config_audit", "rf_coverage", "alarm"],
-    "alarm": ["alarm", "gnb_syslog", "transport", "rlf", "handover"],
+    "alarm": ["alarm", "gnb_syslog", "transport", "rlf", "handover", "ue_protocol"],
+    "ue_protocol": ["ue_protocol", "gnb_syslog", "rach", "rlf", "handover", "vonr", "rf_coverage", "beamforming", "transport", "config_audit"],
+    "ue_trace": ["ue_protocol", "gnb_syslog", "rach", "rlf", "handover", "vonr", "rf_coverage"],
 }
 
 # Always append assurance agents when datasets are loaded (upgraded RCA path)
-_ASSURANCE_AGENT_CHAIN = ["gnb_syslog", "alarm", "vonr", "anr", "config_audit"]
+_ASSURANCE_AGENT_CHAIN = ["ue_protocol", "gnb_syslog", "alarm", "vonr", "anr", "config_audit"]
 
 # Primary-domain boost so RLF/HO queries rank domain findings above cross-agent noise.
 _PRIMARY_DOMAIN_BOOST = 0.10
@@ -62,6 +64,8 @@ _ISSUE_CATEGORY = {
     "config_audit": "config_audit",
     "gnb_syslog": "gnb_syslog",
     "alarm": "alarm",
+    "ue_protocol": "ue_protocol",
+    "ue_trace": "ue_protocol",
 }
 
 
@@ -85,6 +89,12 @@ def _rank_score(finding: RuleFinding, issue_type: str) -> float:
         score += _PRIMARY_DOMAIN_BOOST
     if finding.rule_id.endswith("_class"):
         score += _CLASSIFIER_BOOST
+    # UE trace is supporting evidence unless explicitly queried
+    if issue_type not in ("ue_protocol", "ue_trace"):
+        if finding.category == "ue_protocol":
+            score -= 0.12
+        if finding.rule_id == "ue_protocol_rca_summary":
+            score -= 0.15
     return score
 
 

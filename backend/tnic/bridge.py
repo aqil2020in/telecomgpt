@@ -67,6 +67,7 @@ def looks_like_tnic_rca_query(query: str) -> bool:
         "rlf", "latency spike", "beam failure", "network intelligence",
         "vonr", "volte", "voice drop", "anr", "pci conflict", "missing neighbor",
         "syslog", "gnb log", "alarm", "config drift", "pdu session",
+        "ue trace", "ue protocol", "protocol trace", "mib decode", "t310",
     )
     return any(k in ql for k in keys)
 
