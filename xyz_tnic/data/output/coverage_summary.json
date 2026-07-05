@@ -1,0 +1,108 @@
+{
+  "dataset": "/workspace/xyz_tnic/data/datasets/enhanced_geospatial_rf_dataset.csv",
+  "radius_miles": 3.0,
+  "cells": [
+    {
+      "cell_id": "XYZ401",
+      "coverage_score": 52,
+      "primary_issue": "Coverage Deficiency",
+      "secondary_issue": "Beam Congestion",
+      "confidence": 0.94,
+      "recommendation": "Retilt sector A/B, fill edge coverage holes, rebalance SSB beams 3\u20134, then re-drive 3 mi cluster and validate HO/RACH KPIs.",
+      "issue_counts": {
+        "LOW_THROUGHPUT": 25,
+        "WEAK_COVERAGE": 260,
+        "COVERAGE_HOLE": 224,
+        "INTERFERENCE": 11,
+        "BEAM_COVERAGE_GAP": 462,
+        "LATENCY_HOTSPOT": 258,
+        "HIGH_BLER": 360
+      },
+      "metrics": {
+        "samples": 667,
+        "mean_rsrp_dbm": -103.8,
+        "mean_sinr_db": 5.3,
+        "mean_dl_tp_mbps": 276.1,
+        "mean_bler_dl_pct": 9.8,
+        "mean_latency_ms": 68.8,
+        "mean_beam_health": 40.2,
+        "mean_prb_dl_pct": 56.9,
+        "coverage_hole_pct": 33.6
+      },
+      "impacts": [
+        "HO Failures",
+        "RLF",
+        "Call Drops",
+        "RACH Failures",
+        "Low Throughput",
+        "Customer Complaints"
+      ]
+    },
+    {
+      "cell_id": "XYZ402",
+      "coverage_score": 52.0,
+      "primary_issue": "Beam Congestion",
+      "secondary_issue": "RF Quality Degradation",
+      "confidence": 0.9,
+      "recommendation": "Rebalance beam weights; recalibrate massive MIMO array. Secondary: RF optimization \u2014 power control, MCS cap, antenna alignment.",
+      "issue_counts": {
+        "LOW_THROUGHPUT": 25,
+        "WEAK_COVERAGE": 226,
+        "COVERAGE_HOLE": 236,
+        "INTERFERENCE": 21,
+        "BEAM_COVERAGE_GAP": 482,
+        "LATENCY_HOTSPOT": 274,
+        "HIGH_BLER": 356
+      },
+      "metrics": {
+        "samples": 667,
+        "mean_rsrp_dbm": -103.8,
+        "mean_sinr_db": 5.3,
+        "mean_dl_tp_mbps": 276.4,
+        "mean_bler_dl_pct": 9.9,
+        "mean_latency_ms": 69.5,
+        "mean_beam_health": 40.3,
+        "mean_prb_dl_pct": 59.4,
+        "coverage_hole_pct": 35.4
+      },
+      "impacts": [
+        "HO Failures",
+        "Throughput Degradation",
+        "Beam Instability"
+      ]
+    },
+    {
+      "cell_id": "XYZ403",
+      "coverage_score": 52.0,
+      "primary_issue": "Beam Congestion",
+      "secondary_issue": "RF Quality Degradation",
+      "confidence": 0.89,
+      "recommendation": "Rebalance beam weights; recalibrate massive MIMO array. Secondary: RF optimization \u2014 power control, MCS cap, antenna alignment.",
+      "issue_counts": {
+        "LOW_THROUGHPUT": 25,
+        "WEAK_COVERAGE": 240,
+        "COVERAGE_HOLE": 218,
+        "INTERFERENCE": 18,
+        "BEAM_COVERAGE_GAP": 450,
+        "LATENCY_HOTSPOT": 272,
+        "HIGH_BLER": 342
+      },
+      "metrics": {
+        "samples": 666,
+        "mean_rsrp_dbm": -104.0,
+        "mean_sinr_db": 5.3,
+        "mean_dl_tp_mbps": 277.1,
+        "mean_bler_dl_pct": 9.8,
+        "mean_latency_ms": 71.2,
+        "mean_beam_health": 40.6,
+        "mean_prb_dl_pct": 56.8,
+        "coverage_hole_pct": 32.7
+      },
+      "impacts": [
+        "HO Failures",
+        "Throughput Degradation",
+        "Beam Instability"
+      ]
+    }
+  ]
+}
