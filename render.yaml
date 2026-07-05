@@ -4,13 +4,19 @@ services:
     runtime: python
     plan: starter
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python scripts/ingest_rag.py
+    buildCommand: pip install --upgrade pip && pip install -r requirements.txt
     startCommand: uvicorn app:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /api/health
     envVars:
       - key: PYTHON_VERSION
         value: "3.12"
-      # 2GB Render — lean demo: TNIC rules + BM25 RAG, no dual Chroma / heavy agents
+      - key: PYTHONPATH
+        value: "."
+      - key: TNIC_DATASETS_DIR
+        value: "../datasets"
+      - key: TNIC_ENABLE_CHROMA
+        value: "0"
+      # Lean demo: BM25 RAG, no heavy vector ingest on boot
       - key: TELECOMGPT_AUTO_REINDEX
         value: "0"
       - key: TELECOMGPT_LOW_MEMORY

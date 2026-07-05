@@ -1,0 +1,7 @@
+# Local dev / dashboard / tests (not installed on Render)
+-r requirements.txt
+chromadb>=0.4.22
+streamlit>=1.31.0
+plotly>=5.18.0
+pytest>=8.0.0
+pytest-asyncio>=0.23.0

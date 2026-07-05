@@ -59,9 +59,9 @@ def datasets_dir() -> Path:
     settings = get_settings()
     candidates = [
         Path("/workspace/datasets"),
+        Path(__file__).resolve().parent.parent.parent.parent / "datasets",  # repo root when rootDir=backend
         settings.data_dir / "datasets",
         Path(__file__).resolve().parent.parent.parent / "data" / "datasets",
-        Path(__file__).resolve().parent.parent.parent.parent / "datasets",
     ]
     # Prefer directory with core assurance datasets
     for p in candidates:
