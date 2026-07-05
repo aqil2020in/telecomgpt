@@ -18,6 +18,9 @@ class PMCounterRow(BaseModel):
     cqi: float = Field(ge=0, le=15)
     ho_success: int = Field(ge=0)
     rach_success: int = Field(ge=0)
+    rsrp: float | None = None
+    rsrq: float | None = None
+    sinr: float | None = None
 
 
 class HandoverEventRow(BaseModel):
@@ -26,6 +29,7 @@ class HandoverEventRow(BaseModel):
     rsrp: float
     sinr: float
     failure_type: str
+    rsrq: float | None = None
 
 
 class RLFEventRow(BaseModel):
@@ -34,18 +38,25 @@ class RLFEventRow(BaseModel):
     rsrp: float
     sinr: float
     cause: str
+    rsrq: float | None = None
 
 
 class RachEventRow(BaseModel):
     ue_id: str
     cell_id: str
     msg_failure: str
+    rsrp: float | None = None
+    rsrq: float | None = None
+    sinr: float | None = None
 
 
 class CallDropEventRow(BaseModel):
     ue_id: str
     cell_id: str
     drop_type: str
+    rsrp: float | None = None
+    rsrq: float | None = None
+    sinr: float | None = None
 
 
 class ThroughputMetricRow(BaseModel):
@@ -54,6 +65,8 @@ class ThroughputMetricRow(BaseModel):
     prb_util: float = Field(ge=0, le=100)
     dl_tp: float = Field(ge=0)
     issue: str
+    rsrq: float | None = None
+    sinr: float | None = None
 
 
 class AlarmEventRow(BaseModel):

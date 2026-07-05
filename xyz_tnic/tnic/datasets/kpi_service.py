@@ -53,7 +53,7 @@ def _kpis_from_pm(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
         })
     ho_att = float(sub["ho_attempt"].sum())
     rach_att = float(sub["rach_attempt"].sum())
-    return {
+    out = {
         "ho_success_rate": _safe_rate(float(sub["ho_success"].sum()), ho_att),
         "rach_success_rate": _safe_rate(float(sub["rach_success"].sum()), rach_att),
         "throughput_mbps": round(float(sub["dl_tp"].mean()), 2),
@@ -61,6 +61,13 @@ def _kpis_from_pm(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
         "ho_attempt_total": int(ho_att),
         "rach_attempt_total": int(rach_att),
     }
+    if "rsrp" in sub.columns:
+        out["ss_rsrp"] = round(float(sub["rsrp"].mean()), 2)
+    if "rsrq" in sub.columns:
+        out["ss_rsrq"] = round(float(sub["rsrq"].mean()), 2)
+    if "sinr" in sub.columns:
+        out["ss_sinr"] = round(float(sub["sinr"].mean()), 2)
+    return out
 
 
 def _kpis_from_handover(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
@@ -71,7 +78,7 @@ def _kpis_from_handover(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
     counts = sub["failure_type"].value_counts()
     non_success = sub[sub["failure_type"] != "SUCCESS"]
     target_rsrp = round(float(non_success["rsrp"].mean()), 2) if len(non_success) else None
-    return {
+    out = {
         "ho_success_rate": _safe_rate(float(counts.get("SUCCESS", 0)), total),
         "ho_prep_fail_rate": _safe_rate(float(counts.get("PREP_FAILURE", 0)), total),
         "ho_exec_fail_rate": _safe_rate(float(counts.get("EXEC_FAILURE", 0)), total),
@@ -86,6 +93,12 @@ def _kpis_from_handover(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
         "ss_sinr": round(float(sub["sinr"].mean()), 2),
         "ho_event_count": total,
     }
+    if "rsrq" in sub.columns:
+        out["ss_rsrq"] = round(float(sub["rsrq"].mean()), 2)
+    return out
+    if "rsrq" in sub.columns:
+        out["ss_rsrq"] = round(float(sub["rsrq"].mean()), 2)
+    return out
 
 
 def _kpis_from_rlf(df: pd.DataFrame, cell_id: str) -> dict[str, Any]:
