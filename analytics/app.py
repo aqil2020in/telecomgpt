@@ -26,7 +26,10 @@ SAMPLES = Path(__file__).resolve().parent / "samples"
 
 st.set_page_config(page_title="TelecomGPT Analytics", layout="wide")
 st.title("TelecomGPT Analytics")
-st.caption("Upload CSV drive-test data or UE logs — summarize, filter, and chart.")
+st.caption(
+    "Upload CSV drive-test data or UE logs — summarize, filter, and chart. "
+    "For full file ingest + RCA, open **Upload & Analyze** in the sidebar."
+)
 
 tab_csv, tab_log = st.tabs(["CSV data", "Log analysis"])
 
