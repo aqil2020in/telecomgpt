@@ -4,7 +4,7 @@ Manager demo playbook: log types, anonymization (mask before cloud), and step-by
 
 **UI:** [telecomgpt.vercel.app](https://telecomgpt.vercel.app)  
 **Sample log:** [`analytics/samples/ho_demo_anonymized.log`](../analytics/samples/ho_demo_anonymized.log)  
-**Related:** [DEMO_MANAGER.md](./DEMO_MANAGER.md) · [LEARNING_SYLLABUS.md](./LEARNING_SYLLABUS.md)
+**Related:** [DEMO_MANAGER.md](./DEMO_MANAGER.md) · [LEARNING_SYLLABUS.md](./LEARNING_SYLLABUS.md) · [RCA_AGENT_END_TO_END_HANDOVER.md](./RCA_AGENT_END_TO_END_HANDOVER.md)
 
 ---
 

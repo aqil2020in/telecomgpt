@@ -134,7 +134,8 @@ curl -X POST http://localhost:8000/api/v1/health-score/cell \
 curl http://localhost:8000/api/v1/incidents
 ```
 
-See [API.md](./API.md) for full endpoint documentation.
+See [API.md](./API.md) for full endpoint documentation.  
+**Agent build guide:** [docs/RCA_AGENT_END_TO_END_HANDOVER.md](../docs/RCA_AGENT_END_TO_END_HANDOVER.md)
 
 ---
 

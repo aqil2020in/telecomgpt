@@ -5,7 +5,8 @@ planning, tool use, vector memory, RAG, analytics, and **PowerPoint report** gen
 
 ## Architecture
 
-See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full next-gen diagram (orchestrator, agents, memory, tools, PPT).
+See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full next-gen diagram (orchestrator, agents, memory, tools, PPT).  
+**RCA agent guide (Handover example):** [docs/RCA_AGENT_END_TO_END_HANDOVER.md](docs/RCA_AGENT_END_TO_END_HANDOVER.md)
 
 ```
 backend/                  FastAPI + multi-agent orchestrator

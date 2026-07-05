@@ -1,7 +1,8 @@
 # TNIC RCA — 1-Slide Tech Stack & Q&A Cheat Sheets
 
 **Platform:** XYZ Telecom Network Intelligence Copilot (TNIC) + TelecomGPT  
-**Date:** 2026-07-05
+**Date:** 2026-07-05  
+**Deep dive:** [RCA_AGENT_END_TO_END_HANDOVER.md](./RCA_AGENT_END_TO_END_HANDOVER.md) — build process, rules, NOC runbook (Handover agent example)
 
 ---
 
