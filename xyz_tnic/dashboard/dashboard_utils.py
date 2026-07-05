@@ -51,6 +51,10 @@ from tnic.datasets.loaders import (
     load_ue_protocol_trace,
     load_vonr_sessions,
 )
+try:
+    from tnic.datasets.loaders import load_handover_events_enriched
+except ImportError:  # older deployments before enrichment layer
+    load_handover_events_enriched = None  # type: ignore[misc, assignment]
 from tnic.models.schemas import AnalyzeRequest
 from tnic.orchestrator.rca_orchestrator import MasterRCAOrchestrator
 from tnic.services.health_scoring import compute_health_score
@@ -153,10 +157,20 @@ def executive_summary_df() -> pd.DataFrame:
     return pd.DataFrame(rows)
 
 
-def handover_df(cell_id: str | None = None) -> pd.DataFrame:
-    from tnic.datasets.loaders import load_handover_events_enriched
+def _load_handover_enriched_df() -> pd.DataFrame:
+    """Load enriched HO events; fall back to on-the-fly enrichment or raw CSV."""
+    if load_handover_events_enriched is not None:
+        return load_handover_events_enriched()
+    try:
+        from tnic.datasets.handover_enrichment import enrich_handover_events
 
-    df = load_handover_events_enriched()
+        return enrich_handover_events(load_handover_events())
+    except ImportError:
+        return load_handover_events()
+
+
+def handover_df(cell_id: str | None = None) -> pd.DataFrame:
+    df = _load_handover_enriched_df()
     if cell_id:
         col = "source_cell" if "source_cell" in df.columns else "cell_id"
         df = df[df[col] == cell_id]

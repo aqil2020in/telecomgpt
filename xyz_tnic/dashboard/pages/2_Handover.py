@@ -37,10 +37,23 @@ if not df.empty:
         st.bar_chart(counts)
     with right:
         st.subheader("RSRP / SINR at HO")
-        st.scatter_chart(df[["rsrp", "sinr"]])
+        rsrp_col = "serving_rsrp" if "serving_rsrp" in df.columns else "rsrp"
+        sinr_col = "serving_sinr" if "serving_sinr" in df.columns else "sinr"
+        st.scatter_chart(df[[rsrp_col, sinr_col]])
+
+    if "failure_stage" in df.columns:
+        st.subheader("Failure stage mix")
+        st.bar_chart(df["failure_stage"].value_counts())
 
     st.subheader("Recent handover events")
-    st.dataframe(df.head(50), use_container_width=True, hide_index=True)
+    show_cols = [
+        c for c in (
+            "timestamp", "ue_id", "source_cell", "target_cell", "failure_type",
+            "failure_stage", "serving_rsrp", "target_rsrp", "rca_scenarios", "result",
+        )
+        if c in df.columns
+    ]
+    st.dataframe(df[show_cols].head(50) if show_cols else df.head(50), use_container_width=True, hide_index=True)
 
 st.subheader("HO Agent findings")
 agent = run_agent("handover", cell_id)
