@@ -16,6 +16,13 @@ class DatasetName(str, Enum):
     RACH_EVENTS = "rach_events"
     CALL_DROP_EVENTS = "call_drop_events"
     THROUGHPUT_METRICS = "throughput_metrics"
+    # Core assurance datasets
+    GNB_SYSLOG = "gnb_syslog"
+    CELL_CONFIGURATION = "cell_configuration"
+    NEIGHBOR_RELATIONS = "neighbor_relations"
+    ANR_EVENTS = "anr_events"
+    VONR_SESSIONS = "vonr_sessions"
+    ALARM_EVENTS = "alarm_events"
 
 
 DATASET_FILES: dict[DatasetName, str] = {
@@ -25,7 +32,22 @@ DATASET_FILES: dict[DatasetName, str] = {
     DatasetName.RACH_EVENTS: "rach_events.csv",
     DatasetName.CALL_DROP_EVENTS: "call_drop_events.csv",
     DatasetName.THROUGHPUT_METRICS: "throughput_metrics.csv",
+    DatasetName.GNB_SYSLOG: "gnb_syslog.csv",
+    DatasetName.CELL_CONFIGURATION: "cell_configuration.csv",
+    DatasetName.NEIGHBOR_RELATIONS: "neighbor_relations.csv",
+    DatasetName.ANR_EVENTS: "anr_events.csv",
+    DatasetName.VONR_SESSIONS: "vonr_sessions.csv",
+    DatasetName.ALARM_EVENTS: "alarm_events.csv",
 }
+
+ASSURANCE_DATASETS = frozenset({
+    DatasetName.GNB_SYSLOG,
+    DatasetName.CELL_CONFIGURATION,
+    DatasetName.NEIGHBOR_RELATIONS,
+    DatasetName.ANR_EVENTS,
+    DatasetName.VONR_SESSIONS,
+    DatasetName.ALARM_EVENTS,
+})
 
 
 def datasets_dir() -> Path:
@@ -34,11 +56,15 @@ def datasets_dir() -> Path:
         return Path(env)
     settings = get_settings()
     candidates = [
+        Path("/workspace/datasets"),
         settings.data_dir / "datasets",
         Path(__file__).resolve().parent.parent.parent / "data" / "datasets",
         Path(__file__).resolve().parent.parent.parent.parent / "datasets",
-        Path("/workspace/datasets"),
     ]
+    # Prefer directory with core assurance datasets
+    for p in candidates:
+        if p.exists() and (p / "gnb_syslog.csv").exists():
+            return p
     for p in candidates:
         if p.exists() and any(p.glob("*.csv")):
             return p

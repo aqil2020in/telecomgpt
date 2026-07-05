@@ -11,6 +11,43 @@ from tnic.datasets.validation import validate_all, validate_dataset
 router = APIRouter(tags=["datasets"])
 
 
+@router.get("/datasets/assurance/ingest-all")
+def assurance_ingest_all():
+    """Ingest and validate all core assurance datasets."""
+    from tnic.services.assurance_ingestion import ingest_all_assurance
+
+    results = ingest_all_assurance()
+    return {
+        "ok": all(r.ok for r in results.values()),
+        "datasets": {k: v.model_dump() for k, v in results.items()},
+    }
+
+
+@router.get("/datasets/assurance/kpis/{cell_id}")
+def assurance_cell_kpis(cell_id: str):
+    """Assurance-only KPI aggregation for a cell."""
+    from tnic.services.assurance_ingestion import aggregate_assurance_kpis
+
+    kpis = aggregate_assurance_kpis(cell_id.upper())
+    return {"ok": True, "cell_id": cell_id.upper(), "kpis": kpis}
+
+
+@router.get("/datasets/assurance/evidence/{cell_id}")
+def assurance_cell_evidence(cell_id: str):
+    """Build assurance evidence findings for Master RCA preview."""
+    from tnic.services.assurance_evidence import assurance_recommendation_summary, build_assurance_evidence
+
+    findings = build_assurance_evidence(cell_id.upper())
+    summary = assurance_recommendation_summary(findings)
+    return {
+        "ok": True,
+        "cell_id": cell_id.upper(),
+        "finding_count": len(findings),
+        "summary": summary,
+        "findings": [f.model_dump() for f in findings],
+    }
+
+
 @router.get("/datasets/summary")
 def datasets_summary():
     return summarize_all()

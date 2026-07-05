@@ -8,12 +8,18 @@ from typing import Any
 import pandas as pd
 
 from tnic.datasets.loaders import (
+    load_alarm_events,
+    load_anr_events,
     load_call_drop_events,
+    load_cell_configuration,
+    load_gnb_syslog,
     load_handover_events,
+    load_neighbor_relations,
     load_pm_counters,
     load_rach_events,
     load_rlf_events,
     load_throughput_metrics,
+    load_vonr_sessions,
 )
 from tnic.datasets.models import CellKPIs, ClusterKPISummary
 from tnic.models.schemas import KPIInput
@@ -172,6 +178,8 @@ def list_cell_ids() -> list[str]:
     for loader in (
         load_pm_counters, load_handover_events, load_rlf_events,
         load_rach_events, load_call_drop_events, load_throughput_metrics,
+        load_gnb_syslog, load_cell_configuration, load_neighbor_relations,
+        load_anr_events, load_vonr_sessions, load_alarm_events,
     ):
         try:
             df = loader()
@@ -237,6 +245,18 @@ def compute_cell_kpis(cell_id: str) -> CellKPIs:
             if k in ("throughput_mbps", "cqi", "prb_utilization") or k not in merged:
                 merged[k] = v
         sources.append("throughput_metrics")
+
+    try:
+        from tnic.services.assurance_ingestion import aggregate_assurance_kpis
+
+        assurance = aggregate_assurance_kpis(cell_id)
+        src = assurance.pop("assurance_sources", [])
+        for k, v in assurance.items():
+            if k != "cell_id" and v is not None and (k not in merged or merged.get(k) is None):
+                merged[k] = v
+        sources.extend(src)
+    except Exception:
+        pass
 
     health = compute_health_score(merged)
     return CellKPIs(

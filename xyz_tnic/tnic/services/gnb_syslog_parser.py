@@ -122,6 +122,51 @@ SYSLOG_SIGNATURES: tuple[SyslogSignature, ...] = (
 )
 
 
+def parse_syslog_dataframe(df) -> list[dict[str, Any]]:
+    """Parse structured gNB syslog CSV rows into signature findings."""
+    if df is None or df.empty:
+        return []
+    lines = []
+    for _, row in df.iterrows():
+        module = str(row.get("module", ""))
+        code = str(row.get("event_code", ""))
+        msg = str(row.get("message", ""))
+        lines.append(f"{module} {code} {msg}")
+    text = "\n".join(lines)
+    findings = parse_syslog_text(text, max_matches=15)
+
+    # Map CSV event_code to signatures when regex miss
+    code_map = {
+        "HO_PREP_FAIL": "syslog_ngap_ho_failure",
+        "XN_TIMEOUT": "syslog_xnap_failure",
+        "T310_EXPIRY": "syslog_rlf_out_of_sync",
+        "MSG1_FAIL": "syslog_rach_preamble_collision",
+        "BEAM_OVERLOAD": "syslog_pdcp_discard",
+        "SIP_TIMEOUT": "syslog_vonr_qfi_setup_fail",
+    }
+    seen = {f["rule_id"] for f in findings}
+    if "event_code" in df.columns:
+        for code, sig_id in code_map.items():
+            if sig_id in seen:
+                continue
+            if (df["event_code"] == code).any():
+                sig = next((s for s in SYSLOG_SIGNATURES if s.sig_id == sig_id), None)
+                if sig:
+                    seen.add(sig_id)
+                    findings.append({
+                        "rule_id": sig.sig_id,
+                        "category": "gnb_syslog",
+                        "domain": sig.domain,
+                        "probable_cause": f"{sig.probable_cause} (CSV event_code={code})",
+                        "confidence": sig.confidence,
+                        "evidence": {"signature": sig_id, "event_code": code, "count": int((df["event_code"] == code).sum())},
+                        "recommended_actions": list(sig.recommended_actions),
+                        "pm_counters": list(sig.pm_counters),
+                    })
+    findings.sort(key=lambda x: x["confidence"], reverse=True)
+    return findings
+
+
 def parse_syslog_text(text: str, max_matches: int = 10) -> list[dict[str, Any]]:
     """Match syslog signatures against raw log text."""
     if not text or not text.strip():

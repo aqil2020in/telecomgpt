@@ -1,0 +1,4 @@
+source_cell,target_cell,relation_status
+XYZ401,XYZ402,ACTIVE
+XYZ401,XYZ403,MISSING
+XYZ402,XYZ403,ACTIVE

@@ -56,6 +56,64 @@ class ThroughputMetricRow(BaseModel):
     issue: str
 
 
+class AlarmEventRow(BaseModel):
+    timestamp: datetime
+    cell_id: str
+    severity: str
+    alarm_name: str
+
+
+class AnrEventRow(BaseModel):
+    timestamp: datetime
+    cell_id: str
+    event_type: str
+    details: str = ""
+
+
+class NeighborRelationRow(BaseModel):
+    source_cell: str
+    target_cell: str
+    relation_status: str
+
+
+class VonrSessionRow(BaseModel):
+    timestamp: datetime
+    ue_id: str
+    cell_id: str
+    event: str
+    result: str
+    cause: str = ""
+
+
+class CellConfigurationRow(BaseModel):
+    cell_id: str
+    pci: int
+    tac: int
+    a3_offset: float
+    hysteresis: float
+    time_to_trigger: int
+    neighbor_count: int
+
+
+class GnbSyslogRow(BaseModel):
+    timestamp: datetime
+    cell_id: str
+    ue_id: str = ""
+    severity: str = ""
+    module: str = ""
+    event_code: str = ""
+    message: str = ""
+
+
+class AssuranceIngestResult(BaseModel):
+    dataset: str
+    ok: bool
+    rows_ingested: int
+    cells: list[str] = Field(default_factory=list)
+    validation_issues: list[str] = Field(default_factory=list)
+    kpi_summary: dict[str, Any] = Field(default_factory=dict)
+
+
 class ValidationIssue(BaseModel):
     dataset: str
     severity: str

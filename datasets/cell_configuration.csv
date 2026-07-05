@@ -1,0 +1,4 @@
+cell_id,pci,tac,a3_offset,hysteresis,time_to_trigger,neighbor_count
+XYZ401,101,1001,-1,0,40,5
+XYZ402,102,1001,3,1,80,12
+XYZ403,103,1001,2,2,160,10

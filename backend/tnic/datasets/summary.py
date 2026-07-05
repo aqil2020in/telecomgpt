@@ -105,6 +105,26 @@ def summarize_throughput_metrics(df: pd.DataFrame) -> DatasetSummary:
     )
 
 
+def _summarize_generic(name: str, df: pd.DataFrame, category_col: str | None = None) -> DatasetSummary:
+    time_range = None
+    if "timestamp" in df.columns:
+        time_range = {"start": str(df["timestamp"].min()), "end": str(df["timestamp"].max())}
+    cell_col = "cell_id" if "cell_id" in df.columns else "source_cell"
+    cat = {}
+    if category_col and category_col in df.columns:
+        cat = df[category_col].value_counts().to_dict()
+    return DatasetSummary(
+        name=name,
+        file=DATASET_FILES.get(DatasetName(name), f"{name}.csv") if name in DatasetName._value2member_map_ else f"{name}.csv",
+        row_count=len(df),
+        cell_count=df[cell_col].nunique() if cell_col in df.columns else 0,
+        cells=sorted(df[cell_col].unique().tolist()) if cell_col in df.columns else [],
+        columns=list(df.columns),
+        time_range=time_range,
+        category_counts=cat,
+    )
+
+
 def summarize_dataset(name: str) -> DatasetSummary:
     frames = load_all_dataframes()
     if name not in frames:
@@ -117,6 +137,12 @@ def summarize_dataset(name: str) -> DatasetSummary:
         "rach_events": summarize_rach_events,
         "call_drop_events": summarize_call_drop_events,
         "throughput_metrics": summarize_throughput_metrics,
+        "gnb_syslog": lambda d: _summarize_generic("gnb_syslog", d, "event_code"),
+        "cell_configuration": lambda d: _summarize_generic("cell_configuration", d),
+        "neighbor_relations": lambda d: _summarize_generic("neighbor_relations", d, "relation_status"),
+        "anr_events": lambda d: _summarize_generic("anr_events", d, "event_type"),
+        "vonr_sessions": lambda d: _summarize_generic("vonr_sessions", d, "result"),
+        "alarm_events": lambda d: _summarize_generic("alarm_events", d, "alarm_name"),
     }
     return builders[name](df)
 

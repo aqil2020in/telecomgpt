@@ -7,6 +7,7 @@ from typing import Any
 from tnic.models.schemas import RuleFinding
 from tnic.orchestrator.rca_catalog import RCA_CATALOG, detect_rca_type
 from tnic.orchestrator.workflow_registry import WORKFLOW_REGISTRY, detect_workflow
+from tnic.services.assurance_evidence import assurance_recommendation_summary, build_assurance_evidence
 from tnic.services.gnb_syslog_parser import parse_syslog_text
 
 # Coverage hole drives cross-domain failures (telecom causal chain)
@@ -283,6 +284,45 @@ def enrich_rca_with_catalog(
     return findings
 
 
+def enrich_rca_with_assurance(
+    findings: list[RuleFinding],
+    cell_id: str | None,
+    kpis: dict[str, Any] | None = None,
+) -> list[RuleFinding]:
+    """Inject syslog, config, ANR, VoNR, and alarm evidence from assurance datasets."""
+    if not cell_id:
+        return findings
+    try:
+        assurance_findings = build_assurance_evidence(cell_id, kpis)
+        existing_ids = {f.rule_id for f in findings}
+        for f in assurance_findings:
+            if f.rule_id not in existing_ids:
+                findings.append(f)
+                existing_ids.add(f.rule_id)
+
+        summary = assurance_recommendation_summary(assurance_findings)
+        if summary.get("finding_count", 0) > 0:
+            findings.append(RuleFinding(
+                rule_id="assurance_rca_summary",
+                category="master_rca",
+                probable_cause=(
+                    f"Assurance evidence summary: {summary['finding_count']} blocks, "
+                    f"mean confidence {summary.get('mean_confidence', 0):.0%}, "
+                    f"types={summary.get('evidence_types', [])}"
+                ),
+                confidence=float(summary.get("confidence", 0.75)),
+                evidence={
+                    "assurance_summary": summary,
+                    "evidence_types": ["syslog", "configuration", "anr", "vonr", "alarm"],
+                    "cell_id": cell_id,
+                },
+                recommended_actions=summary.get("recommendations", []),
+            ))
+    except Exception:
+        pass
+    return findings
+
+
 def enrich_master_rca(
     findings: list[RuleFinding],
     cell_id: str | None,
@@ -292,6 +332,8 @@ def enrich_master_rca(
     """Full Master RCA enrichment pipeline."""
     findings = enrich_rca_with_catalog(findings, cell_id, query)
     findings = enrich_rca_with_workflow(findings, cell_id, query)
+    if cell_id:
+        findings = enrich_rca_with_assurance(findings, cell_id, kpis)
     if should_run_coverage_agent(query) or cell_id:
         findings = enrich_rca_with_coverage(findings, cell_id, query)
     findings = enrich_rca_with_syslog(findings, query, kpis)

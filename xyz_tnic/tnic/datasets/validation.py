@@ -5,12 +5,18 @@ from __future__ import annotations
 import pandas as pd
 
 from tnic.datasets.loaders import (
+    load_alarm_events,
+    load_anr_events,
     load_call_drop_events,
+    load_cell_configuration,
+    load_gnb_syslog,
     load_handover_events,
+    load_neighbor_relations,
     load_pm_counters,
     load_rach_events,
     load_rlf_events,
     load_throughput_metrics,
+    load_vonr_sessions,
 )
 from tnic.datasets.models import DatasetValidationResult, ValidationIssue
 
@@ -115,6 +121,83 @@ def _validate_throughput(df: pd.DataFrame) -> list[ValidationIssue]:
     return issues
 
 
+def _validate_alarm_events(df: pd.DataFrame) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    allowed_sev = {"CRITICAL", "MAJOR", "MINOR", "WARNING", "INFO"}
+    if df["cell_id"].isna().any():
+        issues.append(ValidationIssue(dataset="alarm_events", severity="error", message="Missing cell_id"))
+    unknown = set(df["severity"].dropna().unique()) - allowed_sev
+    if unknown:
+        issues.append(ValidationIssue(
+            dataset="alarm_events", severity="warning",
+            message=f"Unknown severity values: {sorted(unknown)}",
+        ))
+    return issues
+
+
+def _validate_anr_events(df: pd.DataFrame) -> list[ValidationIssue]:
+    allowed = {"PCI_CONFLICT", "MISSING_NEIGHBOR", "ANR_ADD_FAIL", "ANR_REMOVE", "STALE_NEIGHBOR"}
+    return _validate_events(df, "anr_events", "event_type", allowed)
+
+
+def _validate_neighbor_relations(df: pd.DataFrame) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if "source_cell" not in df.columns or "target_cell" not in df.columns:
+        issues.append(ValidationIssue(dataset="neighbor_relations", severity="error", message="Missing source/target columns"))
+    allowed = {"ACTIVE", "MISSING", "BLACKLISTED", "STALE"}
+    unknown = set(df.get("relation_status", pd.Series()).dropna().unique()) - allowed
+    if unknown:
+        issues.append(ValidationIssue(
+            dataset="neighbor_relations", severity="warning",
+            message=f"Unknown relation_status: {sorted(unknown)}",
+        ))
+    return issues
+
+
+def _validate_vonr_sessions(df: pd.DataFrame) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if df["cell_id"].isna().any():
+        issues.append(ValidationIssue(dataset="vonr_sessions", severity="error", message="Missing cell_id"))
+    allowed_result = {"SUCCESS", "DROP", "FAIL"}
+    unknown = set(df["result"].dropna().unique()) - allowed_result
+    if unknown:
+        issues.append(ValidationIssue(
+            dataset="vonr_sessions", severity="warning",
+            message=f"Unknown result values: {sorted(unknown)}",
+        ))
+    return issues
+
+
+def _validate_cell_configuration(df: pd.DataFrame) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    required = {"cell_id", "pci", "a3_offset", "hysteresis", "time_to_trigger", "neighbor_count"}
+    missing_cols = required - set(df.columns)
+    if missing_cols:
+        issues.append(ValidationIssue(
+            dataset="cell_configuration", severity="error",
+            message=f"Missing columns: {sorted(missing_cols)}",
+        ))
+    for i, row in df.iterrows():
+        if row.get("neighbor_count", 0) < 0:
+            issues.append(ValidationIssue(
+                dataset="cell_configuration", severity="error",
+                message="neighbor_count negative", row=int(i),
+            ))
+    return issues
+
+
+def _validate_gnb_syslog(df: pd.DataFrame) -> list[ValidationIssue]:
+    issues: list[ValidationIssue] = []
+    if df["cell_id"].isna().any():
+        issues.append(ValidationIssue(dataset="gnb_syslog", severity="error", message="Missing cell_id"))
+    if "event_code" in df.columns and df["event_code"].isna().sum() > len(df) * 0.5:
+        issues.append(ValidationIssue(
+            dataset="gnb_syslog", severity="warning",
+            message=">50% rows missing event_code",
+        ))
+    return issues
+
+
 def validate_dataset(name: str) -> DatasetValidationResult:
     validators = {
         "pm_counters": (load_pm_counters, _validate_pm_counters),
@@ -123,6 +206,12 @@ def validate_dataset(name: str) -> DatasetValidationResult:
         "rach_events": (load_rach_events, _validate_rach),
         "call_drop_events": (load_call_drop_events, _validate_call_drop),
         "throughput_metrics": (load_throughput_metrics, _validate_throughput),
+        "gnb_syslog": (load_gnb_syslog, _validate_gnb_syslog),
+        "cell_configuration": (load_cell_configuration, _validate_cell_configuration),
+        "neighbor_relations": (load_neighbor_relations, _validate_neighbor_relations),
+        "anr_events": (load_anr_events, _validate_anr_events),
+        "vonr_sessions": (load_vonr_sessions, _validate_vonr_sessions),
+        "alarm_events": (load_alarm_events, _validate_alarm_events),
     }
     if name not in validators:
         return DatasetValidationResult(dataset=name, ok=False, row_count=0, issues=[
@@ -144,5 +233,16 @@ def validate_all() -> list[DatasetValidationResult]:
     names = [
         "pm_counters", "handover_events", "rlf_events",
         "rach_events", "call_drop_events", "throughput_metrics",
+        "gnb_syslog", "cell_configuration", "neighbor_relations",
+        "anr_events", "vonr_sessions", "alarm_events",
     ]
-    return [validate_dataset(n) for n in names]
+    results = []
+    for n in names:
+        try:
+            results.append(validate_dataset(n))
+        except FileNotFoundError:
+            results.append(DatasetValidationResult(
+                dataset=n, ok=False, row_count=0,
+                issues=[ValidationIssue(dataset=n, severity="error", message="Dataset file not found")],
+            ))
+    return results
