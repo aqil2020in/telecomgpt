@@ -189,28 +189,39 @@ def _format_ask_result(result: dict, *, trace: bool) -> dict:
 
 @app.post("/ask")
 def ask(q: Query):
+    from fastapi import HTTPException
+
     history = [{"role": m.role, "content": m.content} for m in q.history]
-    if _should_use_async_ask(q.query, q.trace):
-        from telecom_ai.job_store import job_store
+    try:
+        if _should_use_async_ask(q.query, q.trace):
+            from telecom_ai.job_store import job_store
 
-        job_id = job_store.create(q.query, trace=q.trace)
+            job_id = job_store.create(q.query, trace=q.trace)
 
-        def _run() -> dict:
-            return agent.run_with_trace(q.query, history=history, session_id=q.session_id)
+            def _run() -> dict:
+                return agent.run_with_trace(q.query, history=history, session_id=q.session_id)
 
-        job_store.run_in_background(job_id, _run)
-        return {
-            "async": True,
-            "job_id": job_id,
-            "status": "queued",
-            "message": "Long task queued — poll GET /api/jobs/{job_id} for results.",
-        }
+            job_store.run_in_background(job_id, _run)
+            return {
+                "async": True,
+                "job_id": job_id,
+                "status": "queued",
+                "message": "Long task queued — poll GET /api/jobs/{job_id} for results.",
+            }
 
-    if _should_use_fast_ask(q.query, q.trace):
-        result = agent.run_fast(q.query, history=history, session_id=q.session_id)
-    else:
-        result = agent.run_with_trace(q.query, history=history, session_id=q.session_id)
-    return _format_ask_result(result, trace=q.trace)
+        if _should_use_fast_ask(q.query, q.trace):
+            result = agent.run_fast(q.query, history=history, session_id=q.session_id)
+        else:
+            result = agent.run_with_trace(q.query, history=history, session_id=q.session_id)
+        return _format_ask_result(result, trace=q.trace)
+    except Exception as exc:
+        import logging
+
+        logging.getLogger("telecomgpt.ask").exception("POST /ask failed")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Ask failed: {type(exc).__name__}: {str(exc)[:300]}",
+        ) from exc
 
 
 @app.get("/api/jobs/{job_id}")

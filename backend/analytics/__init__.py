@@ -1,8 +1,9 @@
-"""CSV, log analysis, and chart generation for TelecomGPT."""
+"""CSV, log analysis, and chart generation for TelecomGPT.
 
-from .charts import chart_from_csv
-from .csv_tools import csv_summary, load_csv_bytes
-from .log_tools import log_summary, parse_log_text
+Import submodules directly (e.g. ``from analytics.csv_tools import csv_summary``).
+Avoid eager imports here — plotly is optional on lean deployments and must not
+break ``/ask`` or TNIC paths that only need csv/log helpers.
+"""
 
 __all__ = [
     "load_csv_bytes",

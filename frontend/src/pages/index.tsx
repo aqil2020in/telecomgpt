@@ -194,9 +194,25 @@ export default function Home() {
         });
       }
       window.clearTimeout(timer);
-      let data: AskResponse = await res.json();
+      const raw = await res.text();
+      let data: AskResponse = {};
+      if (raw) {
+        try {
+          data = JSON.parse(raw) as AskResponse;
+        } catch {
+          if (!res.ok) {
+            throw new Error(raw.slice(0, 200) || `Request failed (${res.status})`);
+          }
+          throw new Error("API returned an invalid response. Try again in a moment.");
+        }
+      }
       if (!res.ok) {
-        throw new Error((data as { detail?: string }).detail ?? (data as { error?: string }).error ?? `Request failed (${res.status})`);
+        throw new Error(
+          (data as { detail?: string }).detail ??
+            (data as { error?: string }).error ??
+            raw.slice(0, 200) ??
+            `Request failed (${res.status})`,
+        );
       }
 
       if (!isCoverageOptimizerQuery(text) && data.async && data.job_id) {
