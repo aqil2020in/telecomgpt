@@ -78,6 +78,16 @@ def _ho_rules() -> list[RuleDefinition]:
                        weak_target, "Target cell RSRP too weak at HO decision — coverage gap",
                        0.8, ["Close coverage gap", "Adjust mobility thresholds"],
                        ["target_rsrp"]),
+        RuleDefinition("ho_missing_neighbor", cat, "Missing neighbor",
+                       lambda k: (_get(k, "nr_neighbor_count") or 99) < 3 and (_get(k, "ho_prep_fail_rate") or 0) > 3,
+                       "Missing neighbor relation — HO prep fails to undefined target",
+                       0.81, ["Add NCR via ANR or manual plan", "Validate neighbor allow-list"],
+                       ["nr_neighbor_count", "ho_prep_fail_rate"]),
+        RuleDefinition("ho_pci_collision", cat, "PCI collision at HO",
+                       lambda k: (_get(k, "pci_conflict_count") or 0) > 0,
+                       "PCI collision/confusion — HO to wrong PCI or measurement confusion",
+                       0.79, ["PCI replan", "Enable ANR PCI correction"],
+                       ["pci_conflict_count", "ho_wrong_cell_rate"]),
     ]
 
 

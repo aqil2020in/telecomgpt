@@ -44,6 +44,22 @@ def _rach_rules() -> list[RuleDefinition]:
             0.74, ["Verify SSB beam sweep", "Check beam correspondence for PRACH"],
             ["rach_beam_fail_rate", "beam_failure_ratio"],
         ),
+        RuleDefinition(
+            "rach_rrc_setup_fail", cat, "RRC setup failure",
+            lambda k: (_get(k, "rrc_setup_fail_rate") or 0) > 3 or (
+                (_get(k, "rach_success_rate") or 100) < 92 and (_get(k, "ss_rsrp") or -80) < -105
+            ),
+            "High RRC setup failure — accessibility blocked after RACH",
+            0.78, ["Check SIB1 broadcast", "Verify cell barring/load", "Review AMF reachability"],
+            ["rrc_setup_fail_rate", "rach_success_rate", "ss_rsrp"],
+        ),
+        RuleDefinition(
+            "rach_prach_config", cat, "PRACH config mismatch",
+            lambda k: (_get(k, "prach_conflict_count") or 0) > 0,
+            "PRACH configuration conflict — MSG1 detection degraded",
+            0.76, ["Audit prach-RootSequenceIndex", "Coordinate PCI/PRACH plan with ANR"],
+            ["prach_conflict_count", "rach_msg1_fail_rate"],
+        ),
     ]
 
 

@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from tnic.agents.base import BaseAgent, kpi_to_dict
+from tnic.agents.rf_coverage_agent import RFCoverageAgent as _RFCoverageCore
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
@@ -161,13 +162,10 @@ class RFCoverageAgent(BaseAgent):
     name = "rf_coverage_agent"
 
     def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
-        from tnic.agents.rf_coverage_agent import RFCoverageAgent as _CoreAgent
-
         data = kpi_to_dict(kpis)
-        cell_id = data.get("cell_id")
-        summary = _CoreAgent().analyze(data, query=query)
+        summary = _RFCoverageCore().analyze(data, query=query)
         if summary.get("primary_issue") == "No Data":
-            return self._findings_to_result([], f"No geospatial data for {cell_id or 'requested cell'}.")
+            return self._findings_to_result([], f"No geospatial data for {data.get('cell_id') or 'requested cell'}.")
 
         findings = [{
             "rule_id": "rf_coverage_primary",
@@ -203,6 +201,39 @@ class RFCoverageAgent(BaseAgent):
         )
 
 
+class GNBSyslogAgent(BaseAgent):
+    name = "gnb_syslog_agent"
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        data = kpi_to_dict(kpis)
+        data["query"] = query
+        data["syslog_text"] = data.get("syslog_text") or query
+        from tnic.rules.gnb_syslog_rules import GNB_SYSLOG_RULE_ENGINE
+        findings = GNB_SYSLOG_RULE_ENGINE.evaluate(data)
+        return self._findings_to_result(findings, f"Syslog analysis: {len(findings)} signature(s) matched.")
+
+
+class ConfigAuditAgent(BaseAgent):
+    name = "config_audit_agent"
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        from tnic.rules.config_audit_rules import CONFIG_AUDIT_RULE_ENGINE
+        findings = CONFIG_AUDIT_RULE_ENGINE.evaluate(kpi_to_dict(kpis))
+        return self._findings_to_result(findings, f"Config audit: {len(findings)} parameter drift(s).")
+
+
+class ANRAgent(_RuleAgent):
+    def __init__(self):
+        from tnic.rules.anr_rules import ANR_RULE_ENGINE
+        super().__init__("anr_agent", ANR_RULE_ENGINE)
+
+
+class VoNRAgent(_RuleAgent):
+    def __init__(self):
+        from tnic.rules.vonr_rules import VONR_RULE_ENGINE
+        super().__init__("vonr_agent", VONR_RULE_ENGINE)
+
+
 AGENT_REGISTRY: dict[str, BaseAgent] = {
     "handover": HOAgent(),
     "ho": HOAgent(),
@@ -219,4 +250,8 @@ AGENT_REGISTRY: dict[str, BaseAgent] = {
     "complaint": ComplaintAgent(),
     "rf_coverage": RFCoverageAgent(),
     "coverage": RFCoverageAgent(),
+    "vonr": VoNRAgent(),
+    "anr": ANRAgent(),
+    "config_audit": ConfigAuditAgent(),
+    "gnb_syslog": GNBSyslogAgent(),
 }

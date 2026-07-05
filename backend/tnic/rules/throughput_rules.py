@@ -44,6 +44,22 @@ def _throughput_rules() -> list[RuleDefinition]:
             0.75, ["Upgrade N3 link", "Check UPF/cluster throughput"],
             ["backhaul_utilization", "cqi"],
         ),
+        RuleDefinition(
+            "tput_ul_degraded", cat, "UL throughput degraded",
+            lambda k: (_get(k, "ul_throughput_mbps") or 999) < 20 or (
+                (_get(k, "ul_bler_pct") or 0) > 10 and (_get(k, "ue_power_headroom_db") or 99) < 5
+            ),
+            "UL throughput degraded — UL interference or UE power limited",
+            0.77, ["Check UL interference map", "Adjust P0/alpha UL power control", "Review PUSCH PRB allocation"],
+            ["ul_throughput_mbps", "ul_bler_pct", "ue_power_headroom_db"],
+        ),
+        RuleDefinition(
+            "tput_prb_congestion_80", cat, "PRB congestion >80%",
+            lambda k: (_get(k, "prb_utilization") or 0) > 80,
+            "PRB utilization above 80% — scheduler-limited DL throughput",
+            0.74, ["Offload via mobility/CA", "Add carrier or small cell"],
+            ["prb_utilization", "throughput_mbps"],
+        ),
     ]
 
 

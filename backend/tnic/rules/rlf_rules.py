@@ -59,6 +59,13 @@ def _rlf_rules() -> list[RuleDefinition]:
             0.81, ["Audit target cell RF post-HO", "Tune HO margins"],
             ["rlf_after_ho_rate", "rlf_post_ho_pct"],
         ),
+        RuleDefinition(
+            "rlf_transport_flap", cat, "Transport flap induced RLF",
+            lambda k: (_get(k, "transport_loss_rate") or 0) > 0.3 and (_get(k, "rlf_rate") or 0) > 1,
+            "Transport packet loss correlated with RLF — backhaul instability",
+            0.75, ["Check fronthaul/backhaul alarms", "Verify SCTP/GTP stability"],
+            ["transport_loss_rate", "rlf_rate"],
+        ),
     ]
 
 
