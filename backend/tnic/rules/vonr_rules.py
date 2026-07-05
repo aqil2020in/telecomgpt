@@ -10,6 +10,14 @@ def _vonr_rules() -> list[RuleDefinition]:
 
     return [
         RuleDefinition(
+            "vonr_drop", cat, "VoNR call drop",
+            lambda k: (_get(k, "vonr_drop_rate") or 0) > 1.5 or (_get(k, "drop_ims_pct") or 0) > 5,
+            "VoNR/IMS call drop rate elevated — voice bearer or mobility-induced drop",
+            0.85,
+            ["Check 5QI-1 bearer stability", "Correlate drops with HO/RLF events", "Improve NR voice coverage"],
+            ["vonr_drop_rate", "drop_ims_pct"],
+        ),
+        RuleDefinition(
             "vonr_setup_fail", cat, "VoNR QoS flow setup failure",
             lambda k: (_get(k, "vonr_setup_success_rate") or 100) < 95,
             "VoNR session setup success below 95% — 5QI-1/65 flow or SMF path issue",

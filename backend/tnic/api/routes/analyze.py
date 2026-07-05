@@ -118,6 +118,29 @@ def get_cell_profile(cell_id: str):
     )
 
 
+@router.get("/rca/catalog")
+def get_rca_catalog():
+    """Return all 28 telecom RCA workflow types with agent and domain mapping."""
+    from tnic.orchestrator.rca_catalog import RCA_CATALOG, list_rca_types
+
+    return {
+        "count": len(RCA_CATALOG),
+        "rca_types": list_rca_types(),
+        "catalog": RCA_CATALOG,
+    }
+
+
+@router.post("/analyze/rca-type", response_model=RCAResponse)
+def analyze_rca_type(request: AnalyzeRequest):
+    """Run RCA using 28-type catalog — set issue_type to catalog key (e.g. ping_pong, coverage_hole)."""
+    from tnic.orchestrator.rca_catalog import detect_rca_type
+
+    key = detect_rca_type(request.query, request.issue_type)
+    if key and not request.issue_type:
+        request.issue_type = key
+    return _run_rca(request)
+
+
 @router.post("/analyze/handover", response_model=RCAResponse)
 @router.post("/analyze-ho", response_model=RCAResponse)
 def analyze_handover(request: AnalyzeRequest):

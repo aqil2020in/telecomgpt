@@ -66,78 +66,28 @@ class LatencyAgent(_RuleAgent):
         super().__init__("latency_agent", LATENCY_RULE_ENGINE)
 
 
-class PMAgent(BaseAgent):
-    name = "pm_agent"
-
-    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
-        from tnic.services.pm_ingestion import validate_pm_kpis
-
-        issues = validate_pm_kpis(kpi_to_dict(kpis))
-        findings = []
-        for i, issue in enumerate(issues[:5]):
-            findings.append({
-                "rule_id": f"pm_validation_{i}",
-                "category": "pm_validation",
-                "probable_cause": issue,
-                "confidence": 0.65,
-                "evidence": {},
-                "recommended_actions": ["Reconcile PM counter definitions", "Verify KPI derivation formula"],
-            })
-        return self._findings_to_result(findings, f"PM validation: {len(issues)} issue(s).")
+class PMAgent(_RuleAgent):
+    def __init__(self):
+        from tnic.rules.pm_validation_rules import PM_VALIDATION_RULE_ENGINE
+        super().__init__("pm_agent", PM_VALIDATION_RULE_ENGINE)
 
 
-class TransportAgent(BaseAgent):
-    name = "transport_agent"
-
-    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
-        data = kpi_to_dict(kpis)
-        findings = []
-        if (data.get("backhaul_utilization") or 0) > 75:
-            findings.append({
-                "rule_id": "transport_backhaul",
-                "category": "transport",
-                "probable_cause": "Backhaul utilization high — N3/F1 transport congestion",
-                "confidence": 0.77,
-                "evidence": {"backhaul_utilization": data["backhaul_utilization"]},
-                "recommended_actions": ["Upgrade transport link", "Enable QoS on N3"],
-            })
-        if (data.get("transport_loss_rate") or 0) > 0.3:
-            findings.append({
-                "rule_id": "transport_loss",
-                "category": "transport",
-                "probable_cause": "Packet loss on transport path",
-                "confidence": 0.74,
-                "evidence": {"transport_loss_rate": data["transport_loss_rate"]},
-                "recommended_actions": ["Check switch/router counters", "Verify MTU and fragmentation"],
-            })
-        return self._findings_to_result(findings, f"Transport: {len(findings)} finding(s).")
+class TransportAgent(_RuleAgent):
+    def __init__(self):
+        from tnic.rules.transport_rules import TRANSPORT_RULE_ENGINE
+        super().__init__("transport_agent", TRANSPORT_RULE_ENGINE)
 
 
-class CoreAgent(BaseAgent):
-    name = "core_agent"
+class CoreAgent(_RuleAgent):
+    def __init__(self):
+        from tnic.rules.core_rules import CORE_RULE_ENGINE
+        super().__init__("core_agent", CORE_RULE_ENGINE)
 
-    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
-        data = kpi_to_dict(kpis)
-        findings = []
-        if (data.get("amf_release_rate") or 0) > 0.5:
-            findings.append({
-                "rule_id": "core_amf_release",
-                "category": "core",
-                "probable_cause": "AMF-initiated release — check 5GMM cause and subscription",
-                "confidence": 0.73,
-                "evidence": {"amf_release_rate": data["amf_release_rate"]},
-                "recommended_actions": ["Inspect AMF logs", "Verify UE subscription profile"],
-            })
-        if (data.get("upf_latency_ms") or 0) > 40:
-            findings.append({
-                "rule_id": "core_upf_load",
-                "category": "core",
-                "probable_cause": "UPF latency elevated — user-plane processing delay",
-                "confidence": 0.8,
-                "evidence": {"upf_latency_ms": data["upf_latency_ms"]},
-                "recommended_actions": ["Rebalance UPF cluster", "Scale UPF instances"],
-            })
-        return self._findings_to_result(findings, f"Core: {len(findings)} finding(s).")
+
+class AlarmAgent(_RuleAgent):
+    def __init__(self):
+        from tnic.rules.alarm_rules import ALARM_RULE_ENGINE
+        super().__init__("alarm_agent", ALARM_RULE_ENGINE)
 
 
 class ComplaintAgent(BaseAgent):
@@ -163,11 +113,20 @@ class RFCoverageAgent(BaseAgent):
 
     def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
         data = kpi_to_dict(kpis)
+        from tnic.rules.coverage_rules import COVERAGE_RULE_ENGINE
+
+        pm_findings = COVERAGE_RULE_ENGINE.evaluate(data)
         summary = _RFCoverageCore().analyze(data, query=query)
         if summary.get("primary_issue") == "No Data":
+            if pm_findings:
+                return self._findings_to_result(
+                    pm_findings,
+                    f"PM coverage rules: {len(pm_findings)} finding(s).",
+                )
             return self._findings_to_result([], f"No geospatial data for {data.get('cell_id') or 'requested cell'}.")
 
-        findings = [{
+        findings = list(pm_findings)
+        findings.append({
             "rule_id": "rf_coverage_primary",
             "category": "rf_coverage",
             "probable_cause": (
@@ -184,7 +143,7 @@ class RFCoverageAgent(BaseAgent):
                 "impacts": summary.get("impacts", []),
             },
             "recommended_actions": [summary.get("recommendation", "Re-drive 3 mi cluster")],
-        }]
+        })
         if summary.get("secondary_issue"):
             findings.append({
                 "rule_id": "rf_coverage_secondary",
@@ -254,4 +213,5 @@ AGENT_REGISTRY: dict[str, BaseAgent] = {
     "anr": ANRAgent(),
     "config_audit": ConfigAuditAgent(),
     "gnb_syslog": GNBSyslogAgent(),
+    "alarm": AlarmAgent(),
 }

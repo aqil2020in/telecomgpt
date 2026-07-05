@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from tnic.models.schemas import RuleFinding
+from tnic.orchestrator.rca_catalog import RCA_CATALOG, detect_rca_type
 from tnic.orchestrator.workflow_registry import WORKFLOW_REGISTRY, detect_workflow
 from tnic.services.gnb_syslog_parser import parse_syslog_text
 
@@ -232,6 +233,56 @@ def enrich_rca_with_syslog(
     return findings
 
 
+def rca_catalog_findings(query: str, cell_id: str | None = None) -> list[RuleFinding]:
+    """Emit RCA catalog routing block when query matches one of 28 RCA types."""
+    rca = detect_rca_type(query)
+    if not rca:
+        return []
+    spec = RCA_CATALOG.get(rca, {})
+    findings: list[RuleFinding] = [
+        RuleFinding(
+            rule_id=f"rca_catalog_{rca}",
+            category="rca_catalog",
+            probable_cause=f"[{spec.get('title', rca)}] Domains: {', '.join(spec.get('domains', []))}",
+            confidence=0.90,
+            evidence={
+                "rca_type": rca,
+                "agents": spec.get("agents", []),
+                "rule_ids": spec.get("rule_ids", []),
+                "pm_counters": spec.get("pm_counters", []),
+                "syslog_signatures": spec.get("syslog_signatures", []),
+                "config_validations": spec.get("config_validations", []),
+                "cell_id": cell_id,
+            },
+            recommended_actions=spec.get("recommended_fixes", [])[:3],
+        ),
+    ]
+    for agent in spec.get("agents", [])[:4]:
+        findings.append(RuleFinding(
+            rule_id=f"rca_route_{rca}_{agent}",
+            category=agent,
+            probable_cause=f"[{spec.get('title', rca)}] Route to {agent} agent for rule evaluation",
+            confidence=0.82,
+            evidence={"rca_type": rca, "agent": agent, "cell_id": cell_id},
+            recommended_actions=[f"Run {agent} rules: {', '.join(spec.get('rule_ids', [])[:2])}"],
+        ))
+    return findings
+
+
+def enrich_rca_with_catalog(
+    findings: list[RuleFinding],
+    cell_id: str | None,
+    query: str = "",
+) -> list[RuleFinding]:
+    """Add 28-type RCA catalog routing block."""
+    cat_findings = rca_catalog_findings(query, cell_id)
+    existing_ids = {f.rule_id for f in findings}
+    for f in cat_findings:
+        if f.rule_id not in existing_ids:
+            findings.append(f)
+    return findings
+
+
 def enrich_master_rca(
     findings: list[RuleFinding],
     cell_id: str | None,
@@ -239,6 +290,7 @@ def enrich_master_rca(
     kpis: dict[str, Any] | None = None,
 ) -> list[RuleFinding]:
     """Full Master RCA enrichment pipeline."""
+    findings = enrich_rca_with_catalog(findings, cell_id, query)
     findings = enrich_rca_with_workflow(findings, cell_id, query)
     if should_run_coverage_agent(query) or cell_id:
         findings = enrich_rca_with_coverage(findings, cell_id, query)

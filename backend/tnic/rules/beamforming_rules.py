@@ -10,6 +10,14 @@ def _beamforming_rules() -> list[RuleDefinition]:
 
     return [
         RuleDefinition(
+            "beam_failure", cat, "Beam failure",
+            lambda k: (_get(k, "beam_failure_ratio") or 0) > 20,
+            "High beam failure ratio — SSB/beam selection or calibration issue",
+            0.81,
+            ["Recalibrate massive MIMO array", "Tune beam management and SSB sweep", "Check AAU health alarms"],
+            ["beam_failure_ratio", "beam_switch_rate"],
+        ),
+        RuleDefinition(
             "beam_overload", cat, "Beam overload",
             lambda k: (_get(k, "beam_load_pct") or 0) > 90,
             "Beam overload — single beam carrying excessive traffic",

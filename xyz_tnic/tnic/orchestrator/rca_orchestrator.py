@@ -9,6 +9,7 @@ from tnic.logging_config import get_logger
 from tnic.models.schemas import AnalyzeRequest, KnowledgeGraph, KnowledgeGraphEdge, KnowledgeGraphNode, RCAResponse, RuleFinding
 from tnic.orchestrator.knowledge_graph import build_knowledge_graph
 from tnic.orchestrator.master_rca import enrich_master_rca
+from tnic.orchestrator.rca_catalog import detect_rca_type, rca_agents
 from tnic.rules import RULE_ENGINES, detect_issue_type
 from tnic.services.health_scoring import compute_health_score
 from tnic.services.report_generator import narrate_master_rca
@@ -56,7 +57,18 @@ _ISSUE_CATEGORY = {
     "anr": "anr",
     "config_audit": "config_audit",
     "gnb_syslog": "gnb_syslog",
+    "alarm": "alarm",
 }
+
+
+def _agents_for_request(issue: str, query: str) -> list[str]:
+    """Prefer 28-type RCA catalog agent chain when query matches."""
+    rca = detect_rca_type(query)
+    if rca:
+        agents = rca_agents(rca)
+        if agents:
+            return agents
+    return ORCHESTRATION_MAP.get(issue, ["handover", "rlf", "pm"])
 
 
 def _rank_score(finding: RuleFinding, issue_type: str) -> float:
@@ -93,7 +105,7 @@ class MasterRCAOrchestrator:
         except Exception as e:
             log.warning("Dataset KPI enrichment skipped: %s", e)
 
-        agent_names = ORCHESTRATION_MAP.get(issue, [issue, "pm"])
+        agent_names = _agents_for_request(issue, request.query or request.complaint_text or "")
         all_findings: list[RuleFinding] = []
         agents_run: list[str] = []
 
