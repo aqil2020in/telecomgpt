@@ -18,11 +18,11 @@ log = get_logger(__name__)
 
 # Agents to run per primary issue (multi-domain RCA)
 ORCHESTRATION_MAP = {
-    "handover": ["handover", "rlf", "pm", "latency", "transport"],
-    "rlf": ["rlf", "handover", "call_drop", "pm"],
-    "call_drop": ["call_drop", "rlf", "handover", "beamforming", "core", "transport", "latency"],
-    "throughput": ["throughput", "beamforming", "transport", "pm"],
-    "rach": ["rach", "beamforming", "pm"],
+    "handover": ["handover", "rlf", "pm", "latency", "transport", "anr", "gnb_syslog", "alarm"],
+    "rlf": ["rlf", "handover", "call_drop", "pm", "gnb_syslog", "alarm", "rf_coverage"],
+    "call_drop": ["call_drop", "rlf", "handover", "beamforming", "core", "transport", "latency", "vonr", "gnb_syslog", "alarm"],
+    "throughput": ["throughput", "beamforming", "transport", "pm", "gnb_syslog"],
+    "rach": ["rach", "beamforming", "pm", "gnb_syslog", "config_audit"],
     "beamforming": ["beamforming", "throughput", "call_drop"],
     "latency": ["latency", "transport", "core"],
     "transport": ["transport", "latency", "throughput"],
@@ -34,8 +34,12 @@ ORCHESTRATION_MAP = {
     "anr": ["anr", "handover", "rf_coverage", "config_audit"],
     "config_audit": ["config_audit", "handover", "rach", "beamforming", "vonr"],
     "gnb_syslog": ["gnb_syslog", "handover", "rlf", "rach", "core", "transport"],
-    "cell_outage": ["gnb_syslog", "pm", "transport", "config_audit", "rf_coverage"],
+    "cell_outage": ["gnb_syslog", "pm", "transport", "config_audit", "rf_coverage", "alarm"],
+    "alarm": ["alarm", "gnb_syslog", "transport", "rlf", "handover"],
 }
+
+# Always append assurance agents when datasets are loaded (upgraded RCA path)
+_ASSURANCE_AGENT_CHAIN = ["gnb_syslog", "alarm", "vonr", "anr", "config_audit"]
 
 # Primary-domain boost so RLF/HO queries rank domain findings above cross-agent noise.
 _PRIMARY_DOMAIN_BOOST = 0.10
@@ -65,10 +69,14 @@ def _agents_for_request(issue: str, query: str) -> list[str]:
     """Prefer 28-type RCA catalog agent chain when query matches."""
     rca = detect_rca_type(query)
     if rca:
-        agents = rca_agents(rca)
-        if agents:
-            return agents
-    return ORCHESTRATION_MAP.get(issue, ["handover", "rlf", "pm"])
+        agents = list(rca_agents(rca))
+    else:
+        agents = list(ORCHESTRATION_MAP.get(issue, ["handover", "rlf", "pm"]))
+    # Append upgraded assurance agents for cross-domain evidence
+    for a in _ASSURANCE_AGENT_CHAIN:
+        if a not in agents:
+            agents.append(a)
+    return agents
 
 
 def _rank_score(finding: RuleFinding, issue_type: str) -> float:

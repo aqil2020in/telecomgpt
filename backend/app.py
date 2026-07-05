@@ -73,8 +73,10 @@ if analytics_router is not None:
 
 try:
     from tnic.api.routes.datasets import router as tnic_datasets_router
+    from tnic.api.routes.analyze import router as tnic_analyze_router
 
     app.include_router(tnic_datasets_router, prefix="/api")
+    app.include_router(tnic_analyze_router, prefix="/api/v1")
 except ImportError:
     pass
 
@@ -110,6 +112,13 @@ def root():
             "GET /api/nr-sa/attach-checklist": "NR SA attach checklist",
             "POST /api/nr-sa/attach-report": "One-click NR SA attach report",
             "POST /api/tnic/rca": "XYZ Network Intelligence RCA (TNIC)",
+            "POST /api/v1/analyze/rca": "Full TNIC multi-agent RCA",
+            "POST /api/v1/analyze/vonr": "VoNR Agent RCA",
+            "POST /api/v1/analyze/anr": "ANR Agent RCA",
+            "POST /api/v1/analyze/config-audit": "Config Audit Agent RCA",
+            "POST /api/v1/analyze/gnb-syslog": "gNB Syslog Agent RCA",
+            "GET /api/v1/rca/catalog": "28-type RCA catalog",
+            "GET /api/datasets/assurance/ingest-all": "Assurance dataset ingestion",
             "GET /api/datasets/summary": "Telecom dataset summaries (PM, HO, RLF, RACH, drops, throughput)",
             "GET /api/datasets/kpis/{cell_id}": "Merged cell KPIs from all datasets",
             "GET /api/datasets/validate-all": "Validate all telecom datasets",

@@ -28,6 +28,11 @@ PRESETS = {
     "RACH MSG3 failure": "RACH MSG3 failure cell {cell}",
     "Throughput degradation": "low throughput cell {cell}",
     "Beam failure": "beam failure cell {cell}",
+    "VoNR drop": "VoNR voice drop IMS failure cell {cell}",
+    "ANR / PCI conflict": "ANR PCI conflict missing neighbor cell {cell}",
+    "Config drift": "configuration drift CM audit cell {cell}",
+    "Syslog correlation": "gNB syslog NGAP XnAP HO failure cell {cell}",
+    "Alarm correlation": "FM alarm transport packet loss cell {cell}",
     "Unified coverage RCA": "coverage hole RLF handover call drop cell {cell}",
 }
 preset = st.selectbox("Demo preset", list(PRESETS.keys()))
