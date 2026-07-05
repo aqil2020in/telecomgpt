@@ -1,0 +1,21 @@
+{
+  "upload_id": "20260705_201010_0a862c48",
+  "filename": "ue_one_shot.csv",
+  "original_filename": "ue_one_shot.csv",
+  "file_type": "UE_PROTOCOL_TRACE",
+  "classification_confidence": 0.98,
+  "uploaded_at": "2026-07-05T20:10:10.065132+00:00",
+  "stored_path": "/workspace/xyz_tnic/data/uploads/20260705_201010_0a862c48/ue_one_shot.csv",
+  "cell_ids": [
+    "XYZ401"
+  ],
+  "ue_ids": [
+    "UE10002",
+    "UE10003"
+  ],
+  "event_count": 2,
+  "failure_count": 2,
+  "domains": [
+    "ue_protocol"
+  ]
+}

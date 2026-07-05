@@ -1,0 +1,21 @@
+{
+  "upload_id": "20260705_064722_7763cb7b",
+  "filename": "rf.csv",
+  "original_filename": "rf.csv",
+  "file_type": "RF_MEASUREMENT",
+  "classification_confidence": 0.9,
+  "uploaded_at": "2026-07-05T06:47:22.478912+00:00",
+  "stored_path": "/workspace/xyz_tnic/data/uploads/20260705_064722_7763cb7b/rf.csv",
+  "cell_ids": [
+    "XYZ401"
+  ],
+  "ue_ids": [
+    "UE10001",
+    "UE10002"
+  ],
+  "event_count": 2,
+  "failure_count": 0,
+  "domains": [
+    "rf_coverage"
+  ]
+}

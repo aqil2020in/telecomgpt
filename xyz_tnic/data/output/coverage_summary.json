@@ -10,13 +10,13 @@
       "confidence": 0.94,
       "recommendation": "Retilt sector A/B, fill edge coverage holes, rebalance SSB beams 3\u20134, then re-drive 3 mi cluster and validate HO/RACH KPIs.",
       "issue_counts": {
-        "LOW_THROUGHPUT": 25,
         "WEAK_COVERAGE": 260,
+        "LOW_THROUGHPUT": 25,
         "COVERAGE_HOLE": 224,
         "INTERFERENCE": 11,
         "BEAM_COVERAGE_GAP": 462,
-        "LATENCY_HOTSPOT": 258,
-        "HIGH_BLER": 360
+        "HIGH_BLER": 360,
+        "LATENCY_HOTSPOT": 258
       },
       "metrics": {
         "samples": 667,
@@ -46,13 +46,13 @@
       "confidence": 0.9,
       "recommendation": "Rebalance beam weights; recalibrate massive MIMO array. Secondary: RF optimization \u2014 power control, MCS cap, antenna alignment.",
       "issue_counts": {
-        "LOW_THROUGHPUT": 25,
         "WEAK_COVERAGE": 226,
+        "LOW_THROUGHPUT": 25,
         "COVERAGE_HOLE": 236,
         "INTERFERENCE": 21,
         "BEAM_COVERAGE_GAP": 482,
-        "LATENCY_HOTSPOT": 274,
-        "HIGH_BLER": 356
+        "HIGH_BLER": 356,
+        "LATENCY_HOTSPOT": 274
       },
       "metrics": {
         "samples": 667,
@@ -79,13 +79,13 @@
       "confidence": 0.89,
       "recommendation": "Rebalance beam weights; recalibrate massive MIMO array. Secondary: RF optimization \u2014 power control, MCS cap, antenna alignment.",
       "issue_counts": {
-        "LOW_THROUGHPUT": 25,
         "WEAK_COVERAGE": 240,
+        "LOW_THROUGHPUT": 25,
         "COVERAGE_HOLE": 218,
         "INTERFERENCE": 18,
         "BEAM_COVERAGE_GAP": 450,
-        "LATENCY_HOTSPOT": 272,
-        "HIGH_BLER": 342
+        "HIGH_BLER": 342,
+        "LATENCY_HOTSPOT": 272
       },
       "metrics": {
         "samples": 666,
