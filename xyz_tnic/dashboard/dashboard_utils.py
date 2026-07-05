@@ -19,6 +19,7 @@ if _DEFAULT_DATASETS.exists():
 else:
     os.environ.setdefault("TNIC_DATASETS_DIR", str(ROOT / "data" / "datasets"))
 
+from tnic.agents.ue_agent import UEProtocolAgent  # noqa: E402
 from tnic.agents.specialists import (  # noqa: E402
     AGENT_REGISTRY,
     AlarmAgent,
@@ -31,7 +32,6 @@ from tnic.agents.specialists import (  # noqa: E402
     RACHAgent,
     RLFAgent,
     ThroughputAgent,
-    UEProtocolAgent,
     VoNRAgent,
 )
 from tnic.datasets.kpi_service import build_kpi_input, compute_cell_kpis, compute_cluster_kpis, list_cell_ids
