@@ -110,12 +110,11 @@ def _render_deployment_roadmap() -> None:
             "Daily KPI exports",
             "Drive test results",
         ], True),
-        ("p3", "Phase 3 — Near Real-Time Integration", [
-            "NetAct",
-            "MantaRay",
-            "OSS APIs",
+        ("p3", "Phase 3 — Live Operations Integration", [
             "gNB syslog streaming",
             "Performance monitoring",
+            "Alarm streaming",
+            "Live KPI feeds",
         ], True),
         ("p4", "Phase 4 — Predictive AI Operations", [
             "Early warning detection",

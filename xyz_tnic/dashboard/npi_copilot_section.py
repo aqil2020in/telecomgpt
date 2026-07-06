@@ -80,7 +80,7 @@ FUTURE_SOURCES: list[dict[str, Any]] = [
     {
         "icon": "⚙️",
         "title": "Configuration Sources",
-        "uploads": ["CM Snapshots", "XML Exports", "Neighbor Dumps", "PCI Plans", "NetAct Config Exports"],
+        "uploads": ["CM Snapshots", "XML Exports", "Neighbor Dumps", "PCI Plans", "OSS Config Exports"],
         "agent": "Configuration Drift Agent",
     },
     {
@@ -556,8 +556,8 @@ def _render_deployment_roadmap() -> None:
     tiers = [
         ("t0", "🧪 Current PoC", "Synthetic datasets · CSV upload · multi-agent RCA · recommendations"),
         ("t1", "📱 Field Logs", "TEMS · Nemo · QXDM · UE log exports"),
-        ("t2", "🏢 OSS / NetAct", "PM counters · alarm exports · syslog feeds"),
-        ("t3", "🚀 Near Real-Time AI Operations", "Streaming PM · live syslogs · predictive analytics · auto RCA"),
+        ("t2", "🏢 OSS Integration", "PM counters · alarm exports · syslog feeds"),
+        ("t3", "🚀 Automated AI Operations", "Streaming PM · live syslogs · predictive analytics · auto RCA"),
     ]
     html = '<div class="deploy-timeline">'
     for i, (cls, title, detail) in enumerate(tiers):
