@@ -48,16 +48,247 @@ DEMO_SCOPE: list[str] = [
     "Streamlit multipage dashboard + FastAPI (`/api/v1/analyze/rca`)",
 ]
 
-ROADMAP: list[tuple[str, str, str, str]] = [
-    ("Phase 1", "Now", "Demo / pilot", "Synthetic & scrubbed exports · web dashboard · agent trace on every answer"),
-    ("Phase 2", "Q3 2026", "OSS read", "Scheduled PM/FM/CM exports · Nokia NetAct / Ericsson ENM CSV & REST adapters"),
-    ("Phase 3", "Q4 2026", "Near-real-time", "Alarm streaming · syslog tail · ticket webhook (ServiceNow / Remedy)"),
-    ("Phase 4", "2027", "Closed loop", "CM change validation · auto work-order · post-fix KPI verification window"),
+
+CONFIDENCE_FACTORS: list[tuple[str, str]] = [
+    ("Query classification", "+15%"),
+    ("Primary domain match", "+10%"),
+    ("Cross-domain evidence", "+20%"),
+    ("gNB syslog validation", "+15%"),
+    ("UE trace validation", "+15%"),
+    ("Transport validation", "+10%"),
+    ("RF correlation", "+10%"),
+    ("Configuration validation", "+5%"),
+]
+
+CONFIDENCE_RANGES: list[tuple[str, str, str, str]] = [
+    ("60–75%", "Low Confidence", "Single domain evidence", "rng-low"),
+    ("75–90%", "Medium Confidence", "Multiple supporting indicators", "rng-med"),
+    ("90–98%", "High Confidence", "Strong multi-agent correlation", "rng-high"),
+    ("98–100%", "Very High Confidence", "Cross-domain validation", "rng-vhigh"),
+]
+
+CONFLICT_STEPS: list[tuple[str, str]] = [
+    ("1", "Collect evidence from all specialist agents"),
+    ("2", "Identify contradictions across domains"),
+    ("3", "Rank evidence sources by quality and confidence"),
+    ("4", "Evaluate network-side vs RF vs UE indicators"),
+    ("5", "Select most probable cause with supporting consensus"),
+    ("6", "Assign final confidence score"),
 ]
 
 
 def _card(html: str) -> None:
     st.markdown(html, unsafe_allow_html=True)
+
+
+def _render_deployment_roadmap() -> None:
+    st.markdown("### 🌍 Real-World Deployment Architecture")
+    _card(
+        """
+        <p style="color:#475569;font-size:0.88rem;margin-bottom:0.8rem;">
+            How the current proof-of-concept evolves into a production telecom solution —
+            from simulated datasets to predictive AI operations.
+        </p>
+        """
+    )
+    phases = [
+        ("current", "Current State", [
+            "Simulated telecom datasets",
+            "CSV uploads",
+            "Multi-agent RCA",
+            "Recommendations",
+        ], False),
+        ("p1", "Phase 1 — Field Log Ingestion", [
+            "TEMS logs",
+            "Nemo logs",
+            "QXDM traces",
+            "UE log exports",
+        ], True),
+        ("p2", "Phase 2 — OSS / Performance Integration", [
+            "PM counters",
+            "Alarm feeds",
+            "Daily KPI exports",
+            "Drive test results",
+        ], True),
+        ("p3", "Phase 3 — Near Real-Time Integration", [
+            "Nokia NetAct",
+            "MantaRay",
+            "OSS APIs",
+            "gNB syslog streaming",
+            "Performance monitoring",
+        ], True),
+        ("p4", "Phase 4 — Predictive AI Operations", [
+            "Early warning detection",
+            "Capacity risk prediction",
+            "Coverage risk prediction",
+            "Auto RCA",
+            "Automated recommendations",
+        ], True),
+    ]
+    ladder = '<div class="deploy-ladder">'
+    for i, (css, title, items, is_list) in enumerate(phases):
+        if i > 0:
+            ladder += '<div class="deploy-arrow">↓</div>'
+        cls = f"deploy-phase {css}"
+        if is_list:
+            items_html = "".join(f"<li>{it}</li>" for it in items)
+            body = f"<ul>{items_html}</ul>"
+        else:
+            body = "".join(
+                f'{it}<div class="deploy-arrow">↓</div>' for it in items[:-1]
+            ) + items[-1]
+        ladder += f'<div class="{cls}"><h5>{title}</h5>{body}</div>'
+    ladder += "</div>"
+    _card(ladder)
+    _card(
+        """
+        <div class="deploy-note">
+            <strong>Architecture note:</strong> The current platform validates AI-agent orchestration
+            and RCA logic using representative telecom datasets. The architecture is intentionally
+            <strong>data-source agnostic</strong> — future OSS and network integrations require
+            minimal redesign.
+        </div>
+        """
+    )
+
+
+def _render_confidence_section() -> None:
+    st.markdown("### 🎯 How Confidence Scores Are Calculated")
+    _card(
+        """
+        <p style="color:#475569;font-size:0.88rem;margin-bottom:0.6rem;">
+            Confidence is <strong>not a random AI value</strong>. It is derived from evidence quality,
+            supporting agents, data consistency, KPI severity, and historical rule matching.
+        </p>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:0.4rem;margin-bottom:0.8rem;">
+            <div class="conf-factor">① Evidence quality</div>
+            <div class="conf-factor">② Supporting agents</div>
+            <div class="conf-factor">③ Data consistency</div>
+            <div class="conf-factor">④ KPI severity</div>
+            <div class="conf-factor">⑤ Rule matching</div>
+        </div>
+        """
+    )
+    st.markdown("#### Scoring model")
+    factors_html = '<div class="conf-grid">'
+    factors_html += '<div class="conf-factor"><strong>Base confidence</strong><br/>Rule engine threshold score</div>'
+    for label, pct in CONFIDENCE_FACTORS:
+        factors_html += f'<div class="conf-factor"><span class="pct">{pct}</span><br/>{label}</div>'
+    factors_html += "</div>"
+    _card(factors_html)
+
+    st.markdown("#### Example — Handover failure")
+    _card(
+        """
+        <div class="conf-example">
+            <table class="evidence-table">
+                <tr><th>Agent</th><th>Finding</th><th>Confidence</th></tr>
+                <tr><td>Handover Agent</td><td>Prep failure</td><td>78%</td></tr>
+                <tr><td>gNB Syslog</td><td>HO_REQUEST_ACK_TIMEOUT</td><td>99%</td></tr>
+                <tr class="win"><td>Transport Agent</td><td>Xn latency high</td><td>97%</td></tr>
+                <tr class="lose"><td>RF Coverage Agent</td><td>Coverage healthy</td><td>95%</td></tr>
+            </table>
+            <strong>Primary RCA:</strong> Xn transport latency<br/>
+            <strong>Final confidence:</strong> <span style="font-size:1.1rem;font-weight:800;color:#059669;">98%</span>
+            — syslog + transport agree; RF contradicts coverage-hole hypothesis.
+        </div>
+        """
+    )
+
+    st.markdown("#### Confidence ranges")
+    ranges_html = ""
+    for rng, label, desc, css in CONFIDENCE_RANGES:
+        ranges_html += (
+            f'<div class="conf-range">'
+            f'<span class="rng {css}">{rng}</span>'
+            f'<span><strong>{label}</strong></span>'
+            f'<span style="color:#64748b;">{desc}</span></div>'
+        )
+    _card(f'<div class="rca-panel">{ranges_html}</div>')
+
+
+def _render_conflict_section() -> None:
+    st.markdown("### ⚖️ How the System Handles Conflicting Evidence")
+    _card(
+        """
+        <p style="color:#475569;font-size:0.88rem;margin-bottom:0.6rem;">
+            Telecom datasets often contain <strong>contradictory indicators</strong>.
+            The Master RCA agent does not immediately trust a single agent — it reconciles
+            evidence across domains before selecting a root cause.
+        </p>
+        """
+    )
+    steps_html = ""
+    for num, detail in CONFLICT_STEPS:
+        steps_html += (
+            f'<div class="conflict-step">'
+            f'<div class="conflict-num">{num}</div><div>{detail}</div></div>'
+        )
+    _card(f'<div class="rca-panel">{steps_html}</div>')
+
+    st.markdown("#### Example 1 — HO failure with conflicting RF evidence")
+    _card(
+        """
+        <table class="evidence-table">
+            <tr><th>Source</th><th>Finding</th><th>Confidence</th></tr>
+            <tr class="lose"><td>Handover Agent</td><td>Coverage hole</td><td>82%</td></tr>
+            <tr class="win"><td>Transport Agent</td><td>Xn latency</td><td>97%</td></tr>
+            <tr class="win"><td>gNB Syslog</td><td>HO_REQUEST_ACK_TIMEOUT</td><td>99%</td></tr>
+            <tr class="lose"><td>RF Coverage Agent</td><td>Coverage healthy</td><td>95%</td></tr>
+        </table>
+        <div class="decision-box">
+            <strong>Master RCA decision</strong><br/>
+            Primary root cause: <strong>Xn transport latency</strong><br/><br/>
+            Two high-confidence network-side sources agree (transport + syslog).
+            Coverage evidence is contradicted by RF measurements.<br/>
+            <strong>Final confidence: 98%</strong>
+        </div>
+        """
+    )
+
+    st.markdown("#### Example 2 — VoNR drop with layered causes")
+    _card(
+        """
+        <table class="evidence-table">
+            <tr><th>Source</th><th>Finding</th></tr>
+            <tr class="win"><td>VoNR Agent</td><td>SIP timeout</td></tr>
+            <tr><td>Transport Agent</td><td>Packet loss</td></tr>
+            <tr><td>UE Agent</td><td>QoS flow release</td></tr>
+        </table>
+        <div class="decision-box">
+            <strong>Master RCA output</strong><br/>
+            Primary root cause: <strong>IMS session timeout</strong><br/>
+            Secondary root cause: <strong>Transport packet loss</strong><br/>
+            <strong>Final confidence: 94%</strong>
+        </div>
+        """
+    )
+
+
+def _render_executive_summary() -> None:
+    st.markdown("### Executive Summary")
+    _card(
+        """
+        <div class="exec-summary">
+            <h3>Why Multi-Agent RCA Works</h3>
+            <div class="exec-check">✓ Reduces false positives</div>
+            <div class="exec-check">✓ Validates findings across multiple domains</div>
+            <div class="exec-check">✓ Combines RF, mobility, protocol, core, and transport evidence</div>
+            <div class="exec-check">✓ Provides explainable recommendations</div>
+            <div class="exec-check">✓ Delivers higher confidence than single-domain analytics</div>
+            <div class="compare-row">
+                <div class="compare-card">
+                    <div class="label">Traditional KPI dashboard</div>
+                    <div class="value">≈ One-domain visibility</div>
+                </div>
+                <div class="compare-card">
+                    <div class="label">TNIC multi-agent RCA</div>
+                    <div class="value">≈ End-to-end network intelligence</div>
+                </div>
+            </div>
+        </div>
+        """
+    )
 
 
 def render_rca_workflow_section() -> None:
@@ -162,6 +393,89 @@ def render_rca_workflow_section() -> None:
             font-size: 0.84rem; line-height: 1.55;
         }
         .master-box strong { color: #93c5fd; }
+        .deploy-ladder { margin: 0.8rem 0 1rem 0; }
+        .deploy-phase {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 10px;
+            padding: 0.85rem 1rem; margin-bottom: 0.5rem;
+            border-left: 5px solid #2563eb;
+        }
+        .deploy-phase.current { border-left-color: #64748b; background: #f1f5f9; }
+        .deploy-phase.p1 { border-left-color: #0ea5e9; }
+        .deploy-phase.p2 { border-left-color: #8b5cf6; }
+        .deploy-phase.p3 { border-left-color: #f59e0b; }
+        .deploy-phase.p4 { border-left-color: #10b981; }
+        .deploy-phase h5 { margin: 0 0 0.35rem 0; color: #0f172a; font-size: 0.9rem; }
+        .deploy-phase ul { margin: 0.25rem 0 0 1rem; padding: 0; font-size: 0.8rem; color: #475569; }
+        .deploy-arrow { text-align: center; color: #94a3b8; font-size: 1.2rem; margin: 0.15rem 0; }
+        .deploy-note {
+            background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px;
+            padding: 0.85rem 1rem; font-size: 0.82rem; color: #1e3a5f; line-height: 1.5;
+            margin-top: 0.6rem;
+        }
+        .conf-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 0.55rem; margin: 0.6rem 0;
+        }
+        .conf-factor {
+            background: #fff; border: 1px solid #e2e8f0; border-radius: 8px;
+            padding: 0.6rem 0.75rem; font-size: 0.78rem;
+        }
+        .conf-factor .pct { font-weight: 800; color: #1d4ed8; font-size: 0.95rem; }
+        .conf-example {
+            background: linear-gradient(135deg, #f0fdf4, #eff6ff);
+            border: 1px solid #86efac; border-radius: 12px;
+            padding: 1rem 1.1rem; margin: 0.6rem 0; font-size: 0.82rem;
+        }
+        .conf-range {
+            display: grid; grid-template-columns: 80px 1fr 2fr; gap: 0.4rem;
+            padding: 0.45rem 0.6rem; border-radius: 6px; margin-bottom: 0.3rem;
+            font-size: 0.78rem; background: #fff; border: 1px solid #e2e8f0;
+        }
+        .conf-range .rng { font-weight: 700; }
+        .rng-low { color: #b45309; }
+        .rng-med { color: #ca8a04; }
+        .rng-high { color: #16a34a; }
+        .rng-vhigh { color: #059669; }
+        .conflict-step {
+            display: flex; gap: 0.65rem; align-items: flex-start;
+            padding: 0.4rem 0; font-size: 0.82rem;
+        }
+        .conflict-num {
+            flex: 0 0 auto; width: 1.4rem; height: 1.4rem; line-height: 1.4rem;
+            text-align: center; border-radius: 6px; background: #7c3aed; color: #fff;
+            font-size: 0.7rem; font-weight: 700;
+        }
+        .evidence-table {
+            width: 100%; border-collapse: collapse; font-size: 0.78rem; margin: 0.5rem 0;
+        }
+        .evidence-table th, .evidence-table td {
+            border: 1px solid #e2e8f0; padding: 0.4rem 0.55rem; text-align: left;
+        }
+        .evidence-table th { background: #f1f5f9; color: #0f172a; }
+        .evidence-table .win { background: #dcfce7; font-weight: 600; }
+        .evidence-table .lose { background: #fef2f2; color: #991b1b; }
+        .decision-box {
+            background: linear-gradient(135deg, #312e81, #1e1b4b);
+            color: #e0e7ff; border-radius: 12px; padding: 1rem 1.1rem;
+            font-size: 0.84rem; line-height: 1.55; margin-top: 0.5rem;
+        }
+        .decision-box strong { color: #a5b4fc; }
+        .exec-summary {
+            background: linear-gradient(135deg, #065f46 0%, #047857 50%, #0d9488 100%);
+            color: #ecfdf5; border-radius: 14px; padding: 1.4rem 1.6rem;
+            margin: 1rem 0; box-shadow: 0 8px 24px rgba(6, 95, 70, 0.2);
+        }
+        .exec-summary h3 { margin: 0 0 0.6rem 0; font-size: 1.2rem; }
+        .exec-check { font-size: 0.88rem; line-height: 1.7; margin: 0.4rem 0; }
+        .compare-row {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; margin-top: 0.8rem;
+        }
+        .compare-card {
+            background: rgba(255,255,255,0.12); border-radius: 10px;
+            padding: 0.75rem 0.9rem; text-align: center; font-size: 0.85rem;
+        }
+        .compare-card .label { opacity: 0.85; font-size: 0.75rem; }
+        .compare-card .value { font-weight: 700; font-size: 0.95rem; margin-top: 0.25rem; }
         </style>
         """,
         unsafe_allow_html=True,
@@ -281,17 +595,14 @@ def render_rca_workflow_section() -> None:
     scope_items = "".join(f"<li>{item}</li>" for item in DEMO_SCOPE)
     _card(f'<div class="rca-panel"><ul class="scope-list">{scope_items}</ul></div>')
 
-    st.markdown("#### Future OSS / NetAct integration roadmap")
-    roadmap_html = ""
-    for phase, when, title, detail in ROADMAP:
-        roadmap_html += (
-            f'<div class="roadmap-row">'
-            f'<span class="phase">{phase}</span>'
-            f'<span class="when">{when}</span>'
-            f'<span class="title">{title}</span>'
-            f'<span class="detail">{detail}</span></div>'
-        )
-    _card(roadmap_html)
+    st.divider()
+    _render_deployment_roadmap()
+    st.divider()
+    _render_confidence_section()
+    st.divider()
+    _render_conflict_section()
+    st.divider()
+    _render_executive_summary()
 
     st.caption(
         "Architecture reference: docs/RCA_AGENT_END_TO_END_HANDOVER.md · "
