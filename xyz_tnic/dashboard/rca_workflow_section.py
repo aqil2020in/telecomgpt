@@ -111,7 +111,7 @@ def _render_deployment_roadmap() -> None:
             "Drive test results",
         ], True),
         ("p3", "Phase 3 — Near Real-Time Integration", [
-            "Nokia NetAct",
+            "NetAct",
             "MantaRay",
             "OSS APIs",
             "gNB syslog streaming",

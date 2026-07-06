@@ -344,7 +344,7 @@ def render_dataset_simulation_section(focus_cell: str = "XYZ401") -> None:
         "<p style='color:#475569;font-size:0.88rem;margin:0;'>"
         "Upload a telecom file or select a synthetic dataset to run the full "
         "<strong>classify → trigger → agents → evidence → Master RCA</strong> workflow "
-        "— no live Nokia integration required.</p>"
+        "— no live OSS integration required.</p>"
     )
 
     col_up, col_sample = st.columns(2)
