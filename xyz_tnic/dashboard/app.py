@@ -19,6 +19,7 @@ from dashboard.dashboard_utils import (  # noqa: E402
     worst_cells,
 )
 from dashboard.rca_workflow_section import render_rca_workflow_section  # noqa: E402
+from dashboard.npi_copilot_section import render_npi_copilot_section  # noqa: E402
 
 st.set_page_config(
     page_title="XYZ Telecom TNIC",
@@ -28,7 +29,10 @@ st.set_page_config(
 )
 
 st.title("📡 XYZ Telecom Network Intelligence")
-st.caption("Executive Summary · Demo cells XYZ401–XYZ410 · Dummy telecom datasets")
+st.caption(
+    "AI-Powered Telecom Engineering & NPI Validation Copilot · "
+    "Demo cells XYZ401–XYZ410 · Synthetic telecom datasets"
+)
 
 cells = dataset_cells()
 if "selected_cell" not in st.session_state:
@@ -58,6 +62,7 @@ c3.metric("Worst cell", worst[0] if worst else "—")
 c4.metric("Cells grade D/C", int((summary["grade"].isin(["C", "D"])).sum()))
 
 render_rca_workflow_section()
+render_npi_copilot_section(st.session_state.selected_cell)
 st.divider()
 
 st.subheader("Network health overview")
