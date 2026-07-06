@@ -135,7 +135,8 @@ curl http://localhost:8000/api/v1/incidents
 ```
 
 See [API.md](./API.md) for full endpoint documentation.  
-**Agent build guide:** [docs/RCA_AGENT_END_TO_END_HANDOVER.md](../docs/RCA_AGENT_END_TO_END_HANDOVER.md)
+**Agent build guide:** [docs/RCA_AGENT_END_TO_END_HANDOVER.md](../docs/RCA_AGENT_END_TO_END_HANDOVER.md)  
+**Platform overview (PDF):** [docs/XYZ Telecom TNIC.pdf](../docs/XYZ%20Telecom%20TNIC.pdf)
 
 ---
 
