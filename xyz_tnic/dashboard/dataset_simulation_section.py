@@ -392,14 +392,14 @@ def render_dataset_simulation_section(focus_cell: str = "XYZ401") -> None:
                         query=sample["query"], fallback_domain=sample["domain"],
                     )
                 else:
-                st.session_state.npi_sim_result = _run_pipeline(
-                    path.name,
-                    path.read_bytes(),
-                    cell_id=focus_cell,
-                    query=sample["query"],
-                    fallback_domain=sample["domain"],
-                    domain_override=sample["domain"],
-                )
+                    st.session_state.npi_sim_result = _run_pipeline(
+                        path.name,
+                        path.read_bytes(),
+                        cell_id=focus_cell,
+                        query=sample["query"],
+                        fallback_domain=sample["domain"],
+                        domain_override=sample["domain"],
+                    )
 
     if result := st.session_state.get("npi_sim_result"):
         st.divider()
