@@ -7,6 +7,7 @@ from typing import Any
 import streamlit as st
 
 from dashboard.dashboard_utils import run_rca
+from dashboard.dataset_simulation_section import render_dataset_simulation_section
 
 # ---------------------------------------------------------------------------
 # Static content
@@ -637,6 +638,8 @@ def render_npi_copilot_section(focus_cell: str = "XYZ401") -> None:
     _render_future_sources()
     st.divider()
     _render_ingestion_pipeline()
+    st.divider()
+    render_dataset_simulation_section(focus_cell)
     st.divider()
     _render_trigger_engine()
     st.divider()
