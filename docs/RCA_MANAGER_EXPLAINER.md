@@ -3,7 +3,7 @@
 **Audience:** Management, NPI, NOC leads  
 **Platform:** XYZ Telecom Network Intelligence Copilot (TNIC)  
 **Demo cells:** XYZ401–XYZ410  
-**Last updated:** 2026-07-12 (added “How it works without Render”)
+**Last updated:** 2026-07-12 (expanded “What runs where” table)
 
 **Related:** [TNIC_FULL_IMPLEMENTATION_OVERVIEW.md](./TNIC_FULL_IMPLEMENTATION_OVERVIEW.md) · [TNIC_DASHBOARD_DATA_FLOW.md](./TNIC_DASHBOARD_DATA_FLOW.md) · [RCA_MANAGER_EXPLAINER.pdf](./RCA_MANAGER_EXPLAINER.pdf)
 
@@ -404,7 +404,130 @@ Optional: narrative paragraph via OpenAI **only if** API key set and report chec
 
 Same RCA logic lives in `xyz_tnic/tnic/` (dashboard) and `backend/tnic/` (Render API). Different **entry point**, same **expert checklists**.
 
-### What runs where
+### What runs where — how and where (expanded)
+
+#### Master table
+
+| Thing | Where it runs | How it runs |
+|-------|---------------|-------------|
+| **Streamlit UI** | **Your machine** (laptop, Cloud Agent, or Docker) | Run `streamlit run dashboard/app.py`. One Python process opens a web UI in the browser (e.g. `http://localhost:8502`). Every sidebar click runs Python in that same process. |
+| **CSV data** | **Disk** — folder `datasets/` | Files on disk like Excel workbooks. GitHub: `telecomgpt/datasets/`. Cloud Agent: `/workspace/datasets/`. `loaders.py` reads them with `pd.read_csv()` — not from Render or the network. |
+| **KPI calculation** | **Your machine (Python)** | `kpi_service.py` loads rows via `loaders.py`, filters by cell (e.g. XYZ401), counts events, computes rates (HO success %, prep fail %). In-memory pandas — no API call. |
+| **RCA agents & rules** | **Your machine (Python)** | `specialists.py` calls `rules/*.py` (e.g. `ho_rules.py`). IF/WHEN on KPI numbers → finding with cause, confidence, actions. Pure Python — no cloud for core RCA. |
+| **Handover / RLF / RCA Report** | **Your machine** — same Streamlit process | Each page is `dashboard/pages/*.py` → `dashboard_utils.py` → loaders + KPI → `run_agent()` or `run_rca()` → screen. No separate server. |
+
+#### Everything on one machine
+
+```mermaid
+flowchart TB
+    subgraph MACHINE["YOUR MACHINE"]
+        ST["Streamlit process\nstreamlit run dashboard/app"]
+        UTIL["dashboard_utils.py\nkpi_service.py\nagents + rules"]
+        ST --> UTIL
+        DISK["DISK: datasets/*.csv"]
+        UTIL --> DISK
+    end
+    RENDER["Render API\nNOT used for dashboard demo"]
+    MACHINE -.->|"no connection"| RENDER
+```
+
+#### Row-by-row detail
+
+**Streamlit UI**
+
+| | |
+|---|---|
+| Where | Process on your machine |
+| Path | `xyz_tnic/dashboard/app.py` + `dashboard/pages/*.py` |
+| How | `cd xyz_tnic && streamlit run dashboard/app.py --server.port 8502` |
+| Not | Not on Render; not on Vercel |
+
+**CSV data**
+
+| | |
+|---|---|
+| Where | Hard disk in the repo |
+| Path | `datasets/` (15 CSV files) |
+| How | `loaders.py` → `pd.read_csv()`, cached in RAM |
+| Not | Not from Render; not typed in the UI |
+
+**KPI calculation**
+
+| | |
+|---|---|
+| Where | Inside Streamlit Python process |
+| Path | `tnic/datasets/kpi_service.py` |
+| How | `compute_cell_kpis("XYZ401")` merges PM, HO, RLF, drops into one dict |
+| Not | Not a database; not an external KPI service |
+
+**RCA agents & rules**
+
+| | |
+|---|---|
+| Where | Same Python process |
+| Path | `agents/specialists.py` + `rules/ho_rules.py`, `rlf_rules.py`, … |
+| How | Agent + KPI dict → rule engine → findings |
+| Not | Not LLM for core findings; not on Render for dashboard |
+
+**Sidebar pages**
+
+| Page | Where | How (file chain) |
+|------|-------|------------------|
+| Handover | Your machine | `2_Handover.py` → `handover_df()` + `cell_kpis()` + `run_agent("handover")` |
+| RLF | Your machine | `3_RLF.py` → `rlf_df()` + `cell_kpis()` + `run_agent("rlf")` |
+| RCA Report | Your machine | `8_RCA_Report.py` → `run_rca()` → `MasterRCAOrchestrator` → ranked report |
+
+#### Handover trace — full where + how
+
+| Step | What | Where | How |
+|------|------|-------|-----|
+| 1 | Open Handover | Browser on your machine | Click sidebar |
+| 2 | Page runs | RAM — Python | `pages/2_Handover.py` |
+| 3 | Read CSV | Disk → RAM | `loaders.py` → `handover_events_enriched.csv` |
+| 4 | Filter cell | RAM | `handover_df("XYZ401")` |
+| 5 | Calculate KPIs | RAM | `kpi_service.py` |
+| 6 | Draw charts | Browser | Streamlit UI |
+| 7 | Run HO Agent | RAM | `HOAgent` → `ho_rules.py` |
+| 8 | Show findings | Browser | Table at page bottom |
+
+**Machines involved:** 1 (yours). **Cloud services:** 0 (for this demo path).
+
+#### What does NOT run on your machine
+
+| Thing | Where it runs |
+|-------|----------------|
+| TelecomGPT chat UI | Vercel |
+| TelecomGPT + TNIC API | Render (`telecomgpt.onrender.com`) |
+| OpenAI narrative (optional) | OpenAI cloud — only if API key + report checkbox ON |
+
+#### One sentence per row (manager script)
+
+| Thing | Say this |
+|-------|----------|
+| Streamlit UI | “The app runs locally — one command, browser UI.” |
+| CSV data | “Preloaded files in the repo, like Excel on the hard drive.” |
+| KPI calculation | “Python on the same machine counts events and calculates rates.” |
+| RCA agents & rules | “Telecom checklists in Python — flag cause and fix steps.” |
+| Handover / RLF / RCA Report | “Same local flow: read file → summarize → run rules → show answer.” |
+
+#### Copy-paste for slides
+
+```
+WHAT RUNS WHERE (RCA Dashboard Demo)
+
+Component              Location              How
+─────────────────────────────────────────────────────────────────
+Streamlit UI           Your machine          streamlit run dashboard/app.py
+CSV data               Disk (datasets/)      pd.read_csv — preloaded files
+KPI calculation        Your machine (Python) kpi_service.py — count & rate
+RCA agents & rules     Your machine (Python) specialists.py + rules/*.py
+Handover / RLF /       Your machine          dashboard/pages/*.py — same process
+RCA Report pages
+
+NOT used for demo: Render API, live OSS, OpenAI (unless optional report ON)
+```
+
+#### Simple summary table
 
 | Component | Where |
 |-----------|--------|
@@ -412,7 +535,7 @@ Same RCA logic lives in `xyz_tnic/tnic/` (dashboard) and `backend/tnic/` (Render
 | CSV data | Disk (`datasets/`) |
 | KPI calculation | Your machine (Python) |
 | RCA agents & rules | Your machine (Python) |
-| Render API | **Not used** for sidebar pages (Handover, RLF, RCA Report) |
+| Render API | **Not used** for sidebar pages |
 | OpenAI | **Optional** — narrative report only |
 
 ### Upload page (only optional API use)
