@@ -1,0 +1,15 @@
+# Minimal deps for LOCAL Streamlit RCA dashboard demo (no Render, no Chroma, no OpenAI required)
+# Install: pip install -r requirements-dashboard.txt
+
+pandas>=2.1.0
+pydantic>=2.6.0
+pydantic-settings>=2.2.0
+sqlalchemy>=2.0.0
+streamlit>=1.31.0
+plotly>=6.0.0
+requests>=2.31.0
+
+# Optional — only if running TNIC API locally (Upload page REST path)
+# fastapi>=0.110.0
+# uvicorn[standard]>=0.27.0
+# python-multipart>=0.0.9
