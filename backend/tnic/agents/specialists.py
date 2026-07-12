@@ -9,6 +9,7 @@ from tnic.agents.rf_coverage_agent import RFCoverageAgent as _RFCoverageCore
 from tnic.agents.ue_agent import UEProtocolAgent
 from tnic.models.schemas import AgentResult
 from tnic.rules import RULE_ENGINES
+from tnic.agents.beam_agent import BeamformingAgent as _BeamformingCore
 from tnic.rules.beamforming_rules import BEAMFORMING_RULE_ENGINE
 from tnic.rules.call_drop_rules import CALL_DROP_RULE_ENGINE
 from tnic.rules.ho_rules import HO_RULE_ENGINE
@@ -57,9 +58,66 @@ class RACHAgent(_RuleAgent):
         super().__init__("rach_agent", RACH_RULE_ENGINE)
 
 
-class BeamformingAgent(_RuleAgent):
-    def __init__(self):
-        super().__init__("beamforming_agent", BEAMFORMING_RULE_ENGINE)
+_BEAM_ACTIONS: dict[str, list[str]] = {
+    "BEAM_CONGESTION": [
+        "Rebalance traffic across SSB beams",
+        "Review beam-specific scheduler weights",
+    ],
+    "BEAM_INSTABILITY": [
+        "Tune beam management timers",
+        "Check SSB-RSRP hysteresis",
+    ],
+    "BEAM_COVERAGE_HOLE": [
+        "Optimize tilt/azimuth per beam",
+        "Add relay or small cell in beam gap",
+    ],
+    "BEAM_IMBALANCE": [
+        "Adjust beam weights",
+        "Verify AAU calibration",
+    ],
+}
+
+
+class BeamformingAgent(BaseAgent):
+    name = "beamforming_agent"
+
+    def analyze(self, kpis: dict[str, Any], query: str = "") -> AgentResult:
+        data = kpi_to_dict(kpis)
+        cell_id = data.get("cell_id")
+        if cell_id:
+            diagnosis = _BeamformingCore().analyze(cell_id=str(cell_id), query=query)
+            return self._diagnosis_to_result(diagnosis)
+
+        findings = BEAMFORMING_RULE_ENGINE.evaluate(data)
+        summary = f"{self.name}: {len(findings)} rule(s) fired."
+        if findings:
+            summary += f" Top: {findings[0]['probable_cause'][:80]}"
+        return self._findings_to_result(findings, summary)
+
+    def _diagnosis_to_result(self, diagnosis) -> AgentResult:
+        if diagnosis.issue_class in {"No Data", "No Issue"}:
+            return self._findings_to_result(
+                [],
+                f"{self.name}: {diagnosis.root_cause}",
+            )
+
+        code = (diagnosis.evidence or {}).get("issue_code", "BEAM_INSTABILITY")
+        findings = [{
+            "rule_id": f"beam_{code.lower()}",
+            "category": "beamforming",
+            "probable_cause": diagnosis.root_cause,
+            "confidence": diagnosis.confidence,
+            "evidence": {
+                **(diagnosis.metrics or {}),
+                **(diagnosis.evidence or {}),
+            },
+            "recommended_actions": _BEAM_ACTIONS.get(code, []),
+        }]
+        summary = (
+            f"{self.name}: {diagnosis.issue_class} "
+            f"(confidence {diagnosis.confidence:.0%})."
+        )
+        return self._findings_to_result(findings, summary)
 
 
 class LatencyAgent(_RuleAgent):
