@@ -36,6 +36,17 @@ port the TNIC API is actually running on.
 - **Database**: TNIC defaults to SQLite (`xyz_tnic/data/tnic_local.db`); PostgreSQL
   (`DATABASE_URL`) is optional/production-only.
 
+### Local TNIC manager demo (no Render)
+
+For management demos **without Render or OpenAI**:
+
+```bash
+./scripts/demo_tnic_local.sh
+```
+
+Open http://localhost:8502 — Handover → XYZ401 → RCA Report. See `docs/DEMO_TNIC_LOCAL_MANAGER.md`.
+Uses `xyz_tnic/requirements-dashboard.txt` (lightweight; no Chroma). Sidebar pages do not call Render.
+
 ### Tests / lint
 
 - XYZ TNIC test suite: `cd xyz_tnic && /workspace/.venv/bin/python -m pytest` (100 tests).
