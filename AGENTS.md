@@ -47,6 +47,10 @@ For management demos **without Render or OpenAI**:
 Open http://localhost:8502 — Handover → XYZ401 → RCA Report. See `docs/DEMO_TNIC_LOCAL_MANAGER.md`.
 Uses `xyz_tnic/requirements-dashboard.txt` (lightweight; no Chroma). Sidebar pages do not call Render.
 
+### Cursor training
+
+See `docs/CURSOR_TRAINING.md` for concepts, tutorials, best practices, and a manager track using this repo.
+
 ### Tests / lint
 
 - XYZ TNIC test suite: `cd xyz_tnic && /workspace/.venv/bin/python -m pytest` (100 tests).
