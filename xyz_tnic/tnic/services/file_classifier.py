@@ -12,6 +12,7 @@ from tnic.models.upload_models import FileClassification
 
 # Canonical file types (10 categories)
 FILE_TYPES = (
+    "TELECOM_ISSUES",
     "UE_PROTOCOL_TRACE",
     "GNB_SYSLOG",
     "ALARM",
@@ -25,6 +26,7 @@ FILE_TYPES = (
 )
 
 _FILENAME_HINTS: dict[str, tuple[str, ...]] = {
+    "TELECOM_ISSUES": ("telecom_issues", "telecom-issues", "unified_issues", "all_issues", "rca_issues"),
     "UE_PROTOCOL_TRACE": ("ue_trace", "ue_protocol", "ue_log", "protocol_trace", "ue-log"),
     "GNB_SYSLOG": ("syslog", "gnb_log", "du_log", "cu_log", "gnb-syslog"),
     "ALARM": ("alarm", "fm_alarm", "fault", "alarms"),
@@ -37,6 +39,7 @@ _FILENAME_HINTS: dict[str, tuple[str, ...]] = {
 }
 
 _COLUMN_HINTS: dict[str, tuple[str, ...]] = {
+    "TELECOM_ISSUES": ("issue_domain", "event_type", "telecom_domain"),
     "UE_PROTOCOL_TRACE": (
         "ue_id", "layer", "procedure", "message", "msg1", "msg2", "msg3", "msg4",
         "rrc", "t310", "n310", "sib1", "mib", "pbch",
@@ -90,6 +93,10 @@ def _score_columns(columns: list[str]) -> dict[str, float]:
     # Strong signals
     if {"ue_id", "layer", "procedure"} <= cols or {"ue_id", "message", "result"} <= cols:
         scores["UE_PROTOCOL_TRACE"] += 0.5
+    if "issue_domain" in cols and ("event_type" in cols or "failure_type" in cols):
+        scores["TELECOM_ISSUES"] += 0.85
+    if "issue_domain" in cols:
+        scores["TELECOM_ISSUES"] += 0.35
     if "event_code" in cols and ("module" in cols or "message" in cols):
         scores["GNB_SYSLOG"] += 0.45
     if "counter_name" in cols or ("counter" in cols and "value" in cols):

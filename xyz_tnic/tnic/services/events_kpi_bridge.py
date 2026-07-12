@@ -6,6 +6,7 @@ from collections import Counter
 from typing import Any
 
 from tnic.models.normalized_event import NormalizedEvent
+from tnic.datasets.telecom_issues import aggregate_kpis_from_events, detect_key_issues
 
 
 def _safe_rate(num: float, den: float) -> float | None:
@@ -20,6 +21,16 @@ def kpis_from_events(events: list[NormalizedEvent], cell_id: str | None = None) 
         return {"cell_id": cell_id or ""}
 
     cid = cell_id or next((e.cell_id for e in events if e.cell_id), "")
+
+    # Unified telecom_issues upload — full KPI parity with kpi_service
+    if any(e.metadata.get("issue_domain") for e in events):
+        issue_kpis = aggregate_kpis_from_events(events, cid)
+        issue_kpis["key_issues"] = detect_key_issues(issue_kpis, events)
+        issue_kpis["event_sources"] = sorted({e.source for e in events})
+        issue_kpis["normalized_event_count"] = len(events)
+        issue_kpis["normalized_failure_count"] = sum(1 for e in events if e.is_failure())
+        return issue_kpis
+
     kpis: dict[str, Any] = {"cell_id": cid, "event_sources": sorted({e.source for e in events})}
     kpis["normalized_event_count"] = len(events)
     kpis["normalized_failure_count"] = sum(1 for e in events if e.is_failure())

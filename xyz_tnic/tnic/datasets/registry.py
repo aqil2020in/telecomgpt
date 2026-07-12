@@ -25,6 +25,7 @@ class DatasetName(str, Enum):
     VONR_SESSIONS = "vonr_sessions"
     ALARM_EVENTS = "alarm_events"
     UE_PROTOCOL_TRACE = "ue_protocol_trace"
+    TELECOM_ISSUES = "telecom_issues"
 
 
 DATASET_FILES: dict[DatasetName, str] = {
@@ -42,6 +43,7 @@ DATASET_FILES: dict[DatasetName, str] = {
     DatasetName.VONR_SESSIONS: "vonr_sessions.csv",
     DatasetName.ALARM_EVENTS: "alarm_events.csv",
     DatasetName.UE_PROTOCOL_TRACE: "ue_protocol_trace.csv",
+    DatasetName.TELECOM_ISSUES: "telecom_issues.csv",
 }
 
 ASSURANCE_DATASETS = frozenset({

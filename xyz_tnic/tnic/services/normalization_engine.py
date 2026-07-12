@@ -26,6 +26,7 @@ from tnic.services.schema_inference import (
 FAIL_RESULTS = frozenset({"FAIL", "FAILURE", "DROP", "REJECT", "TIMEOUT", "CRITICAL", "MAJOR", "ERROR"})
 
 DOMAIN_MAP = {
+    "TELECOM_ISSUES": "telecom_issues",
     "UE_PROTOCOL_TRACE": "ue_protocol",
     "GNB_SYSLOG": "gnb_syslog",
     "ALARM": "alarm",
@@ -54,6 +55,9 @@ def _severity_from_result(result: str, default: str = "info") -> str:
     if r in ("SUCCESS", "OK", "PASS", "CLEARED"):
         return "info"
     return default
+
+
+from tnic.datasets.telecom_issues import _norm_domain, _result_from_row
 
 
 def _row_to_event(
@@ -102,6 +106,51 @@ def _row_to_event(
     )
 
 
+def _telecom_issues_row_to_event(
+    row: dict[str, Any],
+    col_map: dict[str, str],
+    *,
+    source: str,
+) -> NormalizedEvent:
+    issue_domain = _norm_domain(
+        _get(row, col_map, "issue_domain")
+        or row.get("issue_domain", "")
+    )
+    event_type = (
+        _get(row, col_map, "event_type")
+        or _get(row, col_map, "failure_type")
+        or _get(row, col_map, "drop_type")
+        or _get(row, col_map, "msg_failure")
+        or "EVENT"
+    )
+    result = _result_from_row(_get(row, col_map, "result"), event_type, issue_domain)
+    severity_raw = _get(row, col_map, "severity", "")
+    severity = severity_raw.lower() if severity_raw else _severity_from_result(result)
+    meta = {k: v for k, v in row.items() if v not in ("", None)}
+    meta["issue_domain"] = issue_domain
+    meta["event_type"] = event_type
+    meta["result"] = result
+    cause = _get(row, col_map, "cause")
+    if cause:
+        meta["cause"] = cause
+    for key in ("rsrp", "sinr", "cqi", "target_cell", "source_cell", "dl_tp", "prb_util",
+                "alarm_name", "module", "event_code", "message", "details",
+                "beam_id", "beam_health_score", "beam_switch_rate"):
+        val = _get(row, col_map, key) or row.get(key, "")
+        if val:
+            meta[key] = val
+    return NormalizedEvent(
+        timestamp=_get(row, col_map, "timestamp"),
+        cell_id=_get(row, col_map, "cell_id").upper(),
+        ue_id=_get(row, col_map, "ue_id").upper(),
+        source=source,
+        domain=issue_domain,
+        event=str(event_type).upper(),
+        severity=severity,
+        metadata=meta,
+    )
+
+
 def normalize_dataframe(
     df: pd.DataFrame,
     classification: FileClassification,
@@ -113,6 +162,9 @@ def normalize_dataframe(
     col_map = schema.column_map or infer_column_map(list(df.columns))
     events: list[NormalizedEvent] = []
     for rec in df.fillna("").astype(str).to_dict(orient="records"):
+        if classification.file_type == "TELECOM_ISSUES":
+            events.append(_telecom_issues_row_to_event(rec, col_map, source=source))
+            continue
         ev = _row_to_event(rec, col_map, source=source, domain=domain)
         if classification.file_type == "PM_COUNTERS" and not ev.event:
             ev.event = _get(rec, col_map, "counter_name", "PM_COUNTER")
