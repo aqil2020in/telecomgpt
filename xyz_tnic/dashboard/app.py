@@ -20,6 +20,7 @@ from dashboard.dashboard_utils import (  # noqa: E402
 )
 from dashboard.rca_workflow_section import render_rca_workflow_section  # noqa: E402
 from dashboard.npi_copilot_section import render_npi_copilot_section  # noqa: E402
+from dashboard.data_sources_section import render_data_sources_section  # noqa: E402
 
 st.set_page_config(
     page_title="XYZ Telecom TNIC",
@@ -60,6 +61,9 @@ c1.metric("Cells monitored", len(summary))
 c2.metric("Cluster avg health", f"{summary['health_score'].mean():.1f}/100")
 c3.metric("Worst cell", worst[0] if worst else "—")
 c4.metric("Cells grade D/C", int((summary["grade"].isin(["C", "D"])).sum()))
+
+render_data_sources_section()
+st.divider()
 
 render_rca_workflow_section()
 render_npi_copilot_section(st.session_state.selected_cell)
