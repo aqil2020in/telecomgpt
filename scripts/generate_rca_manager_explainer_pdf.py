@@ -179,6 +179,32 @@ def build_pdf() -> Path:
     pdf.bullet("Chat/API: Browser -> Vercel -> Render -> TNIC rules (uses Render)")
     pdf.body("Upload page ONLY can optionally call Render API; all sidebar pages stay local.")
 
+    pdf.section("6b. What runs where - HOW and WHERE")
+    pdf.set_font("Helvetica", "B", 8)
+    pdf.set_fill_color(230, 240, 250)
+    w = [38, 42, 110]
+    for i, h in enumerate(["Thing", "Where", "How"]):
+        pdf.cell(w[i], 6, h, border=1, fill=True)
+    pdf.ln()
+    pdf.set_font("Helvetica", "", 7)
+    wr_rows = [
+        ("Streamlit UI", "Your machine", "streamlit run dashboard/app.py - one Python process"),
+        ("CSV data", "Disk datasets/", "loaders.py pd.read_csv - preloaded files"),
+        ("KPI calculation", "Your machine", "kpi_service.py counts rows, computes rates"),
+        ("RCA agents/rules", "Your machine", "specialists.py + rules/*.py IF/THEN checks"),
+        ("Handover/RLF/RCA", "Your machine", "pages/*.py -> utils -> agents -> screen"),
+    ]
+    for r in wr_rows:
+        pdf.set_x(pdf.l_margin)
+        pdf.cell(w[0], 6, r[0], border=1)
+        pdf.cell(w[1], 6, r[1], border=1)
+        pdf.cell(w[2], 6, r[2][:95], border=1)
+        pdf.ln()
+    pdf.ln(2)
+    pdf.body("Handover trace: Browser -> 2_Handover.py -> loaders -> kpi_service -> HOAgent -> findings")
+    pdf.body("NOT on your machine for demo: Render API, live OSS. OpenAI optional only.")
+    pdf.body("Machines involved: 1. Cloud services: 0.")
+
     pdf.add_page()
     pdf.section("7. Handover vs RCA Report")
     pdf.set_x(pdf.l_margin)
