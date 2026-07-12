@@ -158,7 +158,29 @@ def build_pdf() -> Path:
     )
 
     pdf.add_page()
-    pdf.section("6. Handover vs RCA Report")
+    pdf.section("6. How it works WITHOUT Render")
+    pdf.body(
+        "The Streamlit RCA dashboard does NOT need telecomgpt.onrender.com for demos. "
+        "One Python process on your machine = dashboard + RCA engine together."
+    )
+    pdf.bullet("Step 1: streamlit run dashboard/app.py")
+    pdf.bullet("Step 2: loaders.py reads CSV from datasets/ (disk, no network)")
+    pdf.bullet("Step 3: kpi_service.py calculates rates per cell")
+    pdf.bullet("Step 4: Pages show charts (proof) + metrics (summary)")
+    pdf.bullet("Step 5: agents + rules/*.py run local IF/THEN checklists")
+    pdf.bullet("Step 6: Findings on screen - no Render, no OpenAI required")
+    pdf.ln(1)
+    pdf.say_box(
+        "Dashboard demo runs on this machine like Excel plus macros - "
+        "Render is a separate door for chat and API, not needed for this demo."
+    )
+    pdf.body("Two paths, same RCA brain:")
+    pdf.bullet("Dashboard: Your PC -> Streamlit -> CSV -> Rules -> Screen (NO Render)")
+    pdf.bullet("Chat/API: Browser -> Vercel -> Render -> TNIC rules (uses Render)")
+    pdf.body("Upload page ONLY can optionally call Render API; all sidebar pages stay local.")
+
+    pdf.add_page()
+    pdf.section("7. Handover vs RCA Report")
     pdf.set_x(pdf.l_margin)
     pdf.set_font("Helvetica", "B", 9)
     pdf.set_fill_color(230, 240, 250)
@@ -181,7 +203,7 @@ def build_pdf() -> Path:
         pdf.ln()
 
     pdf.ln(3)
-    pdf.section("7. Key Python files (if asked)")
+    pdf.section("8. Key Python files (if asked)")
     pdf.bullet("Page UI: dashboard/pages/2_Handover.py or 8_RCA_Report.py")
     pdf.bullet("Glue: dashboard/dashboard_utils.py")
     pdf.bullet("Read CSV: datasets/loaders.py")
@@ -190,10 +212,12 @@ def build_pdf() -> Path:
     pdf.bullet("Checklists: rules/ho_rules.py, rlf_rules.py, ...")
     pdf.bullet("Team lead: orchestrator/rca_orchestrator.py")
 
-    pdf.section("8. Manager FAQ - quick answers")
+    pdf.section("9. Manager FAQ - quick answers")
     faq = [
         ("Did we enter data manually?", "No - preloaded CSV files in GitHub datasets/."),
+        ("Uses Render backend?", "No for dashboard demo - local Streamlit + CSV + Python."),
         ("Is it AI / ChatGPT?", "Core is rule-based. AI optional for summary text only."),
+        ("OpenAI cost?", "$0 unless narrative report ON + API key set."),
         ("Can we trust it?", "Every finding shows evidence and rule ID - auditable."),
         ("Real network later?", "Replace CSVs with real OSS exports; same agents/rules."),
         ("Business value?", "Faster RCA, one view across mobility/RF/voice/alarms."),
@@ -207,7 +231,7 @@ def build_pdf() -> Path:
         pdf.multi_cell(0, 5, f"A: {a}")
         pdf.ln(1)
 
-    pdf.section("9. Five-minute demo script")
+    pdf.section("10. Five-minute demo script")
     demo = [
         "0-1 min: Home - show 10 cells XYZ401-410",
         "1-2 min: Handover XYZ401 - metrics + charts",
@@ -219,7 +243,7 @@ def build_pdf() -> Path:
         pdf.bullet(d)
 
     pdf.ln(2)
-    pdf.section("10. One sentence to memorize")
+    pdf.section("11. One sentence to memorize")
     pdf.set_x(pdf.l_margin)
     pdf.set_font("Helvetica", "I", 10)
     pdf.multi_cell(

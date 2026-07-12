@@ -3,7 +3,7 @@
 **Audience:** Management, NPI, NOC leads  
 **Platform:** XYZ Telecom Network Intelligence Copilot (TNIC)  
 **Demo cells:** XYZ401–XYZ410  
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-12 (added “How it works without Render”)
 
 **Related:** [TNIC_FULL_IMPLEMENTATION_OVERVIEW.md](./TNIC_FULL_IMPLEMENTATION_OVERVIEW.md) · [TNIC_DASHBOARD_DATA_FLOW.md](./TNIC_DASHBOARD_DATA_FLOW.md) · [RCA_MANAGER_EXPLAINER.pdf](./RCA_MANAGER_EXPLAINER.pdf)
 
@@ -335,7 +335,129 @@ pages/8_RCA_Report.py
 
 ---
 
-## 8. Manager FAQ
+## 8. How it works without Render
+
+The Streamlit RCA dashboard **does not need** the Render deployment (`https://telecomgpt.onrender.com`) for demos. Everything runs **on one machine** in a **single Python process**.
+
+### One-line answer
+
+> You start Streamlit → it reads CSV files from disk → Python calculates KPIs → rule-based agents check those numbers → results appear on screen. All local. No cloud API required.
+
+### Step 0 — Start the app
+
+```bash
+cd xyz_tnic
+streamlit run dashboard/app.py --server.port 8502
+```
+
+One Python program on your machine **is** the dashboard + RCA engine together.
+
+### Steps 1–6 (Handover example)
+
+| Step | What happens | Key file(s) |
+|------|----------------|-------------|
+| 1 | You pick **Handover** + **XYZ401** | `pages/2_Handover.py` |
+| 2 | Read CSV from disk (no network) | `loaders.py` → `datasets/*.csv` |
+| 3 | Calculate summary metrics (87% HO success, 8% prep fail…) | `kpi_service.py` |
+| 4 | Show metrics + charts (proof) | `2_Handover.py` |
+| 5 | Handover Agent runs telecom checklist | `specialists.py` → `ho_rules.py` |
+| 6 | Findings at bottom of page | cause, confidence, evidence, actions |
+
+### Local flow diagram
+
+```mermaid
+flowchart TB
+    YOU["You: Handover + XYZ401"]
+    ST["Streamlit on your machine"]
+    CSV["CSV files on disk datasets/"]
+    LOAD["loaders.py"]
+    KPI["kpi_service.py"]
+    CHARTS["Charts and tables"]
+    AGENT["HOAgent + ho_rules.py"]
+    FIND["Findings on screen"]
+
+    YOU --> ST
+    ST --> CSV --> LOAD --> KPI
+    KPI --> CHARTS
+    KPI --> AGENT --> FIND
+    CHARTS --> FIND
+```
+
+**Everything stays on your machine — no Render in this path.**
+
+### RCA Report (still local)
+
+Same CSV + KPI steps, then:
+
+```
+rca_orchestrator.py  →  many agents  →  master_rca.py  →  ranked report on screen
+```
+
+Optional: narrative paragraph via OpenAI **only if** API key set and report checkbox ON.
+
+### Dashboard vs Render — two doors, same brain
+
+| Path | Flow | Uses Render? |
+|------|------|--------------|
+| **Dashboard demo** | Your PC → Streamlit → CSV → Rules → Screen | **No** |
+| **TelecomGPT chat/API** | Browser → Vercel → Render API → TNIC rules → Answer | **Yes** |
+
+Same RCA logic lives in `xyz_tnic/tnic/` (dashboard) and `backend/tnic/` (Render API). Different **entry point**, same **expert checklists**.
+
+### What runs where
+
+| Component | Where |
+|-----------|--------|
+| Streamlit UI | Your machine |
+| CSV data | Disk (`datasets/`) |
+| KPI calculation | Your machine (Python) |
+| RCA agents & rules | Your machine (Python) |
+| Render API | **Not used** for sidebar pages (Handover, RLF, RCA Report) |
+| OpenAI | **Optional** — narrative report only |
+
+### Upload page (only optional API use)
+
+- Default API URL: `http://127.0.0.1:8000/api/v1` (local)
+- Can point to `https://telecomgpt.onrender.com/api/v1` if desired
+- If API fails → **automatic fallback** to local Python (`dashboard_utils.py`)
+
+Handover, RLF, VoNR, and RCA Report **never call Render** — they always use in-process code.
+
+### Analogy for management
+
+| Piece | Analogy |
+|-------|---------|
+| CSV files | Workbooks saved on the PC |
+| Streamlit | App you click through |
+| KPI Service | Summary / pivot table |
+| Rules | Formulas: IF value > threshold, flag issue |
+| Agents | Named macros (Handover, RLF, VoNR) |
+| Orchestrator | Manager combining all results |
+| Render | Separate website for chat/API — **not needed for this demo** |
+
+### 30-second script (no Render)
+
+1. “I start the dashboard on this machine — one command.”  
+2. “Data is preloaded — 15 CSV files, cells XYZ401–410.”  
+3. “Handover + XYZ401 — Python summarizes events into KPIs.”  
+4. “Charts = evidence; Handover Agent runs rules locally.”  
+5. “Findings show cause, confidence, fix steps — no cloud API.”  
+6. “RCA Report runs all experts the same way and ranks a final answer.”  
+
+---
+
+## 9. Cost and OpenAI (FAQ addendum)
+
+| Question | Answer |
+|----------|--------|
+| Does RCA use OpenAI tokens? | **Core RCA (findings, ranking, actions) — No.** Optional narrative report only if `OPENAI_API_KEY` set and checkbox ON. |
+| Does dashboard use Render? | **No** for Handover, RLF, RCA Report. Render hosts chat/API separately. |
+| Demo cost? | **Local CPU only** — read CSVs, run Python rules. No per-cell API charge. |
+| Zero-cost demo? | Leave `OPENAI_API_KEY` empty; uncheck “Generate narrative report” on RCA Report. |
+
+---
+
+## 10. Manager FAQ
 
 | Question | Answer |
 |----------|--------|
@@ -346,10 +468,12 @@ pages/8_RCA_Report.py
 | Can we trust it? | Every finding has evidence and a rule ID — auditable. |
 | Real network later? | Replace CSVs with real PM/FM exports; same agents and rules. |
 | Business value? | Faster RCA, one view across domains, consistent recommendations. |
+| Uses Render backend? | **No** for dashboard demo — local Streamlit + CSV + Python rules. |
+| OpenAI cost? | **$0** unless optional narrative report enabled with API key. |
 
 ---
 
-## 9. Five-minute live demo script
+## 11. Five-minute live demo script
 
 | Minute | Action | What to say |
 |--------|--------|-------------|
@@ -365,7 +489,7 @@ pages/8_RCA_Report.py
 
 ---
 
-## 10. Architecture diagram
+## 12. Architecture diagram
 
 ```mermaid
 flowchart TB
@@ -385,6 +509,6 @@ flowchart TB
 
 ---
 
-## 11. One-sentence summary
+## 13. One-sentence summary
 
 > **We preload demo network data in CSV files; when you pick a cell, the system summarizes it into KPIs, runs telecom expert rules through RCA agents, and delivers a ranked root cause with evidence, confidence, and fix steps — Handover page shows one expert, RCA Report shows the full team.**
