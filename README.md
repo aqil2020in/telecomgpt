@@ -7,6 +7,7 @@ planning, tool use, vector memory, RAG, analytics, and **PowerPoint report** gen
 
 See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full next-gen diagram (orchestrator, agents, memory, tools, PPT).  
 **RCA agent guide (Handover example):** [docs/RCA_AGENT_END_TO_END_HANDOVER.md](docs/RCA_AGENT_END_TO_END_HANDOVER.md)  
+**TNIC dashboard data flow (sidebar pages):** [docs/TNIC_DASHBOARD_DATA_FLOW.md](docs/TNIC_DASHBOARD_DATA_FLOW.md)  
 **TNIC platform overview (PDF):** [docs/XYZ Telecom TNIC.pdf](docs/XYZ%20Telecom%20TNIC.pdf)
 
 ```

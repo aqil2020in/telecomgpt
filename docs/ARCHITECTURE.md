@@ -4,7 +4,7 @@ Domain-specific multi-agent AI for **5G/LTE RF & Test Engineering**: Adaptive RA
 
 **Deployed:** Vercel UI · Render API · TNIC RCA · dataset-driven KPIs · agent trace (PR #5) · standalone `xyz_tnic/` (PR #6)
 
-See also: **[ORCHESTRATION.md](./ORCHESTRATION.md)** · **[RCA_AGENT_END_TO_END_HANDOVER.md](./RCA_AGENT_END_TO_END_HANDOVER.md)** · **[xyz_tnic/README.md](../xyz_tnic/README.md)** · **[xyz_tnic/API.md](../xyz_tnic/API.md)** · **[DEMO_MANAGER.md](./DEMO_MANAGER.md)**
+See also: **[ORCHESTRATION.md](./ORCHESTRATION.md)** · **[RCA_AGENT_END_TO_END_HANDOVER.md](./RCA_AGENT_END_TO_END_HANDOVER.md)** · **[TNIC_DASHBOARD_DATA_FLOW.md](./TNIC_DASHBOARD_DATA_FLOW.md)** · **[xyz_tnic/README.md](../xyz_tnic/README.md)** · **[xyz_tnic/API.md](../xyz_tnic/API.md)** · **[DEMO_MANAGER.md](./DEMO_MANAGER.md)**
 
 ---
 
