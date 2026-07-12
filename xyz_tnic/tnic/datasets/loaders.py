@@ -39,6 +39,7 @@ __all__ = [
     "load_vonr_sessions",
     "load_alarm_events",
     "load_ue_protocol_trace",
+    "load_telecom_issues",
     "load_all_dataframes",
     "load_assurance_dataframes",
     "rows_as_models",
@@ -153,8 +154,21 @@ def load_ue_protocol_trace(path: str | None = None) -> pd.DataFrame:
     return df
 
 
+@lru_cache(maxsize=1)
+def load_telecom_issues(path: str | None = None) -> pd.DataFrame:
+    """Unified telecom issues dataset (all RCA domains in one CSV)."""
+    p = Path(path) if path else datasets_dir() / DATASET_FILES[DatasetName.TELECOM_ISSUES]
+    if not p.exists():
+        raise FileNotFoundError(f"Dataset not found: {p}")
+    df = pd.read_csv(p)
+    df.columns = [c.strip().lower() for c in df.columns]
+    if "timestamp" in df.columns:
+        df["timestamp"] = pd.to_datetime(df["timestamp"], errors="coerce")
+    return df
+
+
 def load_all_dataframes() -> dict[str, pd.DataFrame]:
-    return {
+    out = {
         "pm_counters": load_pm_counters(),
         "handover_events": load_handover_events(),
         "rlf_events": load_rlf_events(),
@@ -169,6 +183,11 @@ def load_all_dataframes() -> dict[str, pd.DataFrame]:
         "alarm_events": load_alarm_events(),
         "ue_protocol_trace": load_ue_protocol_trace(),
     }
+    try:
+        out["telecom_issues"] = load_telecom_issues()
+    except FileNotFoundError:
+        pass
+    return out
 
 
 def load_assurance_dataframes() -> dict[str, pd.DataFrame]:
@@ -230,3 +249,4 @@ def clear_loader_cache() -> None:
     load_vonr_sessions.cache_clear()
     load_alarm_events.cache_clear()
     load_ue_protocol_trace.cache_clear()
+    load_telecom_issues.cache_clear()

@@ -10,6 +10,7 @@ from tnic.models.upload_models import UploadIngestResult, UploadRCAResult
 from tnic.orchestrator.rca_orchestrator import MasterRCAOrchestrator
 from tnic.services.event_repository import load_events, load_manifest
 from tnic.services.events_kpi_bridge import kpis_from_events, merge_kpis
+from tnic.datasets.telecom_issues import build_rca_query_from_issues, detect_key_issues
 from tnic.services.ingest_pipeline import ingest_uploaded_bytes
 
 
@@ -45,7 +46,8 @@ def run_dynamic_rca(
     event_kpis = kpis_from_events(events, cid)
 
     merged = dict(event_kpis)
-    if include_bundled_kpis and cid:
+    is_unified = manifest.file_type == "TELECOM_ISSUES" or bool(event_kpis.get("telecom_issues_sources"))
+    if include_bundled_kpis and cid and not is_unified:
         try:
             bundled = compute_cell_kpis(cid).kpis
             merged = merge_kpis(bundled, event_kpis)
@@ -58,6 +60,8 @@ def run_dynamic_rca(
         merged["ue_id"] = ue_id.upper()
 
     q = query or _default_query(workflow, manifest, cid, ue_id, events)
+    if not query and event_kpis.get("key_issues"):
+        q = build_rca_query_from_issues(event_kpis["key_issues"], cid)
 
     fields = KPIInput.model_fields
     payload = {k: v for k, v in merged.items() if k in fields and v is not None}
@@ -128,6 +132,8 @@ def _default_query(
         base = f"UE protocol trace failure analysis cell {cell_id}"
     elif manifest.file_type == "GNB_SYSLOG":
         base = f"gNB syslog correlation cell {cell_id}"
+    elif manifest.file_type == "TELECOM_ISSUES":
+        base = f"telecom issues unified RCA cell {cell_id}"
     elif manifest.file_type == "RF_MEASUREMENT":
         base = f"RF coverage analysis cell {cell_id}"
     elif fails:

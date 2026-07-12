@@ -12,16 +12,39 @@ import streamlit as st
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from dashboard.dashboard_utils import dataset_cells, default_cell, run_rca
+from dashboard.dashboard_utils import dataset_cells, default_cell, run_rca, run_rca_from_upload
 
 st.set_page_config(page_title="RCA Report", layout="wide")
 st.title("🔍 RCA Report")
 st.caption("Master orchestrator — multi-agent root cause analysis and narrative report")
 
+data_source = st.radio(
+    "Data source",
+    ["Preloaded datasets", "Upload telecom_issues.csv"],
+    horizontal=True,
+    help="Upload a unified CSV with issue_domain column (handover, rlf, vonr, …) for upload-driven RCA.",
+)
+
+uploaded_file = None
+upload_bytes = None
+if data_source == "Upload telecom_issues.csv":
+    st.info(
+        "Upload **telecom_issues.csv** — one file with columns: "
+        "`timestamp, cell_id, ue_id, issue_domain, event_type, result, cause, rsrp, sinr, …`"
+    )
+    uploaded_file = st.file_uploader(
+        "telecom_issues.csv",
+        type=["csv", "xlsx", "xls"],
+        help="Generate from repo: python scripts/generate_telecom_issues.py",
+    )
+    if uploaded_file is not None:
+        upload_bytes = uploaded_file.getvalue()
+
 cells = dataset_cells()
 cell_id = st.selectbox("Cell", cells, index=cells.index(default_cell()) if default_cell() in cells else 0)
 
 PRESETS = {
+    "Auto-detect from upload": "telecom RCA auto detect cell {cell}",
     "Call drop": "Root cause call drop cell {cell}",
     "Handover failure": "handover failure cell {cell}",
     "RLF coverage hole": "RLF coverage hole cell {cell}",
@@ -37,11 +60,51 @@ PRESETS = {
 }
 preset = st.selectbox("Demo preset", list(PRESETS.keys()))
 query = st.text_input("Query", value=PRESETS[preset].format(cell=cell_id))
-generate_report = st.checkbox("Generate structured narrative report", value=True)
+generate_report = st.checkbox("Generate structured narrative report", value=False)
 
 if st.button("Run Master RCA", type="primary"):
+    if data_source == "Upload telecom_issues.csv" and not upload_bytes:
+        st.error("Upload telecom_issues.csv first.")
+        st.stop()
+
     with st.spinner("Running specialist agents..."):
-        result = run_rca(cell_id, query, generate_report=generate_report)
+        if data_source == "Upload telecom_issues.csv" and upload_bytes:
+            payload = run_rca_from_upload(
+                uploaded_file.name,
+                upload_bytes,
+                cell_id=cell_id,
+                query=query,
+                generate_report=generate_report,
+            )
+            key_issues = payload.get("key_issues") or []
+            rca_raw = payload.get("rca") or {}
+            from tnic.models.schemas import RCAResponse
+
+            result = RCAResponse.model_validate(rca_raw) if rca_raw.get("issue_type") else None
+            if result is None and isinstance(rca_raw, dict) and rca_raw.get("findings"):
+                result = RCAResponse.model_validate(rca_raw)
+        else:
+            result = run_rca(cell_id, query, generate_report=generate_report)
+            key_issues = []
+
+    if key_issues:
+        st.subheader("Key issues detected (from upload)")
+        st.dataframe(
+            pd.DataFrame([
+                {
+                    "domain": i.get("domain"),
+                    "issue": i.get("title"),
+                    "summary": i.get("summary"),
+                    "severity": i.get("severity"),
+                }
+                for i in key_issues
+            ]),
+            use_container_width=True,
+        )
+
+    if result is None:
+        st.error("RCA did not return results. Check upload format (issue_domain + event_type columns).")
+        st.stop()
 
     st.success(f"Issue domain: **{result.issue_type}** · Health: **{result.health_score}/100**")
     st.write("**Agents:**", " → ".join(result.agents_run))

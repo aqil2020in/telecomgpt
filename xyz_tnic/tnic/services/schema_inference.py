@@ -29,6 +29,11 @@ FIELD_ALIASES: dict[str, tuple[str, ...]] = {
     "counter_name": ("counter_name", "counter", "kpi_name", "metric_name"),
     "counter_value": ("counter_value", "value", "kpi_value", "metric_value"),
     "alarm_name": ("alarm_name", "alarm", "alarm_type", "fault_name"),
+    "issue_domain": ("issue_domain", "telecom_domain", "domain", "issue_type", "rca_domain"),
+    "event_type": ("event_type", "failure_type", "drop_type", "msg_failure", "issue", "event_subtype"),
+    "failure_type": ("failure_type", "ho_failure", "ho_result"),
+    "drop_type": ("drop_type", "drop_reason"),
+    "msg_failure": ("msg_failure", "rach_failure"),
     "source_cell": ("source_cell", "serving_cell", "src_cell"),
     "target_cell": ("target_cell", "neighbor_cell", "tgt_cell"),
 }

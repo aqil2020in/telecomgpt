@@ -339,6 +339,36 @@ def run_rca(cell_id: str, query: str, generate_report: bool = False) -> Any:
     return MasterRCAOrchestrator().run(req)
 
 
+def run_rca_from_upload(
+    filename: str,
+    content: bytes,
+    *,
+    cell_id: str | None = None,
+    query: str = "",
+    generate_report: bool = False,
+) -> dict[str, Any]:
+    """Ingest unified telecom_issues CSV and run Master RCA on uploaded data."""
+    from tnic.datasets.telecom_issues import detect_key_issues
+    from tnic.services.dynamic_rca import ingest_and_run_rca
+    from tnic.services.events_kpi_bridge import kpis_from_events
+    from tnic.services.event_repository import load_events
+
+    out = ingest_and_run_rca(
+        filename,
+        content,
+        cell_id=cell_id,
+        query=query,
+        generate_report=generate_report,
+    )
+    payload = out.model_dump()
+    ingest = out.ingest
+    if ingest and ingest.upload_id:
+        events = load_events(ingest.upload_id, cell_id=out.cell_id)
+        kpis = kpis_from_events(events, out.cell_id)
+        payload["key_issues"] = kpis.get("key_issues") or detect_key_issues(kpis, events)
+    return payload
+
+
 def worst_cells(n: int = 5) -> list[str]:
     try:
         cluster = compute_cluster_kpis()
