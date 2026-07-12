@@ -62,22 +62,101 @@ flowchart TB
     LG --> OAI
     API --> Next
 
-    TNIC_API -.-> TNIC
-    ST_DASH -.-> TNIC
+    TNIC_API -.->|"optional API call"| TNIC
+    ST_DASH -.->|"same engine in-process OR optional API"| TNIC
     KPI -.-> DS6
 ```
+
+> **Note on dotted lines:** `xyz_tnic/` (Streamlit dashboard) **does not always call Render**. In the **local demo**, Streamlit runs `xyz_tnic/tnic/` **in-process** on your machine and reads `datasets/` from disk. Dotted lines mean *same RCA logic / optional HTTP connection*, not *required dependency on Render*.
 
 | Layer | Where | Role |
 | --- | --- | --- |
 | **UI (primary)** | Vercel | Chat, demo chips, agent trace (LangGraph plan + TNIC agents) |
-| **UI (TNIC standalone)** | `xyz_tnic/dashboard/app.py` | Streamlit RCA dashboard — Docker/local |
+| **UI (TNIC standalone)** | `xyz_tnic/dashboard/app.py` | Streamlit RCA dashboard — **local**, Docker, or Render |
 | **UI (analytics)** | `analytics/app.py` | CSV/log charts — optional |
 | **API + brain** | Render 2GB | FastAPI · LangGraph + TNIC + dataset APIs |
-| **TNIC RCA** | `backend/tnic/` | 13 rule agents + Master RCA Orchestrator |
-| **Dataset layer** | `backend/tnic/datasets/` | Loaders · validation · KPI merge from 6 CSVs |
+| **TNIC RCA** | `backend/tnic/` (Render) or `xyz_tnic/tnic/` (local dashboard) | 13 rule agents + Master RCA Orchestrator |
+| **Dataset layer** | `tnic/datasets/` — CSVs on disk wherever the process runs | Loaders · validation · KPI merge |
 | **LLM** | OpenAI | Synthesizer agent; optional TNIC narrative reports |
 
 **Production URLs:** API `https://telecomgpt.onrender.com` · UI `https://telecomgpt.vercel.app`
+
+---
+
+## 1.1 Deployment vs local Streamlit demo (important)
+
+The diagram in §1 shows **all product components** and **production deployment** on Render. That is **correct for the chat/API path**. The **Streamlit RCA dashboard** can also run **standalone on a demo machine** without calling Render. **Same codebase, two runtime modes.**
+
+### Three runtime modes
+
+| Mode | Who uses it | UI runs on | RCA + KPI + CSVs run on | Uses Render? |
+| --- | --- | --- | --- | --- |
+| **A — Production chat** | Engineers via Vercel | Vercel | **Render** (`backend/tnic/`, `TNIC_DATASETS_DIR=../datasets`) | **Yes** |
+| **B — Local Streamlit demo** | Management / NOC demo | **Your machine** | **Your machine** (`xyz_tnic/tnic/`, `./datasets/` on disk) | **No** |
+| **C — TNIC on Render** | Optional hosted TNIC | Render (Docker) | **Render** (`xyz_tnic/`, `/app/data/datasets`) | **Yes** (TNIC services) |
+
+### Mode A — Production chat (diagram Render box)
+
+```
+User → Vercel (telecomgpt.vercel.app)
+     → Render (telecomgpt.onrender.com)
+     → backend/tnic/ ON RENDER
+     → datasets/ bundled IN RENDER container
+     → KPI service + agents ON RENDER
+```
+
+**Manager takeaway:** For **TelecomGPT chat**, Render **does** host the RCA engine, KPI service, and CSV datasets.
+
+### Mode B — Local Streamlit demo (default for sidebar pages)
+
+```
+User → Browser (localhost:8502)
+     → streamlit run xyz_tnic/dashboard/app.py ON YOUR MACHINE
+     → xyz_tnic/tnic/ IN SAME PYTHON PROCESS
+     → datasets/ ON YOUR DISK (repo clone)
+     → KPI service + agents IN PROCESS — no HTTP to Render
+```
+
+**Start command:**
+
+```bash
+cd xyz_tnic
+export TNIC_DATASETS_DIR=/path/to/repo/datasets   # optional; defaults to ./datasets
+streamlit run dashboard/app.py --server.port 8502
+```
+
+**Pages that stay 100% local:** Handover, RLF, VoNR, Call Drops, RACH, Throughput, RCA Report, Assurance Hub, etc. They call `dashboard_utils.py` → `loaders.py` → `kpi_service.py` → agents/rules **in-process**.
+
+**Optional Render use:** Upload page only — sidebar API URL can be set to `https://telecomgpt.onrender.com/api/v1`; if unreachable, **falls back to local Python**.
+
+### Mode C — TNIC deployed on Render (`xyz_tnic/render.yaml`)
+
+Separate Render services can host `xyz_tnic` API + Streamlit dashboard with datasets at `/app/data/datasets`. This is **optional**; not the same service as `telecomgpt-api` unless configured.
+
+### Same brain, two copies in the repo
+
+| Code copy | Used when |
+| --- | --- |
+| `backend/tnic/` | Render TelecomGPT API (`backend/app.py`) |
+| `xyz_tnic/tnic/` | Streamlit dashboard (local or Docker) |
+
+Both implement the same agents, rules, loaders, and KPI merge. **Data** is the same files under repo root `datasets/` — copied to whichever environment runs the process.
+
+### Reconciliation table (answers “Render has all data” vs “runs on my machine”)
+
+| Question | Chat / API on Render | Local Streamlit demo |
+| --- | --- | --- |
+| Where is RCA engine? | **Render** | **Your machine** |
+| Where are CSVs? | **Render container** (bundled at deploy) | **Your disk** (`datasets/`) |
+| Where is KPI service? | **Render** | **Your machine** |
+| OpenAI required? | Often (LangGraph chat) | **No** for core RCA (optional narrative only) |
+| Diagram §1 applies? | **Yes** | **Partially** — use Mode B above |
+
+### What to tell management
+
+> “The architecture diagram shows **production**: chat on Vercel talks to **Render**, and Render hosts RCA, KPIs, and datasets. Our **Streamlit dashboard demo** uses the **same logic and same CSV files** from the GitHub repo, but runs **locally on the demo laptop** — it does not need Render for Handover, RLF, or RCA Report. Same expert checklists; two ways to run them.”
+
+**See also:** [RCA_MANAGER_EXPLAINER.md](./RCA_MANAGER_EXPLAINER.md) §8 · [TNIC_DASHBOARD_DATA_FLOW.md](./TNIC_DASHBOARD_DATA_FLOW.md)
 
 ---
 

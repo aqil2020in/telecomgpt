@@ -204,6 +204,9 @@ def build_pdf() -> Path:
     pdf.body("Handover trace: Browser -> 2_Handover.py -> loaders -> kpi_service -> HOAgent -> findings")
     pdf.body("NOT on your machine for demo: Render API, live OSS. OpenAI optional only.")
     pdf.body("Machines involved: 1. Cloud services: 0.")
+    pdf.ln(1)
+    pdf.body("ARCHITECTURE diagram shows PRODUCTION (Render has RCA + data for chat).")
+    pdf.body("Local Streamlit demo (Mode B) uses same code/CSVs on YOUR machine - both true.")
 
     pdf.add_page()
     pdf.section("7. Handover vs RCA Report")

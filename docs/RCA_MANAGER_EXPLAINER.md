@@ -5,7 +5,7 @@
 **Demo cells:** XYZ401–XYZ410  
 **Last updated:** 2026-07-12 (expanded “What runs where” table)
 
-**Related:** [TNIC_FULL_IMPLEMENTATION_OVERVIEW.md](./TNIC_FULL_IMPLEMENTATION_OVERVIEW.md) · [TNIC_DASHBOARD_DATA_FLOW.md](./TNIC_DASHBOARD_DATA_FLOW.md) · [RCA_MANAGER_EXPLAINER.pdf](./RCA_MANAGER_EXPLAINER.pdf)
+**Related:** [TNIC_FULL_IMPLEMENTATION_OVERVIEW.md](./TNIC_FULL_IMPLEMENTATION_OVERVIEW.md) · [TNIC_DASHBOARD_DATA_FLOW.md](./TNIC_DASHBOARD_DATA_FLOW.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) §1.1 · [RCA_MANAGER_EXPLAINER.pdf](./RCA_MANAGER_EXPLAINER.pdf)
 
 ---
 
@@ -403,6 +403,8 @@ Optional: narrative paragraph via OpenAI **only if** API key set and report chec
 | **TelecomGPT chat/API** | Browser → Vercel → Render API → TNIC rules → Answer | **Yes** |
 
 Same RCA logic lives in `xyz_tnic/tnic/` (dashboard) and `backend/tnic/` (Render API). Different **entry point**, same **expert checklists**.
+
+> **Aligns with [ARCHITECTURE.md](./ARCHITECTURE.md) §1.1:** The §1 diagram shows Render hosting RCA + datasets for **production chat**. The **local Streamlit demo (Mode B)** runs the same engine on your machine — both statements are true for different runtime modes.
 
 ### What runs where — how and where (expanded)
 
