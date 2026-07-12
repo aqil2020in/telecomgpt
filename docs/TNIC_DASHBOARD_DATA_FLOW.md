@@ -2,9 +2,9 @@
 
 **Audience:** NPI engineers, management demos, developers  
 **Platform:** XYZ Telecom Network Intelligence Copilot (TNIC)  
-**Last updated:** 2026-07-12
+**Last updated:** 2026-07-12 (demo cells section added)
 
-**Related:** [RCA_AGENT_END_TO_END_HANDOVER.md](./RCA_AGENT_END_TO_END_HANDOVER.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [xyz_tnic/README.md](../xyz_tnic/README.md)
+**Related:** [RCA_AGENT_END_TO_END_HANDOVER.md](./RCA_AGENT_END_TO_END_HANDOVER.md) · [ARCHITECTURE.md](./ARCHITECTURE.md) · [TNIC_FULL_IMPLEMENTATION_OVERVIEW.md](./TNIC_FULL_IMPLEMENTATION_OVERVIEW.md) · [xyz_tnic/README.md](../xyz_tnic/README.md)
 
 ---
 
@@ -72,7 +72,125 @@ Resolution logic: `tnic/datasets/registry.py` → `datasets_dir()`
 
 ---
 
-## 3. CSV file → sidebar page mapping
+## 3. How demo cells XYZ401–XYZ410 were populated
+
+The dashboard shows **10 demo cells** (`XYZ401` through `XYZ410`). You do **not** enter KPI or event data for each cell through the Streamlit UI. All ten cells are **preloaded in synthetic CSV files** that ship with the repository.
+
+### What “input” means in the dashboard
+
+| Your action in the UI | What happens under the hood |
+|-----------------------|------------------------------|
+| Select **Focus cell** / **Cell** in the dropdown | Filter preloaded CSV rows where `cell_id` (or `source_cell`) matches |
+| Open Handover, RLF, VoNR, etc. | Load charts/tables from those filtered rows |
+| Click through to agent findings | Rules run on KPIs merged from all CSVs for that cell |
+| **Upload** page or home simulation | **Separate path** — one user file at a time; does not auto-fill all 10 cells |
+
+For the standard management demo, **your only input is cell selection**.
+
+### How the 10 cells got into the CSVs
+
+Data was created **offline during development**, not typed into the dashboard:
+
+```mermaid
+flowchart LR
+    GEN["Synthetic CSV generation\n+ remediation scripts"]
+    GIT["Committed to GitHub\n/workspace/datasets/"]
+    LOAD["Streamlit loaders\n@lru_cache"]
+    UI["User selects XYZ401-410"]
+
+    GEN --> GIT --> LOAD --> UI
+```
+
+1. **Initial datasets** — mobility, PM, and assurance CSVs added to `/workspace/datasets/` with a `cell_id` column on every row (values `XYZ401` … `XYZ410` where applicable).
+2. **Remediation** — `scripts/remediate_datasets.py` fixes/enriches rows (HO failure mix, RLF causes, throughput issue labels, PM timestamp dedup). Copies synced to `xyz_tnic/data/datasets/` and `backend/data/datasets/`.
+3. **Handover enrichment** — `scripts/enrich_handover_events.py` builds `handover_events_enriched.csv` (RSRP/SINR, failure stage, RCA scenarios) from raw `handover_events.csv`.
+
+Regenerate after editing raw handover data:
+
+```bash
+python3 scripts/enrich_handover_events.py
+python3 scripts/remediate_datasets.py   # optional full remediation pass
+```
+
+### Cell coverage per CSV file
+
+Not every assurance file has all 10 cells; core mobility/PM files do. The KPI merge layer uses whatever is available per cell.
+
+| CSV file | Cells present (typical) |
+|----------|-------------------------|
+| `pm_counters.csv` | **10** (XYZ401–410) |
+| `handover_events.csv` / `handover_events_enriched.csv` | **10** |
+| `rlf_events.csv` | **10** |
+| `rach_events.csv` | **10** |
+| `call_drop_events.csv` | **10** |
+| `throughput_metrics.csv` | **10** |
+| `vonr_sessions.csv` | 3 (subset) |
+| `alarm_events.csv` | 3 (subset) |
+| `gnb_syslog.csv` | 3 (subset) |
+| `anr_events.csv` | 3 (subset) |
+| `cell_configuration.csv` | 3 (subset) |
+| `ue_protocol_trace.csv` | 1 (subset) |
+| `enhanced_geospatial_rf_dataset.csv` | 3 (subset) |
+
+Example row shape in `pm_counters.csv`:
+
+```csv
+timestamp,cell_id,ho_attempt,rach_attempt,dl_tp,ul_tp,cqi,ho_success,rach_success
+2026-07-01 00:00:00,XYZ401,1941,401,447,41,8,1554,341
+2026-07-01 00:00:00,XYZ402,1992,340,321,35,5,1675,272
+```
+
+Handover events use `source_cell` (or `cell_id`) the same way — each event row is tagged with one of the demo cells.
+
+### How the dashboard discovers the cell list
+
+Cells are **not** hard-coded in every page. They are collected from loaded CSVs:
+
+```python
+# tnic/datasets/kpi_service.py → list_cell_ids()
+# Unions unique cell_id values across all loaders
+```
+
+The dropdown order is normalized to the demo range:
+
+```python
+# dashboard/dashboard_utils.py
+DEMO_CELLS = [f"XYZ{i}" for i in range(401, 411)]  # XYZ401 … XYZ410
+```
+
+`dataset_cells()` returns `DEMO_CELLS` that exist in the CSVs, plus any extras found in data.
+
+### What happens when you pick e.g. XYZ405
+
+1. `compute_cell_kpis("XYZ405")` — merge PM, HO, RLF, RACH, drops, throughput, assurance for that cell
+2. `handover_df("XYZ405")` — filter handover events where `source_cell == "XYZ405"`
+3. `run_agent("handover", "XYZ405")` — HO rules evaluate merged KPIs
+4. Charts and tables show only rows for XYZ405
+
+The same pattern applies to every cell in the dropdown — data is **already in the CSV**, filtered by your selection.
+
+### Preloaded vs upload data (important)
+
+| Path | Scope | Used by |
+|------|-------|---------|
+| **Preloaded CSVs** | All 10 cells (where present in each file) | Handover, RLF, VoNR, home KPIs, RCA Report |
+| **User upload** | One upload session at a time | Upload page, Dataset Simulation on home |
+
+Upload KPIs are **merged** with bundled cell KPIs for dynamic RCA but do **not** replace preloaded sidebar data unless you copy files into `datasets/`.
+
+### How to add or change data for all 10 cells
+
+| Goal | Action |
+|------|--------|
+| Edit demo data | Change CSVs under `/workspace/datasets/` (keep `cell_id` / `source_cell` column) |
+| Refresh handover enrichment | `python3 scripts/enrich_handover_events.py` then restart Streamlit |
+| Run remediation scripts | `python3 scripts/remediate_datasets.py` |
+| Use real OSS exports later | Point `TNIC_DATASETS_DIR` at a folder of PM/FM/CM CSVs with the same schema |
+| Per-session test file | Upload page — does not populate all 10 cells automatically |
+
+---
+
+## 4. CSV file → sidebar page mapping
 
 | Sidebar page | Primary CSV file(s) | Loader function |
 |--------------|---------------------|-----------------|
@@ -98,7 +216,7 @@ Full registry: `tnic/datasets/registry.py` → `DATASET_FILES`
 
 ---
 
-## 4. End-to-end flow (Handover example)
+## 5. End-to-end flow (Handover example)
 
 What you see on **Handover → XYZ401**:
 
@@ -142,7 +260,7 @@ The same pattern applies to **RLF**, **VoNR**, **UE Protocol**, etc.: `{domain}_
 
 ---
 
-## 5. Key code modules
+## 6. Key code modules
 
 | Layer | Path | Role |
 |-------|------|------|
@@ -173,7 +291,7 @@ Output: `datasets/handover_events_enriched.csv`
 
 ---
 
-## 6. Two data ingestion paths
+## 7. Two data ingestion paths
 
 ### Path A — Preloaded (default for sidebar pages)
 
@@ -194,7 +312,7 @@ Output: `datasets/handover_events_enriched.csv`
 
 ---
 
-## 7. Architecture diagram
+## 8. Architecture diagram
 
 ```mermaid
 flowchart TB
@@ -232,7 +350,7 @@ flowchart TB
 
 ---
 
-## 8. Backend API (optional)
+## 9. Backend API (optional)
 
 The FastAPI app exposes the same RCA engine over REST:
 
@@ -251,7 +369,7 @@ Streamlit sidebar pages **read CSVs directly** unless the Upload page is configu
 
 ---
 
-## 9. How to refresh or replace demo data
+## 10. How to refresh or replace demo data
 
 | Goal | Action |
 |------|--------|
@@ -263,7 +381,7 @@ Streamlit sidebar pages **read CSVs directly** unless the Upload page is configu
 
 ---
 
-## 10. Start commands
+## 11. Start commands
 
 ```bash
 # TNIC Streamlit dashboard (sidebar pages)
@@ -277,8 +395,9 @@ uvicorn tnic.main:app --host 0.0.0.0 --port 8000
 
 ---
 
-## 11. Management demo talking points
+## 12. Management demo talking points
 
+- Demo cells **XYZ401–XYZ410** are **preloaded in CSV files** — the dropdown only selects a cell; data is not entered manually in the UI.
 - Sidebar pages show **representative synthetic telecom data** — same structure as field logs and OSS exports.
 - KPIs and charts come from **real CSV loaders and rule engines**, not hard-coded UI numbers.
 - **Upload path** demonstrates the future workflow: classify → agents → Master RCA → recommendations.
