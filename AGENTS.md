@@ -49,7 +49,7 @@ Uses `xyz_tnic/requirements-dashboard.txt` (lightweight; no Chroma). Sidebar pag
 
 ### Cursor training
 
-See `docs/CURSOR_TRAINING.md` for concepts, tutorials, best practices, and a manager track using this repo.
+See `docs/CURSOR_REFERENCE.md` (one-page guide) and `docs/CURSOR_TRAINING.md` (tutorials and workshop) for Cursor best practices on this repo.
 
 ### Tests / lint
 
