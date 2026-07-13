@@ -5,6 +5,7 @@
 #   ./scripts/demo_tnic_local.sh              # install deps + start dashboard
 #   ./scripts/demo_tnic_local.sh --no-install # skip pip install
 #   ./scripts/demo_tnic_local.sh --port 8502
+#   ./scripts/demo_tnic_local.sh --open       # start + open browser (local) or Cursor Browser hint (cloud)
 #
 # Manager demo: Handover → XYZ401 → RCA Report (uncheck OpenAI narrative)
 # Docs: docs/DEMO_TNIC_LOCAL_MANAGER.md
@@ -15,14 +16,48 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 TNIC="$ROOT/xyz_tnic"
 PORT="${PORT:-8502}"
 SKIP_INSTALL=0
+OPEN_BROWSER=0
+
+open_demo_url() {
+  local url="$1"
+  if [[ -n "${CURSOR_AGENT:-}" || -n "${CURSOR_CLOUD_AGENT:-}" ]]; then
+    echo ""
+    echo "  Cloud Agent: open Cursor Browser → ${url}"
+    echo "  (Your laptop browser cannot reach this VM's localhost.)"
+    return 0
+  fi
+  if command -v xdg-open >/dev/null 2>&1; then
+    xdg-open "$url" >/dev/null 2>&1 &
+  elif command -v open >/dev/null 2>&1; then
+    open "$url"
+  elif command -v start >/dev/null 2>&1; then
+    start "$url"
+  else
+    "$PY" -m webbrowser "$url" >/dev/null 2>&1 || true
+  fi
+}
+
+wait_for_dashboard() {
+  local url="$1"
+  local i
+  for i in $(seq 1 60); do
+    if curl -sf "$url" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+  done
+  echo "WARNING: Dashboard did not respond at ${url} within 60s; open it manually."
+  return 1
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --no-install) SKIP_INSTALL=1; shift ;;
+    --open) OPEN_BROWSER=1; shift ;;
     --port) PORT="${2:-8502}"; shift 2 ;;
     --port=*) PORT="${1#*=}"; shift ;;
     -h|--help)
-      echo "Usage: $0 [--no-install] [--port 8502]"
+      echo "Usage: $0 [--no-install] [--open] [--port 8502]"
       exit 0
       ;;
     *) shift ;;
@@ -92,8 +127,26 @@ echo ""
 echo "  Press Ctrl+C to stop."
 echo "=============================================="
 
-exec "$PY" -m streamlit run dashboard/app.py \
-  --server.port "$PORT" \
-  --server.address 0.0.0.0 \
-  --server.headless true \
+DEMO_URL="http://localhost:${PORT}"
+STREAMLIT_ARGS=(
+  -m streamlit run dashboard/app.py
+  --server.port "$PORT"
+  --server.address 0.0.0.0
+  --server.headless true
   --browser.gatherUsageStats false
+)
+
+if [[ "$OPEN_BROWSER" -eq 0 ]]; then
+  exec "$PY" "${STREAMLIT_ARGS[@]}"
+fi
+
+"$PY" "${STREAMLIT_ARGS[@]}" &
+STREAMLIT_PID=$!
+trap 'kill "$STREAMLIT_PID" 2>/dev/null || true' EXIT INT TERM
+
+if wait_for_dashboard "$DEMO_URL"; then
+  echo "==> Opening demo dashboard..."
+  open_demo_url "$DEMO_URL"
+fi
+
+wait "$STREAMLIT_PID"

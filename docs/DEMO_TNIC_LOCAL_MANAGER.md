@@ -30,25 +30,26 @@ From repo root:
 
 ```bash
 chmod +x scripts/demo_tnic_local.sh
-./scripts/demo_tnic_local.sh
+./scripts/demo_tnic_local.sh --open
 ```
 
-Open: **http://localhost:8502**
+Open: **http://localhost:8502** (or use `--open` to launch your local browser automatically)
 
 Options:
 
 ```bash
-./scripts/demo_tnic_local.sh --port 8501
-./scripts/demo_tnic_local.sh --no-install   # after first run
+./scripts/demo_tnic_local.sh --open --no-install   # start + open browser (fast repeat)
+./scripts/demo_tnic_local.sh --port 8503
+./scripts/demo_tnic_local.sh --no-install           # terminal only, no auto-open
 ```
 
 ### Cursor Cloud Agent (“cloud PC”)
 
 On a **Cloud Agent VM**, `localhost` in your **personal PC browser** is not the agent machine. Use **Cursor Browser** (sidebar) after starting the demo:
 
-1. In the agent terminal: `./scripts/demo_tnic_local.sh --no-install`
+1. In the agent terminal: `./scripts/demo_tnic_local.sh --open --no-install`
 2. Leave that terminal running (Streamlit binds to `0.0.0.0:8502`)
-3. Open **Cursor Browser** → `http://localhost:8502`
+3. Open **Cursor Browser** → `http://localhost:8502` (script prints this hint on Cloud Agent)
 4. Demo path: **Handover** → cell **XYZ401** → scroll to HO Agent findings
 
 If port 8502 is busy: `PORT=8503 ./scripts/demo_tnic_local.sh --no-install` and open that port in Cursor Browser instead.
