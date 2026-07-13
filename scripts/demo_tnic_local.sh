@@ -16,15 +16,16 @@ TNIC="$ROOT/xyz_tnic"
 PORT="${PORT:-8502}"
 SKIP_INSTALL=0
 
-for arg in "$@"; do
-  case "$arg" in
-    --no-install) SKIP_INSTALL=1 ;;
-    --port) shift; PORT="${1:-8502}" ;;
-    --port=*) PORT="${arg#*=}" ;;
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --no-install) SKIP_INSTALL=1; shift ;;
+    --port) PORT="${2:-8502}"; shift 2 ;;
+    --port=*) PORT="${1#*=}"; shift ;;
     -h|--help)
       echo "Usage: $0 [--no-install] [--port 8502]"
       exit 0
       ;;
+    *) shift ;;
   esac
 done
 

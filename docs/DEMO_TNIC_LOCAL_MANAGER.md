@@ -42,6 +42,17 @@ Options:
 ./scripts/demo_tnic_local.sh --no-install   # after first run
 ```
 
+### Cursor Cloud Agent (“cloud PC”)
+
+On a **Cloud Agent VM**, `localhost` in your **personal PC browser** is not the agent machine. Use **Cursor Browser** (sidebar) after starting the demo:
+
+1. In the agent terminal: `./scripts/demo_tnic_local.sh --no-install`
+2. Leave that terminal running (Streamlit binds to `0.0.0.0:8502`)
+3. Open **Cursor Browser** → `http://localhost:8502`
+4. Demo path: **Handover** → cell **XYZ401** → scroll to HO Agent findings
+
+If port 8502 is busy: `PORT=8503 ./scripts/demo_tnic_local.sh --no-install` and open that port in Cursor Browser instead.
+
 ---
 
 ## Manual start (alternative)
@@ -108,7 +119,8 @@ streamlit run dashboard/app.py --server.port 8502
 |-------|-----|
 | `streamlit: command not found` | Run `./scripts/demo_tnic_local.sh` (uses venv) or `python -m streamlit run ...` |
 | No cells in dropdown | Check `datasets/` exists and contains `pm_counters.csv` |
-| Port in use | `./scripts/demo_tnic_local.sh --port 8503` |
+| Port in use | `PORT=8503 ./scripts/demo_tnic_local.sh --no-install` |
+| Can't open localhost on laptop (Cloud Agent) | Use **Cursor Browser** in the agent session, not your PC browser |
 | Slow first start | First run installs deps; use `--no-install` after that |
 
 ---
