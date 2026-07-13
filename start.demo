@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# One-command TNIC RCA demo — start dashboard and open browser.
+#
+# Usage:
+#   ./start.demo                    # install deps (first run) + open browser
+#   ./start.demo --no-install       # skip pip install on repeat runs
+#   ./start.demo --port 8503        # alternate port
+#
+# Local desktop: opens http://localhost:8502 in your default browser.
+# Cloud Agent: prints Cursor Browser URL (your PC browser cannot reach the VM).
+#
+# Docs: docs/DEMO_TNIC_LOCAL_MANAGER.md
+
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+exec "$ROOT/scripts/demo_tnic_local.sh" --open "$@"

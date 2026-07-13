@@ -41,10 +41,10 @@ port the TNIC API is actually running on.
 For management demos **without Render or OpenAI**:
 
 ```bash
-./scripts/demo_tnic_local.sh --open
+./start.demo
 ```
 
-Open http://localhost:8502 — or pass `--open` to launch the browser on a local machine. On Cloud Agent, `--open` prints a Cursor Browser hint instead. Handover → XYZ401 → RCA Report. See `docs/DEMO_TNIC_LOCAL_MANAGER.md`.
+Opens http://localhost:8502 in your local browser (or prints a Cursor Browser hint on Cloud Agent). Handover → XYZ401 → RCA Report. See `docs/DEMO_TNIC_LOCAL_MANAGER.md`.
 Uses `xyz_tnic/requirements-dashboard.txt` (lightweight; no Chroma). Sidebar pages do not call Render.
 
 ### Cursor training
