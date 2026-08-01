@@ -1,14 +1,18 @@
 #!/usr/bin/env bash
-# One-command TNIC RCA demo — start dashboard and open browser.
+# One-command desktop launcher for the TNIC RCA dashboard.
 #
-# Usage:
-#   ./start.demo                    # install deps (first run) + open browser
-#   ./start.demo --no-install       # skip pip install on repeat runs
-#   ./start.demo --port 8503        # alternate port
+# Starts Streamlit locally and opens your default browser.
+# No Render. No OpenAI required for the core demo.
 #
-# Local desktop: opens http://localhost:8502 in your default browser.
-# Cloud Agent: prints Cursor Browser URL (your PC browser cannot reach the VM).
+# Usage (from repo root):
+#   ./start.demo                 # start + open browser (macOS / Linux / Windows)
+#   ./start.demo --port 8503     # alternate port if 8502 is busy
+#   ./start.demo --force-install # reinstall Python deps
 #
+# Windows (double-click or cmd):  start.demo.cmd
+# Cloud Agent: prints Cursor Browser URL instead of opening a laptop browser.
+#
+# Demo path: Handover → XYZ401 → RCA Report
 # Docs: docs/DEMO_TNIC_LOCAL_MANAGER.md
 
 set -euo pipefail

@@ -24,35 +24,43 @@ This is **Mode B** in [ARCHITECTURE.md §1.1](./ARCHITECTURE.md#11-deployment-vs
 
 ---
 
-## One-command start
+## One-command start (desktop)
 
-From repo root:
+From repo root — **one script** starts the RCA dashboard and opens your browser:
 
 ```bash
 chmod +x start.demo
 ./start.demo
 ```
 
-Open: **http://localhost:8502** ( `./start.demo` opens your local browser automatically; on Cloud Agent it prints a Cursor Browser hint )
+| OS | How to run |
+|----|------------|
+| **macOS / Linux** | `./start.demo` |
+| **Windows** | Double-click `start.demo.cmd` (needs Git Bash or WSL) |
+| **Cloud Agent** | `./start.demo` then open **Cursor Browser** → URL printed in terminal |
+
+Opens: **http://localhost:8502**
 
 Options:
 
 ```bash
-./start.demo --no-install              # fast repeat runs
-./start.demo --port 8503               # alternate port
-./scripts/demo_tnic_local.sh --no-install   # start without auto-open
+./start.demo --port 8503               # alternate port if 8502 is busy
+./start.demo --force-install           # reinstall Python deps
+./scripts/demo_tnic_local.sh           # start without auto-opening browser
 ```
+
+If the dashboard is already running, `./start.demo` reopens the browser and exits.
 
 ### Cursor Cloud Agent (“cloud PC”)
 
 On a **Cloud Agent VM**, `localhost` in your **personal PC browser** is not the agent machine. Use **Cursor Browser** (sidebar) after starting the demo:
 
-1. In the agent terminal: `./start.demo --no-install`
+1. In the agent terminal: `./start.demo`
 2. Leave that terminal running (Streamlit binds to `0.0.0.0:8502`)
 3. Open **Cursor Browser** → `http://localhost:8502` (script prints this hint on Cloud Agent)
 4. Demo path: **Handover** → cell **XYZ401** → scroll to HO Agent findings
 
-If port 8502 is busy: `PORT=8503 ./scripts/demo_tnic_local.sh --no-install` and open that port in Cursor Browser instead.
+If port 8502 is busy: `./start.demo --port 8503`
 
 ---
 
@@ -120,7 +128,8 @@ streamlit run dashboard/app.py --server.port 8502
 |-------|-----|
 | `streamlit: command not found` | Run `./scripts/demo_tnic_local.sh` (uses venv) or `python -m streamlit run ...` |
 | No cells in dropdown | Check `datasets/` exists and contains `pm_counters.csv` |
-| Port in use | `./start.demo --port 8503 --no-install` |
+| Port in use | `./start.demo --port 8503` (or reopen if already serving) |
+| Windows double-click fails | Install [Git for Windows](https://git-scm.com/download/win), then use `start.demo.cmd` or Git Bash `./start.demo` |
 | Can't open localhost on laptop (Cloud Agent) | Use **Cursor Browser** in the agent session, not your PC browser |
 | Slow first start | First run installs deps; use `--no-install` after that |
 
