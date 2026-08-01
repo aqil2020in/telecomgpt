@@ -2,7 +2,7 @@
 
 **Audience:** Developers and technical leads using this monorepo  
 **Repo:** [telecomgpt](https://github.com/aqil2020in/telecomgpt)  
-**Related:** [AGENTS.md](../AGENTS.md) · [LEARNING_SYLLABUS.md](./LEARNING_SYLLABUS.md) · [DEMO_TNIC_LOCAL_MANAGER.md](./DEMO_TNIC_LOCAL_MANAGER.md)
+**Related:** [CURSOR_REFERENCE.md](./CURSOR_REFERENCE.md) · [AGENTS.md](../AGENTS.md) · [LEARNING_SYLLABUS.md](./LEARNING_SYLLABUS.md) · [DEMO_TNIC_LOCAL_MANAGER.md](./DEMO_TNIC_LOCAL_MANAGER.md)
 
 ---
 
@@ -14,6 +14,7 @@
 | **Part 4** | Team leads running a half-day workshop |
 | **Part 5** | Managers who demo TNIC without coding |
 | **Part 6–7** | Everyone — prompt templates and cheat sheet |
+| **[CURSOR_REFERENCE.md](./CURSOR_REFERENCE.md)** | One-page rules, commands, tools, skills, models |
 
 **Mental model:** Cursor amplifies your engineering judgment. Treat AI output as a **first draft**, not finished production code.
 
@@ -431,7 +432,7 @@ LEARN ORDER:     Tab → Inline Edit → Chat → Agent
 CONTEXT:         @file  @folder  @codebase  @docs
 BIG WORKFLOW:    Plan → Rules → Scope → Execute → Review → Test → Commit
 THIS REPO:       AGENTS.md (ports, venv, demo commands)
-LOCAL TNIC DEMO: ./scripts/demo_tnic_local.sh  →  http://localhost:8502
+LOCAL TNIC DEMO: ./start.demo  →  http://localhost:8502
 UNIFIED CSV:     datasets/telecom_issues.csv  →  RCA Report upload
 SECURITY:        Privacy Mode · .cursorignore · no secrets in chat
 TEAM RULE:       Never merge AI code you don't understand
@@ -443,6 +444,7 @@ TEAM RULE:       Never merge AI code you don't understand
 
 | Doc | Focus |
 |-----|--------|
+| [CURSOR_REFERENCE.md](./CURSOR_REFERENCE.md) | One-page rules, commands, tools, skills, models |
 | [LEARNING_SYLLABUS.md](./LEARNING_SYLLABUS.md) | 12-week 5G RAN → AI curriculum on this codebase |
 | [ARCHITECTURE.md](./ARCHITECTURE.md) | System design, local vs Render |
 | [DEMO_TNIC_LOCAL_MANAGER.md](./DEMO_TNIC_LOCAL_MANAGER.md) | 5-min manager demo (no Render) |
